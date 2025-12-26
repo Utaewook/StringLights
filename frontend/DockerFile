@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json .
+# COPY package-lock.json . # Might not exist yet if npm install was not run on host
+
+# Install dependencies
+RUN npm install
+
+# Copy source
+COPY . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host"]

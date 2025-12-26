@@ -1,0 +1,11 @@
+# environment variables
+.env
+
+
+# log files
+logs/*
+
+# docker mount directories
+data/*
+model/*
+run/*
