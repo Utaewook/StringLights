@@ -10,6 +10,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - ./logs/frontend:/logs
     environment:
       - CHOKIDAR_USEPOLLING=true # Helps with hot reload in some environments
     depends_on:
@@ -23,13 +24,18 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      # Mount user-specified directories
-      - ./model:/app/model
-      - ./data:/app/data
-      - ./run:/app/run
-      - ./logs/backend:/app/logs
+      # Mount user-specified directories to root to avoid polluting /app
+      - ./model:/model
+      - ./data:/data
+      - ./run:/run
+      - ./logs/backend:/logs
     env_file:
       - .env
+    environment:
+      - MODEL_DIR=/model
+      - DATA_DIR=/data
+      - RUN_DIR=/run
+      - LOG_DIR=/logs
     depends_on:
       - db
       - redis
@@ -40,13 +46,18 @@ services:
       dockerfile: DockerFile
     volumes:
       - ./worker:/app
-      # Mount user-specified directories
-      - ./model:/app/model
-      - ./data:/app/data
-      - ./run:/app/run
-      - ./logs/worker:/app/logs
+      # Mount user-specified directories to root
+      - ./model:/model
+      - ./data:/data
+      - ./run:/run
+      - ./logs/worker:/logs
     env_file:
       - .env
+    environment:
+      - MODEL_DIR=/model
+      - DATA_DIR=/data
+      - RUN_DIR=/run
+      - LOG_DIR=/logs
     depends_on:
       - db
       - redis

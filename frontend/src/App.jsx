@@ -1,21 +1,40 @@
-import { useState } from 'react'
+import React from 'react'
+import Layout from './components/Layout'
+import ErrorPage from './components/ErrorPage'
+import useUIStore from './store/uiStore'
 import './App.css'
 
-function App() {
-    const [count, setCount] = useState(0)
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
 
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("Uncaught error:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return <ErrorPage code={500} message="Application Error" />;
+        }
+
+        return this.props.children;
+    }
+}
+
+function App() {
+    const { theme } = useUIStore();
     return (
-        <>
-            <h1>String Lights</h1>
-            <div className="card">
-                <button onClick={() => setCount((count) => count + 1)}>
-                    count is {count}
-                </button>
-                <p>
-                    ONNX Visualization and Animation Platform
-                </p>
-            </div>
-        </>
+        <div className={`app-root ${theme}-theme`}>
+            <ErrorBoundary>
+                <Layout />
+            </ErrorBoundary>
+        </div>
     )
 }
 
