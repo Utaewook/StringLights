@@ -37,3 +37,33 @@ export const getModels = async () => {
 
     return response.json();
 };
+
+// Simple wrapper for API calls to match axios-like usage in some components
+export const api = {
+    post: async (path, data, config = {}) => {
+        const url = `${API_BASE}${path}`;
+        const isFormData = data instanceof FormData;
+
+        const headers = {
+            'X-Session-Id': SESSION_ID,
+            ...config.headers,
+        };
+
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: isFormData ? data : JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+            throw { response: { data: errorData }, message: errorData.detail || response.statusText };
+        }
+
+        return response.json();
+    }
+};

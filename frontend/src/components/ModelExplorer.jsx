@@ -1,12 +1,47 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getModels, uploadModel } from '../api/client';
 import useModelStore from '../store/modelStore';
+import InputActionModal from './InputActionModal';
 
 const ModelExplorer = () => {
     const [models, setModels] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
-    const { selectedModel, setSelectedModel } = useModelStore();
+    const { selectedModel, setSelectedModel, modelInputs } = useModelStore();
+    const [expandedModels, setExpandedModels] = useState(new Set());
+
+    // Modal & Menu states
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState(null);
+    const [targetModel, setTargetModel] = useState(null);
+    const [menuAnchor, setMenuAnchor] = useState(null); // { x, y, model }
+
+    const toggleExpand = (e, modelId) => {
+        e.stopPropagation();
+        const next = new Set(expandedModels);
+        if (next.has(modelId)) next.delete(modelId);
+        else next.add(modelId);
+        setExpandedModels(next);
+    };
+
+    const handleOpenMenu = (e, model) => {
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+        setMenuAnchor({
+            x: rect.right,
+            y: rect.top,
+            model: model
+        });
+    };
+
+    const closeMenu = () => setMenuAnchor(null);
+
+    const handleSelectOption = (mode) => {
+        setTargetModel(menuAnchor.model);
+        setModalMode(mode);
+        setIsModalOpen(true);
+        closeMenu();
+    };
 
     const fetchModels = async () => {
         try {
@@ -19,6 +54,10 @@ const ModelExplorer = () => {
 
     useEffect(() => {
         fetchModels();
+        // Close menu on outside click
+        const handleClickOutside = () => closeMenu();
+        window.addEventListener('click', handleClickOutside);
+        return () => window.removeEventListener('click', handleClickOutside);
     }, []);
 
     const handleUploadClick = () => {
@@ -52,7 +91,7 @@ const ModelExplorer = () => {
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
                 />
-                <button className="primary-btn" onClick={handleUploadClick} disabled={isLoading}>
+                <button className="primary-btn upload-model-btn" onClick={handleUploadClick} disabled={isLoading}>
                     {isLoading ? 'Uploading...' : 'Upload Model'}
                 </button>
             </div>
@@ -62,21 +101,77 @@ const ModelExplorer = () => {
                     <div className="empty-message">No models found</div>
                 )}
                 {models.map((model) => (
-                    <div
-                        key={model.id}
-                        className={`model-item ${selectedModel?.id === model.id ? 'active' : ''}`}
-                        onClick={() => setSelectedModel(model)}
-                    >
-                        <div className="model-icon">📦</div>
-                        <div className="model-info">
+                    <div key={model.id} className="model-entry">
+                        <div
+                            className={`model-item ${selectedModel?.id === model.id ? 'active' : ''}`}
+                            onClick={() => setSelectedModel(model)}
+                        >
+                            <span
+                                className={`chevron ${expandedModels.has(model.id) ? 'expanded' : ''}`}
+                                onClick={(e) => toggleExpand(e, model.id)}
+                            >
+                                ▶
+                            </span>
                             <div className="model-name" title={model.filename}>{model.filename}</div>
-                            <div className="model-meta">
-                                {model.meta.graph_name || 'Unnamed Graph'} • Opset {model.meta.opset_import[0]?.version}
-                            </div>
+                            <button
+                                className="add-input-btn"
+                                onClick={(e) => handleOpenMenu(e, model)}
+                                title="Add Input Data"
+                            >
+                                +
+                            </button>
                         </div>
+
+                        {expandedModels.has(model.id) && (
+                            <div className="model-sub-list">
+                                {(modelInputs[model.id] || []).length === 0 ? (
+                                    <div className="sub-item empty">No inputs yet</div>
+                                ) : (
+                                    modelInputs[model.id].map((input, idx) => {
+                                        const displayName = input.name === 'generated_inputs.npz' || input.name === 'uploaded_inputs.npz'
+                                            ? (input.type === 'Auto' ? 'Generated Input' : 'Uploaded Data')
+                                            : input.name;
+
+                                        return (
+                                            <div key={idx} className="sub-item input-item">
+                                                <span className="input-filename text-ellipsis">{displayName}</span>
+                                                <span className="input-tag">{input.type}</span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {menuAnchor && (
+                <div
+                    className="action-menu"
+                    style={{
+                        position: 'fixed',
+                        top: `${menuAnchor.y}px`,
+                        left: `${menuAnchor.x}px` // Appear strictly to the right of the button/panel
+                    }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="menu-option" onClick={() => handleSelectOption('auto')}>
+                        Auto Generate
+                    </div>
+                    <div className="menu-option" onClick={() => handleSelectOption('manual')}>
+                        Upload File
+                    </div>
+                </div>
+            )}
+
+            {isModalOpen && (
+                <InputActionModal
+                    model={targetModel}
+                    initialMode={modalMode}
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

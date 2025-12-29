@@ -3,6 +3,7 @@ import useModelStore from '../store/modelStore';
 
 const NodeInspector = () => {
     const { selectedNode } = useModelStore();
+    const { selectedModel } = useModelStore();
 
     if (!selectedNode) {
         return (
@@ -13,35 +14,24 @@ const NodeInspector = () => {
         );
     }
 
-    // Identify if it's a node or something else (though we only click nodes for now)
-    const { selectedModel } = useModelStore();
     const { label, op_type, attributes, inputs, outputs } = selectedNode;
 
     // selectedModel.meta가 null이거나 tensor_shapes가 없을 경우 대비
     const meta = selectedModel?.meta || {};
     const tensorShapes = meta.tensor_shapes || {};
-    const initializers = new Set(meta.initializers || []);
 
     const renderTensor = (name) => {
         const shape = tensorShapes[name];
-        const isInitializer = initializers.has(name);
 
         // shape이 배열이 아닐 경우를 대비
         const shapeStr = Array.isArray(shape)
-            ? `${shape.map(s => s === null || s === undefined ? '?' : s).join(' × ')}`
+            ? `[${shape.map(s => s === null || s === undefined ? '?' : s).join(', ')}]`
             : '';
 
         return (
             <div className="io-item">
-                <div className="io-row">
-                    <span className="io-name">{name}</span>
-                    {isInitializer && <span className="initializer-tag">INITIALIZER</span>}
-                </div>
-                {shapeStr && (
-                    <div className="io-shape-badge">
-                        {shapeStr}
-                    </div>
-                )}
+                <span className="io-name">{name}</span>
+                {shapeStr && <span className="io-shape">{shapeStr}</span>}
             </div>
         );
     };

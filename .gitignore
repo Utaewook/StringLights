@@ -1,6 +1,9 @@
 # environment variables
 .env
 
+# backup files
+bak/*
+*.bak
 
 # log files
 logs/*

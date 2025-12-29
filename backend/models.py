@@ -34,3 +34,6 @@ class ModelResponse(BaseModel):
     upload_timestamp: float
     meta: ModelMetaData
     nodes: List[GraphNode]
+
+class InputGenerationRequest(BaseModel):
+    dynamic_axes: Dict[str, int] = {} # Mapping of dimension names to values

@@ -42,7 +42,7 @@ const GraphCanvas = () => {
     };
 
     useEffect(() => {
-        if (!selectedModel) return;
+        if (!selectedModel || !selectedModel.nodes) return;
 
         // Convert ONNX nodes to React Flow nodes/edges
         const newNodes = [];
