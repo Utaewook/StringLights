@@ -12,3 +12,14 @@ logs/*
 data/*
 model/*
 run/*
+
+# python cache
+__pycache__
+*.pyc
+
+# cache, temp, build, etc.
+.cache
+.temp
+.build
+*.bin
+
