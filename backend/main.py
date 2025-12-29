@@ -2,7 +2,7 @@ import os
 import uuid
 import shutil
 import json
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from core import parse_onnx_model
@@ -152,26 +152,66 @@ def list_models(session_id: str = "public"):
 
 @app.post("/models/{model_id}/inputs/generate")
 async def generate_inputs(model_id: str, request: InputGenerationRequest):
-    logger.info(f"Generating dummy inputs for model: {model_id}")
+    logger.info(f"Generating dummy inputs for model: {model_id}, name: {request.name}")
     model_path = os.path.join(MODEL_DIR, model_id, "model.onnx")
     if not os.path.exists(model_path):
         raise HTTPException(status_code=404, detail="Model file not found")
         
     try:
         inputs = generate_dummy_inputs(model_path, request.dynamic_axes)
-        # Change save_dir to /data/[model_id]
-        save_dir = os.path.join(DATA_DIR, model_id)
-        path = save_inputs(save_dir, inputs)
         
-        logger.info(f"Dummy inputs generated and saved to {path} (using input tensor names)")
-        return {"message": "Inputs generated successfully", "path": path}
+        # New: Dataset ID
+        dataset_id = str(uuid.uuid4())
+        save_dir = os.path.join(DATA_DIR, model_id, dataset_id)
+        
+        import time
+        meta = {
+            "id": dataset_id,
+            "name": request.name,
+            "type": "Auto",
+            "created_at": time.time(),
+            "dynamic_axes": request.dynamic_axes
+        }
+        
+        path = save_inputs(save_dir, inputs, meta=meta)
+        
+        logger.info(f"Dataset '{request.name}' ({dataset_id}) generated and saved to {path}")
+        return {"message": "Dataset generated successfully", "id": dataset_id, "name": request.name}
     except Exception as e:
         logger.error(f"Generation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to generate inputs: {str(e)}")
 
+@app.get("/models/{model_id}/datasets")
+async def list_datasets(model_id: str):
+    """
+    List all input datasets for a specific model.
+    """
+    logger.info(f"Listing datasets for model: {model_id}")
+    model_data_dir = os.path.join(DATA_DIR, model_id)
+    if not os.path.exists(model_data_dir):
+        return []
+        
+    results = []
+    for dataset_id in os.listdir(model_data_dir):
+        dataset_path = os.path.join(model_data_dir, dataset_id)
+        meta_path = os.path.join(dataset_path, "dataset_meta.json")
+        
+        if os.path.isdir(dataset_path) and os.path.exists(meta_path):
+            try:
+                with open(meta_path, "r") as f:
+                    data = json.load(f)
+                    results.append(data)
+            except Exception as e:
+                logger.warning(f"Failed to load dataset meta for {dataset_id}: {e}")
+                continue
+                
+    # Sort by created_at desc
+    results.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+    return results
+
 @app.post("/models/{model_id}/inputs/upload")
-async def upload_inputs(model_id: str, file: UploadFile):
-    logger.info(f"Uploading inputs for model: {model_id}")
+async def upload_inputs(model_id: str, file: UploadFile, name: Optional[str] = None):
+    logger.info(f"Uploading inputs for model: {model_id}, name: {name}")
     if not file.filename.endswith(".npz"):
         raise HTTPException(status_code=400, detail="Only .npz files are supported")
         
@@ -179,10 +219,12 @@ async def upload_inputs(model_id: str, file: UploadFile):
     if not os.path.exists(model_dir):
         raise HTTPException(status_code=404, detail="Model not found")
         
-    # Change save_dir to /data/[model_id]
-    save_dir = os.path.join(DATA_DIR, model_id)
+    # New: Dataset ID
+    dataset_id = str(uuid.uuid4())
+    save_dir = os.path.join(DATA_DIR, model_id, dataset_id)
     os.makedirs(save_dir, exist_ok=True)
-    target_path = os.path.join(save_dir, file.filename) # Keep uploaded filename but in /data
+    
+    target_path = os.path.join(save_dir, "bundle.npz")
     
     try:
         with open(target_path, "wb") as buffer:
@@ -191,12 +233,26 @@ async def upload_inputs(model_id: str, file: UploadFile):
         # Validate
         model_path = os.path.join(model_dir, "model.onnx")
         if validate_npz_inputs(model_path, target_path):
-            logger.info(f"Inputs uploaded and validated: {target_path}")
-            return {"message": "Inputs uploaded and validated successfully"}
+            import time
+            meta = {
+                "id": dataset_id,
+                "name": name or file.filename,
+                "type": "Manual",
+                "created_at": time.time(),
+                "original_filename": file.filename
+            }
+            # Save metadata
+            with open(os.path.join(save_dir, "dataset_meta.json"), "w") as f:
+                json.dump(meta, f, indent=2)
+                
+            logger.info(f"Dataset '{meta['name']}' ({dataset_id}) uploaded and validated")
+            return {"message": "Dataset uploaded successfully", "id": dataset_id, "name": meta['name']}
         else:
-            if os.path.exists(target_path):
-                os.remove(target_path)
+            if os.path.exists(save_dir):
+                shutil.rmtree(save_dir)
             raise HTTPException(status_code=422, detail="NPZ file does not match model inputs")
     except Exception as e:
         logger.error(f"Upload error: {e}")
+        if os.path.exists(save_dir):
+            shutil.rmtree(save_dir)
         raise HTTPException(status_code=500, detail=f"Failed to upload inputs: {str(e)}")

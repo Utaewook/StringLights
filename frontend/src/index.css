@@ -435,6 +435,31 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+.inspect.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #888888;
+  letter-spacing: 0.5px;
+}
+
+.text-input {
+  width: 100%;
+  background-color: #3c3c3c;
+  border: 1px solid #454545;
+  color: #cccccc;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-input:focus {
+  border-color: #007acc;
+}
+
 .inspector-section h3 {
   margin: 0 0 10px 0;
   font-size: 11px;

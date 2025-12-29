@@ -4,10 +4,11 @@ import useModelStore from '../store/modelStore';
 
 const InputActionModal = ({ model, onClose, initialMode = null }) => {
     const [mode, setMode] = useState(initialMode); // 'auto' or 'manual'
+    const [name, setName] = useState('');
     const [batchSize, setBatchSize] = useState(100);
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState({ type: '', message: '' });
-    const { addModelInput } = useModelStore();
+    const { addDataset } = useModelStore();
 
     if (!model) return null;
 
@@ -25,11 +26,17 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
                 });
             }
 
-            await api.post(`/models/${model.id}/inputs/generate`, {
+            const response = await api.post(`/models/${model.id}/inputs/generate`, {
+                name: name || "Generated Input",
                 dynamic_axes: axes
             });
 
-            addModelInput(model.id, { name: 'generated_inputs.npz', type: 'Auto' });
+            addDataset(model.id, {
+                id: response.id,
+                name: response.name,
+                type: 'Auto',
+                created_at: Date.now() / 1000
+            });
             setStatus({ type: 'success', message: 'Input data generated successfully!' });
             setTimeout(onClose, 1500);
         } catch (error) {
@@ -47,13 +54,19 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
         setStatus({ type: '', message: '' });
         const formData = new FormData();
         formData.append('file', file);
+        if (name) formData.append('name', name);
 
         try {
-            await api.post(`/models/${model.id}/inputs/upload`, formData, {
+            const response = await api.post(`/models/${model.id}/inputs/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            addModelInput(model.id, { name: file.name, type: 'Manual' });
+            addDataset(model.id, {
+                id: response.id,
+                name: response.name,
+                type: 'Manual',
+                created_at: Date.now() / 1000
+            });
             setStatus({ type: 'success', message: 'Input file uploaded and validated!' });
             setTimeout(onClose, 1500);
         } catch (error) {
@@ -72,6 +85,17 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
                 </div>
 
                 <div className="modal-body">
+                    <div className="form-group">
+                        <label>Dataset Name:</label>
+                        <input
+                            type="text"
+                            placeholder="e.g. Zero Tensors, Large Batch..."
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            className="text-input"
+                        />
+                    </div>
+
                     {!mode ? (
                         <div className="mode-selection">
                             <button className="mode-btn no-icon" onClick={() => setMode('auto')}>

@@ -36,4 +36,5 @@ class ModelResponse(BaseModel):
     nodes: List[GraphNode]
 
 class InputGenerationRequest(BaseModel):
+    name: Optional[str] = "Generated Input" # Display name for the dataset
     dynamic_axes: Dict[str, int] = {} # Mapping of dimension names to values

@@ -67,3 +67,9 @@ export const api = {
         return response.json();
     }
 };
+
+export const getDatasets = async (modelId) => {
+    const response = await fetch(`${API_BASE}/models/${modelId}/datasets`);
+    if (!response.ok) throw new Error('Failed to fetch datasets');
+    return response.json();
+};

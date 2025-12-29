@@ -72,22 +72,29 @@ def validate_npz_inputs(model_path: str, npz_path: str) -> bool:
         # Optional: check shapes (can be tricky with dynamic axes)
         return True
 
-def save_inputs(save_dir: str, inputs: Dict[str, np.ndarray]):
+def save_inputs(save_dir: str, inputs: Dict[str, np.ndarray], meta: Optional[Dict[str, Any]] = None):
     """
-    Save each tensor as a separate .npy file using its input name as the filename.
+    Save each tensor as a separate .npy file and optionally save metadata.
     """
     os.makedirs(save_dir, exist_ok=True)
     paths = []
+    
+    # Save individual tensors
     for name, data in inputs.items():
-        # Sanitize name to be a valid filename
         safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in name])
         path = os.path.join(save_dir, f"{safe_name}.npy")
         np.save(path, data)
         paths.append(path)
         logger.info(f"Saved tensor '{name}' to {path}")
     
-    # Also save a combined .npz for convenience if needed, but the requirement was individual files
-    combined_path = os.path.join(save_dir, "inputs_combined.npz")
+    # Save combined .npz
+    combined_path = os.path.join(save_dir, "bundle.npz")
     np.savez(combined_path, **inputs)
     
-    return save_dir # Return the directory containing the files
+    # Save dataset metadata
+    if meta:
+        import json
+        with open(os.path.join(save_dir, "dataset_meta.json"), "w") as f:
+            json.dump(meta, f, indent=2)
+            
+    return save_dir

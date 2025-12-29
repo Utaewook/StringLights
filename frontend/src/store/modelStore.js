@@ -6,12 +6,18 @@ const useModelStore = create((set) => ({
     selectedNode: null,
     setSelectedNode: (node) => set({ selectedNode: node }),
 
-    // Model Inputs (generated or uploaded data sets)
-    modelInputs: {}, // { modelId: [ { name: 'inputs.npz', type: 'auto' }, ... ] }
-    addModelInput: (modelId, input) => set((state) => ({
-        modelInputs: {
-            ...state.modelInputs,
-            [modelId]: [...(state.modelInputs[modelId] || []), input]
+    // Model Datasets (multiple input sets per model)
+    datasets: {}, // { modelId: [ { id, name, type, created_at, ... }, ... ] }
+    setDatasets: (modelId, datasetList) => set((state) => ({
+        datasets: {
+            ...state.datasets,
+            [modelId]: datasetList
+        }
+    })),
+    addDataset: (modelId, dataset) => set((state) => ({
+        datasets: {
+            ...state.datasets,
+            [modelId]: [dataset, ...(state.datasets[modelId] || [])]
         }
     })),
 }))

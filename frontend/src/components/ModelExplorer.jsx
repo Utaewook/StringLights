@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel } from '../api/client';
+import { getModels, uploadModel, getDatasets } from '../api/client';
 import useModelStore from '../store/modelStore';
 import InputActionModal from './InputActionModal';
 
@@ -7,7 +7,7 @@ const ModelExplorer = () => {
     const [models, setModels] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
-    const { selectedModel, setSelectedModel, modelInputs } = useModelStore();
+    const { selectedModel, setSelectedModel, datasets, setDatasets } = useModelStore();
     const [expandedModels, setExpandedModels] = useState(new Set());
 
     // Modal & Menu states
@@ -16,12 +16,23 @@ const ModelExplorer = () => {
     const [targetModel, setTargetModel] = useState(null);
     const [menuAnchor, setMenuAnchor] = useState(null); // { x, y, model }
 
-    const toggleExpand = (e, modelId) => {
+    const toggleExpand = async (e, modelId) => {
         e.stopPropagation();
+        const isExpanding = !expandedModels.has(modelId);
+
         const next = new Set(expandedModels);
         if (next.has(modelId)) next.delete(modelId);
         else next.add(modelId);
         setExpandedModels(next);
+
+        if (isExpanding) {
+            try {
+                const datasetList = await getDatasets(modelId);
+                setDatasets(modelId, datasetList);
+            } catch (error) {
+                console.error("Failed to load datasets:", error);
+            }
+        }
     };
 
     const handleOpenMenu = (e, model) => {
@@ -124,18 +135,16 @@ const ModelExplorer = () => {
 
                         {expandedModels.has(model.id) && (
                             <div className="model-sub-list">
-                                {(modelInputs[model.id] || []).length === 0 ? (
-                                    <div className="sub-item empty">No inputs yet</div>
+                                {(datasets[model.id] || []).length === 0 ? (
+                                    <div className="sub-item empty">No input sets yet</div>
                                 ) : (
-                                    modelInputs[model.id].map((input, idx) => {
-                                        const displayName = input.name === 'generated_inputs.npz' || input.name === 'uploaded_inputs.npz'
-                                            ? (input.type === 'Auto' ? 'Generated Input' : 'Uploaded Data')
-                                            : input.name;
-
+                                    datasets[model.id].map((ds, idx) => {
                                         return (
-                                            <div key={idx} className="sub-item input-item">
-                                                <span className="input-filename text-ellipsis">{displayName}</span>
-                                                <span className="input-tag">{input.type}</span>
+                                            <div key={ds.id || idx} className="sub-item input-item">
+                                                <span className="input-filename text-ellipsis" title={ds.name}>
+                                                    {ds.name}
+                                                </span>
+                                                <span className="input-tag">{ds.type}</span>
                                             </div>
                                         );
                                     })
