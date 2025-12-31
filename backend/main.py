@@ -256,3 +256,28 @@ async def upload_inputs(model_id: str, file: UploadFile, name: Optional[str] = N
         if os.path.exists(save_dir):
             shutil.rmtree(save_dir)
         raise HTTPException(status_code=500, detail=f"Failed to upload inputs: {str(e)}")
+@app.get("/models/{model_id}/datasets/{dataset_id}/tensors")
+async def list_dataset_tensors(model_id: str, dataset_id: str):
+    """
+    List individual .npy tensor files in a specific dataset folder.
+    """
+    logger.info(f"Listing tensors for dataset: {dataset_id} in model: {model_id}")
+    dataset_path = os.path.join(DATA_DIR, model_id, dataset_id)
+    
+    if not os.path.exists(dataset_path):
+        raise HTTPException(status_code=404, detail="Dataset not found")
+        
+    tensors = []
+    for filename in os.listdir(dataset_path):
+        if filename.endswith(".npy"):
+            file_path = os.path.join(dataset_path, filename)
+            stat = os.stat(file_path)
+            tensors.append({
+                "name": filename,
+                "size_bytes": stat.st_size,
+                "tensor_name": filename[:-4] # Remove .npy
+            })
+            
+    # Sort alphabetically
+    tensors.sort(key=lambda x: x['name'])
+    return tensors

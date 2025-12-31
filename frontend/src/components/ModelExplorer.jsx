@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel, getDatasets } from '../api/client';
+import { getModels, uploadModel, getDatasets, getTensors } from '../api/client';
 import useModelStore from '../store/modelStore';
 import InputActionModal from './InputActionModal';
 
@@ -7,8 +7,14 @@ const ModelExplorer = () => {
     const [models, setModels] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
-    const { selectedModel, setSelectedModel, datasets, setDatasets } = useModelStore();
+    const {
+        selectedModel, setSelectedModel,
+        datasets, setDatasets,
+        selectedDataset, setSelectedDataset,
+        datasetTensors, setDatasetTensors
+    } = useModelStore();
     const [expandedModels, setExpandedModels] = useState(new Set());
+    const [expandedDatasets, setExpandedDatasets] = useState(new Set());
 
     // Modal & Menu states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -139,12 +145,43 @@ const ModelExplorer = () => {
                                     <div className="sub-item empty">No input sets yet</div>
                                 ) : (
                                     datasets[model.id].map((ds, idx) => {
+                                        const isActive = selectedDataset?.id === ds.id;
+                                        const isExpanded = expandedDatasets.has(ds.id);
                                         return (
-                                            <div key={ds.id || idx} className="sub-item input-item">
-                                                <span className="input-filename text-ellipsis" title={ds.name}>
-                                                    {ds.name}
-                                                </span>
-                                                <span className="input-tag">{ds.type}</span>
+                                            <div key={ds.id || idx}>
+                                                <div
+                                                    className={`sub-item input-item ${isActive ? 'active' : ''}`}
+                                                    onClick={() => setSelectedDataset(ds)}
+                                                >
+                                                    <div className="sub-item-main">
+                                                        <span
+                                                            className={`chevron ${isExpanded ? 'expanded' : ''}`}
+                                                            onClick={(e) => toggleExpandDataset(e, model.id, ds.id)}
+                                                        >
+                                                            ▶
+                                                        </span>
+                                                        <span className="input-filename text-ellipsis" title={ds.name}>
+                                                            {ds.name}
+                                                        </span>
+                                                    </div>
+                                                    <span className="input-tag">{ds.type}</span>
+                                                </div>
+
+                                                {isExpanded && (
+                                                    <div className="tensor-list">
+                                                        {(datasetTensors[ds.id] || []).length === 0 ? (
+                                                            <div className="tensor-item empty">No tensors found</div>
+                                                        ) : (
+                                                            datasetTensors[ds.id].map((tensor, tIdx) => (
+                                                                <div key={tIdx} className="tensor-item">
+                                                                    <span className="tensor-icon">📄</span>
+                                                                    <span className="tensor-name text-ellipsis">{tensor.tensor_name}</span>
+                                                                    <span className="tensor-size">{(tensor.size_bytes / 1024).toFixed(1)} KB</span>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })

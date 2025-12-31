@@ -293,7 +293,8 @@ body {
   background-color: var(--bg-tertiary);
 }
 
-.model-item.active {
+.model-item.active,
+.sub-item.active {
   background-color: rgba(0, 127, 212, 0.2);
   border-left: 2px solid var(--accent-color);
 }

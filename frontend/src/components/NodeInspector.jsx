@@ -2,28 +2,74 @@ import React from 'react';
 import useModelStore from '../store/modelStore';
 
 const NodeInspector = () => {
-    const { selectedNode } = useModelStore();
-    const { selectedModel } = useModelStore();
+    const { selectedNode, selectedDataset, selectedModel } = useModelStore();
 
-    if (!selectedNode) {
+    if (!selectedNode && !selectedDataset) {
         return (
             <div className="inspector-placeholder">
                 <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔍</div>
-                <p>Select a node to inspect</p>
+                <p>Select a node or dataset to inspect</p>
             </div>
         );
     }
 
-    const { label, op_type, attributes, inputs, outputs } = selectedNode;
+    if (selectedDataset) {
+        const { name, type, created_at, dynamic_axes } = selectedDataset;
+        const date = created_at ? new Date(created_at * 1000) : null;
+        const datePart = date ? date.toLocaleDateString() : 'Unknown';
+        const timePart = date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
 
-    // selectedModel.meta가 null이거나 tensor_shapes가 없을 경우 대비
+        return (
+            <div className="node-inspector dataset-inspector">
+                <div className="inspector-header">
+                    <div className="inspector-title">{name}</div>
+                    <div className="inspector-subtitle">Dataset • {type}</div>
+                </div>
+
+                <div className="inspector-section">
+                    <h3>General Info</h3>
+                    <table className="property-table">
+                        <tbody>
+                            <tr>
+                                <td className="prop-key">Created At</td>
+                                <td className="prop-value">
+                                    {datePart}<br />{timePart}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Source Type</td>
+                                <td className="prop-value">{type}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {dynamic_axes && Object.keys(dynamic_axes).length > 0 && (
+                    <div className="inspector-section">
+                        <h3>Dynamic Axes Config</h3>
+                        <table className="property-table">
+                            <tbody>
+                                {Object.entries(dynamic_axes).map(([axis, size]) => (
+                                    <tr key={axis}>
+                                        <td className="prop-key">{axis}</td>
+                                        <td className="prop-value">{size}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Node Inspection logic
+    const { label, op_type, attributes, inputs, outputs } = selectedNode;
     const meta = selectedModel?.meta || {};
     const tensorShapes = meta.tensor_shapes || {};
 
     const renderTensor = (name) => {
         const shape = tensorShapes[name];
-
-        // shape이 배열이 아닐 경우를 대비
         const shapeStr = Array.isArray(shape)
             ? `[${shape.map(s => s === null || s === undefined ? '?' : s).join(', ')}]`
             : '';

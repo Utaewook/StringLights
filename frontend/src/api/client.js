@@ -73,3 +73,9 @@ export const getDatasets = async (modelId) => {
     if (!response.ok) throw new Error('Failed to fetch datasets');
     return response.json();
 };
+
+export const getTensors = async (modelId, datasetId) => {
+    const response = await fetch(`${API_BASE}/models/${modelId}/datasets/${datasetId}/tensors`);
+    if (!response.ok) throw new Error('Failed to fetch tensors');
+    return response.json();
+};
