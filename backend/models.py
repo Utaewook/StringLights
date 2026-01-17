@@ -27,6 +27,7 @@ class ModelMetaData(BaseModel):
     tensor_shapes: dict[str, list[Optional[int]]]
     initializers: List[str] # List of names of tensors that are initializers (weights/bias)
     session_id: str
+    opset_version: Optional[int] = None
     
 class ModelResponse(BaseModel):
     id: str

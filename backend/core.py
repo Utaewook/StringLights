@@ -96,10 +96,15 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
         ))
         
     # Meta
+    opset_ver = None
+    if model.opset_import:
+        opset_ver = model.opset_import[0].version
+
     meta = ModelMetaData(
         ir_version=model.ir_version,
         producer_name=model.producer_name,
         opset_import=[{"domain": op.domain, "version": op.version} for op in model.opset_import],
+        opset_version=opset_ver,
         graph_name=graph.name,
         inputs=[_get_tensor_spec(i) for i in graph.input],
         outputs=[_get_tensor_spec(o) for o in graph.output],

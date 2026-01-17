@@ -1,6 +1,7 @@
 import React from 'react'
 import Layout from './components/Layout'
 import ErrorPage from './components/ErrorPage'
+import CookieConsent from './components/CookieConsent' // Import
 import useUIStore from './store/uiStore'
 import './App.css'
 
@@ -33,6 +34,7 @@ function App() {
         <div className={`app-root ${theme}-theme`}>
             <ErrorBoundary>
                 <Layout />
+                <CookieConsent />
             </ErrorBoundary>
         </div>
     )

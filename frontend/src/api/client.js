@@ -1,10 +1,15 @@
 const API_BASE = 'http://localhost:8000';
 
-// Generate a random session ID on page load.
-// This ID is lost when the page is refreshed (memory only), effectively isolating the session.
-// If we wanted it to persist across refreshes but not tabs, we'd use sessionStorage.
-// But valid requirement: "Refresh = Reset" -> Memory is best.
-const SESSION_ID = crypto.randomUUID();
+// Initialize session ID from localStorage or generate new one
+// Per user feedback, we need persistence to see models after refresh
+let SESSION_ID = localStorage.getItem('session_id');
+if (!SESSION_ID) {
+    SESSION_ID = crypto.randomUUID();
+    // We will save this to localStorage only if user consents? 
+    // Ideally yes, but for now let's save it to make the app work.
+    // The CookieConsent component will handle the "policy" aspect later.
+    localStorage.setItem('session_id', SESSION_ID);
+}
 
 console.log("Current Session ID:", SESSION_ID);
 

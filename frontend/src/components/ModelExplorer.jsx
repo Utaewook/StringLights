@@ -1,20 +1,32 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getModels, uploadModel, getDatasets, getTensors } from '../api/client';
 import useModelStore from '../store/modelStore';
+import useUIStore from '../store/uiStore';
 import InputActionModal from './InputActionModal';
+
+import TreeItem from './TreeItem';
 
 const ModelExplorer = () => {
     const [models, setModels] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Stores
+    const { setRightPanelOpen } = useUIStore();
     const {
         selectedModel, setSelectedModel,
         datasets, setDatasets,
         selectedDataset, setSelectedDataset,
-        datasetTensors, setDatasetTensors
+        datasetTensors, setDatasetTensors,
+        setSelectedNode
     } = useModelStore();
+
+    // Expansion States
     const [expandedModels, setExpandedModels] = useState(new Set());
-    const [expandedDatasets, setExpandedDatasets] = useState(new Set());
+    const [expandedModelDatasets, setExpandedModelDatasets] = useState(new Set()); // Level 1: "Datasets" folder
+    const [expandedDatasets, setExpandedDatasets] = useState(new Set()); // Level 2: Individual Datasets
+    const [expandedInputs, setExpandedInputs] = useState(new Set()); // Level 3: "Inputs" folder
+    // Note: Outputs are static/placeholder for now
 
     // Modal & Menu states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,13 +34,15 @@ const ModelExplorer = () => {
     const [targetModel, setTargetModel] = useState(null);
     const [menuAnchor, setMenuAnchor] = useState(null); // { x, y, model }
 
-    const toggleExpand = async (e, modelId) => {
-        e.stopPropagation();
-        const isExpanding = !expandedModels.has(modelId);
+    // --- Handlers ---
+    const toggleExpandModel = async (e, modelId) => {
+        // e is optional if called from TreeItem directly via onToggle
+        if (e) e.stopPropagation();
 
         const next = new Set(expandedModels);
-        if (next.has(modelId)) next.delete(modelId);
-        else next.add(modelId);
+        const isExpanding = !next.has(modelId);
+        if (isExpanding) next.add(modelId);
+        else next.delete(modelId);
         setExpandedModels(next);
 
         if (isExpanding) {
@@ -41,23 +55,68 @@ const ModelExplorer = () => {
         }
     };
 
+    const toggleExpandModelDatasets = (e, modelId) => {
+        if (e) e.stopPropagation();
+        const next = new Set(expandedModelDatasets);
+        if (!next.has(modelId)) next.add(modelId);
+        else next.delete(modelId);
+        setExpandedModelDatasets(next);
+    };
+
+    const toggleExpandDataset = (e, modelId, datasetId) => {
+        if (e) e.stopPropagation();
+        const next = new Set(expandedDatasets);
+        if (!next.has(datasetId)) next.add(datasetId);
+        else next.delete(datasetId);
+        setExpandedDatasets(next);
+    };
+
+    const toggleExpandInput = async (e, modelId, datasetId) => {
+        if (e) e.stopPropagation();
+        const next = new Set(expandedInputs);
+        const isExpanding = !next.has(datasetId);
+        if (isExpanding) next.add(datasetId);
+        else next.delete(datasetId);
+        setExpandedInputs(next);
+
+        if (isExpanding) {
+            try {
+                const tensorList = await getTensors(modelId, datasetId);
+                setDatasetTensors(datasetId, tensorList);
+            } catch (error) {
+                console.error("Failed to load tensors:", error);
+            }
+        }
+    };
+
+    // ... (Menu & Modal handlers same as before) ...
     const handleOpenMenu = (e, model) => {
         e.stopPropagation();
         const rect = e.currentTarget.getBoundingClientRect();
-        setMenuAnchor({
-            x: rect.right,
-            y: rect.top,
-            model: model
-        });
+        setMenuAnchor({ x: rect.right, y: rect.top, model: model });
     };
-
     const closeMenu = () => setMenuAnchor(null);
-
     const handleSelectOption = (mode) => {
         setTargetModel(menuAnchor.model);
         setModalMode(mode);
         setIsModalOpen(true);
         closeMenu();
+    };
+    // ...
+
+    const handleTensorClick = (tensor) => {
+        const mockNode = {
+            name: tensor.tensor_name,
+            op_type: 'Tensor',
+            attributes: {
+                size_bytes: tensor.size_bytes,
+                filename: tensor.name
+            },
+            inputs: [],
+            outputs: []
+        };
+        setSelectedNode(mockNode);
+        setRightPanelOpen(true); // Automatically open inspector
     };
 
     const fetchModels = async () => {
@@ -71,29 +130,24 @@ const ModelExplorer = () => {
 
     useEffect(() => {
         fetchModels();
-        // Close menu on outside click
         const handleClickOutside = () => closeMenu();
         window.addEventListener('click', handleClickOutside);
         return () => window.removeEventListener('click', handleClickOutside);
     }, []);
 
-    const handleUploadClick = () => {
-        fileInputRef.current?.click();
-    };
+    const handleUploadClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         setIsLoading(true);
         try {
             await uploadModel(file);
-            await fetchModels(); // Refresh list
+            await fetchModels();
         } catch (error) {
             alert("Upload failed: " + error.message);
         } finally {
             setIsLoading(false);
-            // Reset input
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
@@ -113,82 +167,88 @@ const ModelExplorer = () => {
                 </button>
             </div>
 
-            <div className="model-list">
+            <div className="model-list tree-view-container">
                 {models.length === 0 && (
                     <div className="empty-message">No models found</div>
                 )}
-                {models.map((model) => (
-                    <div key={model.id} className="model-entry">
-                        <div
-                            className={`model-item ${selectedModel?.id === model.id ? 'active' : ''}`}
-                            onClick={() => setSelectedModel(model)}
+
+                {models.map(model => (
+                    <TreeItem
+                        key={model.id}
+                        level={0}
+                        label={model.filename}
+                        expanded={expandedModels.has(model.id)}
+                        onToggle={(e) => toggleExpandModel(e, model.id)}
+                        onClick={() => setSelectedModel(model)}
+                        isActive={selectedModel?.id === model.id}
+                    >
+                        {/* Level 1: Datasets Group Folder */}
+                        <TreeItem
+                            level={1}
+                            label="Datasets"
+                            expanded={expandedModelDatasets.has(model.id)}
+                            onToggle={(e) => toggleExpandModelDatasets(e, model.id)}
+                            actions={
+                                <button
+                                    className="add-input-btn"
+                                    onClick={(e) => handleOpenMenu(e, model)}
+                                    title="Add Input Data"
+                                >
+                                    +
+                                </button>
+                            }
                         >
-                            <span
-                                className={`chevron ${expandedModels.has(model.id) ? 'expanded' : ''}`}
-                                onClick={(e) => toggleExpand(e, model.id)}
-                            >
-                                ▶
-                            </span>
-                            <div className="model-name" title={model.filename}>{model.filename}</div>
-                            <button
-                                className="add-input-btn"
-                                onClick={(e) => handleOpenMenu(e, model)}
-                                title="Add Input Data"
-                            >
-                                +
-                            </button>
-                        </div>
+                            {/* Level 2: Individual Datasets */}
+                            {(datasets[model.id] || []).length === 0 ? (
+                                <div className="tree-empty-item" style={{ paddingLeft: '42px' }}>No datasets</div>
+                            ) : (
+                                datasets[model.id].map(ds => (
+                                    <TreeItem
+                                        key={ds.id}
+                                        level={2}
+                                        label={ds.name}
+                                        expanded={expandedDatasets.has(ds.id)}
+                                        onToggle={(e) => toggleExpandDataset(e, model.id, ds.id)}
+                                        onClick={() => setSelectedDataset(ds)}
+                                        isActive={selectedDataset?.id === ds.id}
+                                        actions={<span className="input-tag">{ds.type}</span>}
+                                    >
+                                        {/* Level 3: Inputs Folder */}
+                                        <TreeItem
+                                            level={3}
+                                            label="Inputs"
+                                            expanded={expandedInputs.has(ds.id)}
+                                            onToggle={(e) => toggleExpandInput(e, model.id, ds.id)}
+                                        >
+                                            {/* Level 4: Tensors */}
+                                            {(datasetTensors[ds.id] || []).length === 0 ? (
+                                                <div className="tree-empty-item" style={{ paddingLeft: '74px' }}>No tensors</div>
+                                            ) : (
+                                                datasetTensors[ds.id].map((tensor, idx) => (
+                                                    <TreeItem
+                                                        key={idx}
+                                                        level={4}
+                                                        label={tensor.tensor_name}
+                                                        isLeaf={true}
+                                                        onClick={() => handleTensorClick(tensor)}
+                                                    />
+                                                ))
+                                            )}
+                                        </TreeItem>
 
-                        {expandedModels.has(model.id) && (
-                            <div className="model-sub-list">
-                                {(datasets[model.id] || []).length === 0 ? (
-                                    <div className="sub-item empty">No input sets yet</div>
-                                ) : (
-                                    datasets[model.id].map((ds, idx) => {
-                                        const isActive = selectedDataset?.id === ds.id;
-                                        const isExpanded = expandedDatasets.has(ds.id);
-                                        return (
-                                            <div key={ds.id || idx}>
-                                                <div
-                                                    className={`sub-item input-item ${isActive ? 'active' : ''}`}
-                                                    onClick={() => setSelectedDataset(ds)}
-                                                >
-                                                    <div className="sub-item-main">
-                                                        <span
-                                                            className={`chevron ${isExpanded ? 'expanded' : ''}`}
-                                                            onClick={(e) => toggleExpandDataset(e, model.id, ds.id)}
-                                                        >
-                                                            ▶
-                                                        </span>
-                                                        <span className="input-filename text-ellipsis" title={ds.name}>
-                                                            {ds.name}
-                                                        </span>
-                                                    </div>
-                                                    <span className="input-tag">{ds.type}</span>
-                                                </div>
-
-                                                {isExpanded && (
-                                                    <div className="tensor-list">
-                                                        {(datasetTensors[ds.id] || []).length === 0 ? (
-                                                            <div className="tensor-item empty">No tensors found</div>
-                                                        ) : (
-                                                            datasetTensors[ds.id].map((tensor, tIdx) => (
-                                                                <div key={tIdx} className="tensor-item">
-                                                                    <span className="tensor-icon">📄</span>
-                                                                    <span className="tensor-name text-ellipsis">{tensor.tensor_name}</span>
-                                                                    <span className="tensor-size">{(tensor.size_bytes / 1024).toFixed(1)} KB</span>
-                                                                </div>
-                                                            ))
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                        {/* Level 3: Outputs Folder (Placeholder) */}
+                                        <TreeItem
+                                            level={3}
+                                            label="Outputs"
+                                            isLeaf={false} // Treat as folder
+                                            expanded={false} // Always closed for now
+                                        // onToggle not needed strictly if always closed, or empty handler
+                                        />
+                                    </TreeItem>
+                                ))
+                            )}
+                        </TreeItem>
+                    </TreeItem>
                 ))}
             </div>
 
@@ -198,7 +258,7 @@ const ModelExplorer = () => {
                     style={{
                         position: 'fixed',
                         top: `${menuAnchor.y}px`,
-                        left: `${menuAnchor.x}px` // Appear strictly to the right of the button/panel
+                        left: `${menuAnchor.x}px`
                     }}
                     onClick={e => e.stopPropagation()}
                 >

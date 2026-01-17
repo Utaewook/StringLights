@@ -30,7 +30,7 @@
 
   /* Dimensions */
   --header-height: 48px;
-  --sidebar-width: 300px;
+  --sidebar-width: 270px;
 
   font-family: 'Segoe UI', Inter, system-ui, sans-serif;
   line-height: 1.5;
@@ -130,9 +130,45 @@ body {
   transition: width 0.2s ease, transform 0.2s ease;
 }
 
+/* --- Sidebar specific override --- */
 .sidebar-right {
+  /* Width now follows --sidebar-width (270px) */
   border-right: none;
   border-left: 1px solid var(--border-color);
+}
+
+.model-header-row {
+  /* ... */
+}
+
+/* ... */
+
+.add-input-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  /* Slightly smaller icon */
+  width: 20px;
+  /* Smaller touch target visual */
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  /* Always visible but subtle */
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.add-input-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary) !important;
+  opacity: 1 !important;
+  transform: scale(1.1);
 }
 
 .sidebar-header {
@@ -337,25 +373,26 @@ body {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  font-size: 18px;
-  width: 24px;
-  height: 24px;
+  font-size: 16px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.7;
+  /* Always visible */
   transition: all 0.2s;
   flex-shrink: 0;
+  margin-right: 4px;
+  /* Give some breathing room */
 }
 
-.model-item:hover .add-input-btn {
-  opacity: 0.7;
-}
+/* Removed .model-item:hover dependency */
 
 .add-input-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
   color: var(--text-primary) !important;
   opacity: 1 !important;
 }
@@ -368,25 +405,95 @@ body {
   opacity: 0.7;
 }
 
-.model-sub-list {
-  padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
-  margin-left: 10px;
+/* --- Tree View (VSCode Style) --- */
+.tree-view-container {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.sub-item {
-  display: flex !important;
+.tree-item-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-item-row {
+  display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-size: 12px;
+  height: 22px;
+  /* Standard VSCode row height */
+  padding-right: 8px;
+  /* Right padding for actions */
+  cursor: pointer;
   color: var(--text-secondary);
-  border-radius: 4px;
+  transition: background-color 0.1s;
+  user-select: none;
 }
 
-.sub-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+.tree-item-row:hover {
+  background-color: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
+}
+
+.tree-item-row.active {
+  background-color: rgba(0, 127, 212, 0.2);
+  /* Selection color */
+  color: #ffffff;
+  /* Option: Border or styling to indicate selection */
+}
+
+.tree-chevron {
+  width: 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  /* Tiny chevron */
+  opacity: 0.7;
+  transition: transform 0.1s;
+  flex-shrink: 0;
+}
+
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.tree-chevron-spacer {
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.tree-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+/* Specific styling for file-like items if needed, or keep uniform */
+/* .tree-item-row[data-is-leaf="true"] .tree-label {
+   font-family: 'Consolas', ...;
+} */
+
+.tree-actions {
+  display: none;
+  /* Show only on hover */
+  margin-left: 8px;
+}
+
+.tree-item-row:hover .tree-actions {
+  display: flex;
+  align-items: center;
+}
+
+.tree-empty-item {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  padding: 4px 0;
 }
 
 .input-tag {

@@ -3,12 +3,15 @@ import uuid
 import shutil
 import json
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, HTTPException, Request
+from fastapi import FastAPI, UploadFile, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from core import parse_onnx_model
 from inference_core import generate_dummy_inputs, validate_npz_inputs, save_inputs
 from models import ModelResponse, InputGenerationRequest
 from utils.logger import setup_logger
+from database import get_db, engine
+from models_orm import Base, ModelORM, DatasetORM, TensorORM, RunORM
 
 # Environment variables
 MODEL_DIR = os.environ.get("MODEL_DIR", "./model")
@@ -37,6 +40,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 @app.on_event("startup")
 async def startup_event():
     logger.info(f"String Lights Backend Started. Model Dir: {MODEL_DIR}, Log Dir: {LOG_DIR}")
+    # Ensure tables exist (Alembic should handle this, but for dev convenience)
+    Base.metadata.create_all(bind=engine)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -59,7 +64,7 @@ def read_root():
     return {"Hello": "String Lights Backend API"}
 
 @app.post("/models/upload", response_model=ModelResponse)
-async def upload_model(file: UploadFile, request: Request):
+async def upload_model(file: UploadFile, request: Request, db: Session = Depends(get_db)):
     logger.info(f"Upload request received for file: {file.filename}")
     
     session_id = request.headers.get("X-Session-Id")
@@ -102,6 +107,22 @@ async def upload_model(file: UploadFile, request: Request):
         # Save meta json for caching in model dir
         with open(os.path.join(model_save_dir, "meta.json"), "w") as f:
             f.write(response.json())
+            
+        # Insert into DB
+        model_orm = ModelORM(
+            id=uuid.UUID(model_id),
+            session_id=session_id,
+            filename=file.filename,
+            path_files=model_save_dir,
+            filesize_bytes=os.path.getsize(target_path),
+            ir_version=response.meta.ir_version,
+            opset_version=response.meta.opset_version,
+            graph_name=response.meta.graph_name,
+            meta_info=json.loads(response.json()) # Store full response as JSON
+        )
+        db.add(model_orm)
+        db.commit()
+        db.refresh(model_orm)
         
         logger.info(f"Model parsed and saved successfully. ID: {model_id}, Session: {session_id}")
         return response
@@ -114,44 +135,36 @@ async def upload_model(file: UploadFile, request: Request):
         raise HTTPException(status_code=422, detail=f"Failed to parse ONNX model: {str(e)}")
 
 @app.get("/models", response_model=List[ModelResponse])
-def list_models(session_id: str = "public"):
+def list_models(session_id: str = "public", db: Session = Depends(get_db)):
     logger.info(f"Listing models for session: {session_id}")
-    results = []
-    # Scan directory
-    if not os.path.exists(MODEL_DIR):
+    
+    # Query DB
+    try:
+        models = db.query(ModelORM).filter(ModelORM.session_id == session_id).order_by(ModelORM.created_at.desc()).all()
+        
+        results = []
+        for m in models:
+            # Map ORM to ModelResponse (using the meta_info which contains the full Pydantic structure)
+            # Ensure meta_info has necessary fields, or construct explicitly
+            if m.meta_info:
+                results.append(m.meta_info)
+            else:
+                # Fallback construction if meta_info missing
+                results.append({
+                    "id": str(m.id),
+                    "filename": m.filename,
+                    "upload_timestamp": m.created_at.timestamp() if m.created_at else 0,
+                    "meta": {},
+                    "inputs": [],
+                    "outputs": []
+                })
+        return results
+    except Exception as e:
+        logger.error(f"DB Query failed: {e}")
         return []
-        
-    for model_id in os.listdir(MODEL_DIR):
-        model_path = os.path.join(MODEL_DIR, model_id)
-        meta_path = os.path.join(model_path, "meta.json")
-        
-        if os.path.isdir(model_path) and os.path.exists(meta_path):
-            try:
-                with open(meta_path, "r") as f:
-                   data = json.load(f)
-                   # Filter by session_id
-                   # Support backward compatibility for old files without session_id (treat as public)
-                   model_session = data.get("meta", {}).get("session_id", "public")
-                   
-                   if model_session == session_id:
-                       results.append(data)
-            except Exception as e:
-                logger.warning(f"Failed to load meta for {model_id}: {e}")
-                continue
-                
-    # Sort by timestamp desc safely
-    def get_timestamp(x):
-        ts = x.get('upload_timestamp', 0)
-        try:
-            return float(ts)
-        except (TypeError, ValueError):
-            return 0.0
-            
-    results.sort(key=get_timestamp, reverse=True)
-    return results
 
 @app.post("/models/{model_id}/inputs/generate")
-async def generate_inputs(model_id: str, request: InputGenerationRequest):
+async def generate_inputs(model_id: str, request: InputGenerationRequest, db: Session = Depends(get_db)):
     logger.info(f"Generating dummy inputs for model: {model_id}, name: {request.name}")
     model_path = os.path.join(MODEL_DIR, model_id, "model.onnx")
     if not os.path.exists(model_path):
@@ -165,16 +178,54 @@ async def generate_inputs(model_id: str, request: InputGenerationRequest):
         save_dir = os.path.join(DATA_DIR, model_id, dataset_id)
         
         import time
+        created_at_ts = time.time()
         meta = {
             "id": dataset_id,
             "name": request.name,
             "type": "Auto",
-            "created_at": time.time(),
+            "created_at": created_at_ts,
             "dynamic_axes": request.dynamic_axes
         }
         
         path = save_inputs(save_dir, inputs, meta=meta)
         
+        # DB Insert
+        try:
+            dataset_orm = DatasetORM(
+                id=uuid.UUID(dataset_id),
+                model_id=uuid.UUID(model_id),
+                name=request.name,
+                type="Auto",
+                path_dir=save_dir,
+                meta_info=meta
+            )
+            db.add(dataset_orm)
+            # Sync generated tensors as well? 
+            # save_inputs generates .npy files. We can scan them and insert.
+            for tensor_name, tensor_data in inputs.items():
+                tensor_filename = f"{tensor_name}.npy" # Verify save_inputs naming logic
+                # Actually save_inputs saves files named "{name}.npy" usually.
+                # Assuming save_inputs saves them in save_dir
+                
+                # Check file existence to be sure
+                tensor_path = os.path.join(save_dir, f"{tensor_name}.npy")
+                if os.path.exists(tensor_path):
+                    t_orm = TensorORM(
+                        dataset_id=uuid.UUID(dataset_id),
+                        name=tensor_name,
+                        filename=f"{tensor_name}.npy",
+                        size_bytes=os.path.getsize(tensor_path),
+                        dtype=str(tensor_data.dtype),
+                        shape=list(tensor_data.shape)
+                    )
+                    db.add(t_orm)
+
+            db.commit()
+        except Exception as db_e:
+            logger.error(f"DB Error saving generated dataset: {db_e}")
+            # Don't fail request if DB fails but file saved? Or rollback?
+            # Rolling back file is hard. Proceed with warning.
+            
         logger.info(f"Dataset '{request.name}' ({dataset_id}) generated and saved to {path}")
         return {"message": "Dataset generated successfully", "id": dataset_id, "name": request.name}
     except Exception as e:
@@ -182,35 +233,39 @@ async def generate_inputs(model_id: str, request: InputGenerationRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate inputs: {str(e)}")
 
 @app.get("/models/{model_id}/datasets")
-async def list_datasets(model_id: str):
+async def list_datasets(model_id: str, db: Session = Depends(get_db)):
     """
     List all input datasets for a specific model.
     """
     logger.info(f"Listing datasets for model: {model_id}")
-    model_data_dir = os.path.join(DATA_DIR, model_id)
-    if not os.path.exists(model_data_dir):
+    
+    try:
+        # Validate UUID
+        try:
+            m_uuid = uuid.UUID(model_id)
+        except ValueError:
+            return []
+
+        datasets = db.query(DatasetORM).filter(DatasetORM.model_id == m_uuid).order_by(DatasetORM.created_at.desc()).all()
+        
+        results = []
+        for d in datasets:
+            if d.meta_info:
+                results.append(d.meta_info)
+            else:
+                results.append({
+                    "id": str(d.id),
+                    "name": d.name,
+                    "type": d.type,
+                    "created_at": d.created_at.timestamp() if d.created_at else 0
+                })
+        return results
+    except Exception as e:
+        logger.error(f"DB Query failed: {e}")
         return []
-        
-    results = []
-    for dataset_id in os.listdir(model_data_dir):
-        dataset_path = os.path.join(model_data_dir, dataset_id)
-        meta_path = os.path.join(dataset_path, "dataset_meta.json")
-        
-        if os.path.isdir(dataset_path) and os.path.exists(meta_path):
-            try:
-                with open(meta_path, "r") as f:
-                    data = json.load(f)
-                    results.append(data)
-            except Exception as e:
-                logger.warning(f"Failed to load dataset meta for {dataset_id}: {e}")
-                continue
-                
-    # Sort by created_at desc
-    results.sort(key=lambda x: x.get('created_at', 0), reverse=True)
-    return results
 
 @app.post("/models/{model_id}/inputs/upload")
-async def upload_inputs(model_id: str, file: UploadFile, name: Optional[str] = None):
+async def upload_inputs(model_id: str, file: UploadFile, name: Optional[str] = None, db: Session = Depends(get_db)):
     logger.info(f"Uploading inputs for model: {model_id}, name: {name}")
     if not file.filename.endswith(".npz"):
         raise HTTPException(status_code=400, detail="Only .npz files are supported")
@@ -234,17 +289,34 @@ async def upload_inputs(model_id: str, file: UploadFile, name: Optional[str] = N
         model_path = os.path.join(model_dir, "model.onnx")
         if validate_npz_inputs(model_path, target_path):
             import time
+            created_at_ts = time.time()
             meta = {
                 "id": dataset_id,
                 "name": name or file.filename,
                 "type": "Manual",
-                "created_at": time.time(),
+                "created_at": created_at_ts,
                 "original_filename": file.filename
             }
             # Save metadata
             with open(os.path.join(save_dir, "dataset_meta.json"), "w") as f:
                 json.dump(meta, f, indent=2)
-                
+            
+            # DB Insert
+            try:
+                dataset_orm = DatasetORM(
+                    id=uuid.UUID(dataset_id),
+                    model_id=uuid.UUID(model_id),
+                    name=meta['name'],
+                    type="Manual",
+                    path_dir=save_dir,
+                    meta_info=meta
+                )
+                db.add(dataset_orm)
+                db.commit()
+                # Tensors sync currently skipped for manual upload - can be done on explore
+            except Exception as db_e:
+                logger.error(f"DB Error saving uploaded dataset: {db_e}")
+
             logger.info(f"Dataset '{meta['name']}' ({dataset_id}) uploaded and validated")
             return {"message": "Dataset uploaded successfully", "id": dataset_id, "name": meta['name']}
         else:
