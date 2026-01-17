@@ -1,7 +1,7 @@
 import React from 'react'
-import Layout from './components/Layout'
-import ErrorPage from './components/ErrorPage'
-import CookieConsent from './components/CookieConsent' // Import
+import Layout from './components/layout/Layout'
+import ErrorPage from './components/common/ErrorPage'
+import CookieConsent from './components/common/CookieConsent' // Import
 import useUIStore from './store/uiStore'
 import './App.css'
 

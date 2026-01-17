@@ -1,5 +1,5 @@
 import React from 'react';
-import useModelStore from '../store/modelStore';
+import useModelStore from '../../store/modelStore';
 
 const NodeInspector = () => {
     const { selectedNode, selectedDataset, selectedModel } = useModelStore();

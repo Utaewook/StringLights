@@ -1,13 +1,21 @@
+
+import sys
 import os
+
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 import uuid
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
-from models_orm import ModelORM, DatasetORM, TensorORM
+from app.db.session import SessionLocal
+from app.models.model import Model
+from app.models.dataset import Dataset, Tensor
+from app.core.config import settings
 
 # Environment variables
-MODEL_DIR = os.environ.get("MODEL_DIR", "/model")
-DATA_DIR = os.environ.get("DATA_DIR", "/data")
+MODEL_DIR = settings.MODEL_DIR
+DATA_DIR = settings.DATA_DIR
 
 def sync_models(db: Session):
     print("Syncing models...")
@@ -21,16 +29,14 @@ def sync_models(db: Session):
         meta_path = os.path.join(model_path, "meta.json")
         
         if os.path.isdir(model_path) and os.path.exists(meta_path):
-            # Validate UUID
             try:
                 uuid_obj = uuid.UUID(model_id)
             except ValueError:
                 print(f"Skipping non-UUID directory: {model_id}")
                 continue
 
-            # Check if exists in DB
             try:
-                exists = db.query(ModelORM).filter(ModelORM.id == uuid_obj).first()
+                exists = db.query(Model).filter(Model.id == uuid_obj).first()
                 if exists:
                     continue
                 
@@ -38,8 +44,7 @@ def sync_models(db: Session):
                     data = json.load(f)
                     meta = data.get("meta", {})
                     
-                    # Create ModelORM
-                    model = ModelORM(
+                    model = Model(
                         id=uuid_obj,
                         session_id=meta.get("session_id", "public"),
                         filename=data.get("filename", "unknown.onnx"),
@@ -51,7 +56,7 @@ def sync_models(db: Session):
                         meta_info=data
                     )
                     db.add(model)
-                    db.flush() # Force insert to check constraints
+                    db.flush()
                     count += 1
             except Exception as e:
                 db.rollback()
@@ -62,8 +67,7 @@ def sync_models(db: Session):
 
 def sync_datasets(db: Session):
     print("Syncing datasets...")
-    # Iterate over models in DB to find their datasets
-    models = db.query(ModelORM).all()
+    models = db.query(Model).all()
     
     count = 0
     for model in models:
@@ -79,14 +83,14 @@ def sync_datasets(db: Session):
             
             if os.path.isdir(dataset_path) and os.path.exists(meta_path):
                 try:
-                    exists = db.query(DatasetORM).filter(DatasetORM.id == dataset_id).first()
+                    exists = db.query(Dataset).filter(Dataset.id == dataset_id).first()
                     if exists:
                         continue
                         
                     with open(meta_path, "r") as f:
                         data = json.load(f)
                         
-                        dataset = DatasetORM(
+                        dataset = Dataset(
                             id=uuid.UUID(dataset_id),
                             model_id=model.id,
                             name=data.get("name", "Unnamed"),
@@ -98,7 +102,6 @@ def sync_datasets(db: Session):
                         db.flush()
                         count += 1
                         
-                        # Sync Tensors for this dataset
                         sync_tensors(db, dataset)
                 except Exception as e:
                     db.rollback()
@@ -107,9 +110,7 @@ def sync_datasets(db: Session):
     db.commit()
     print(f"Synced {count} new datasets.")
 
-def sync_tensors(db: Session, dataset: DatasetORM):
-    # This assumes dataset.path_dir is accessible
-    # Scan for .npy files
+def sync_tensors(db: Session, dataset: Dataset):
     import glob
     npy_files = glob.glob(os.path.join(dataset.path_dir, "*.npy"))
     
@@ -118,17 +119,13 @@ def sync_tensors(db: Session, dataset: DatasetORM):
             fname = os.path.basename(fpath)
             tensor_name = fname.replace(".npy", "")
             
-            # Check existence
-            # Note: Checking every tensor might be slow, but this is a one-time sync script
-            # Optimized: Just add, assume clean state if dataset is new
-            
-            tensor = TensorORM(
+            tensor = Tensor(
                 dataset_id=dataset.id,
                 name=tensor_name,
                 filename=fname,
                 size_bytes=os.path.getsize(fpath),
-                dtype="float32", # Default, needs real inspection if critical
-                shape=[] # Needs real inspection
+                dtype="float32",
+                shape=[]
             )
             db.add(tensor)
         except Exception as e:

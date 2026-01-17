@@ -7,3 +7,5 @@ onnx
 celery
 redis
 alembic
+pydantic-settings
+uuid

@@ -1,9 +1,9 @@
-import onnx
-from google.protobuf.json_format import MessageToDict
-from models import ModelMetaData, GraphNode, TensorSpec, ModelResponse, Opset
-from utils.logger import setup_logger
 
-logger = setup_logger("backend")
+import onnx
+from app.schemas.model import ModelMetaData, GraphNode, TensorSpec, ModelResponse, Opset
+from app.utils.logger import setup_logger
+
+logger = setup_logger("backend.utils.onnx")
 
 def _get_tensor_spec(value_info) -> TensorSpec:
     """Helper to extract shape and dtype from ValueInfoProto"""
@@ -15,12 +15,10 @@ def _get_tensor_spec(value_info) -> TensorSpec:
                 shape.append(dim.dim_value)
             elif dim.HasField("dim_param"):
                 # Dynamic dimension
-                shape.append(None) # Or keep the param string? None is easier for JSON
+                shape.append(None) 
             else:
                 shape.append(None)
     
-    # Mapping ONNX data types to string (simplified)
-    # https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L487
     elem_type = type_proto.elem_type
     dtype_map = {
         1: "FLOAT", 2: "UINT8", 3: "INT8", 4: "UINT16", 5: "INT16",
@@ -35,9 +33,6 @@ def _get_tensor_spec(value_info) -> TensorSpec:
     )
 
 def _convert_attribute(attr):
-    """Convert ONNX attribute to python native type"""
-    # Simply using MessageToDict for attributes as they vary a lot
-    # Or implement custom extraction for common types like floats, ints, strings
     if attr.type == onnx.AttributeProto.FLOAT:
         return attr.f
     elif attr.type == onnx.AttributeProto.INT:
@@ -48,39 +43,28 @@ def _convert_attribute(attr):
         return list(attr.ints)
     elif attr.type == onnx.AttributeProto.FLOATS:
         return list(attr.floats)
-    
-    # Fallback
     return str(attr)
 
 def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: str) -> ModelResponse:
     logger.info(f"Parsing ONNX model: {filename} ({model_id}) for session: {session_id}")
-    # Load model structure only, ignoring missing external data files
     model = onnx.load(file_path, load_external_data=False)
     graph = model.graph
     
-    node_count = len(graph.node)
-    logger.info(f"Model loaded. Graph: {graph.name}, Nodes: {node_count}, IR Version: {model.ir_version}")
-    
-    # Collect all tensor shapes from inputs, value_info, and initializers
     tensor_shapes = {}
     
-    # 1. Inputs
     for i in graph.input:
         spec = _get_tensor_spec(i)
         tensor_shapes[spec.name] = spec.shape
         
-    # 2. Value Info (Intermediate tensors)
     for v in graph.value_info:
         spec = _get_tensor_spec(v)
         tensor_shapes[spec.name] = spec.shape
         
-    # 3. Initializers (Constants/Weights)
     initializers = []
     for init in graph.initializer:
         tensor_shapes[init.name] = list(init.dims)
         initializers.append(init.name)
 
-    # Nodes
     nodes = []
     for node in graph.node:
         attributes = {}
@@ -95,7 +79,6 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
             attributes=attributes
         ))
         
-    # Meta
     opset_ver = None
     if model.opset_import:
         opset_ver = model.opset_import[0].version
@@ -103,7 +86,7 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
     meta = ModelMetaData(
         ir_version=model.ir_version,
         producer_name=model.producer_name,
-        opset_import=[{"domain": op.domain, "version": op.version} for op in model.opset_import],
+        opset_import=[Opset(domain=op.domain, version=op.version) for op in model.opset_import],
         opset_version=opset_ver,
         graph_name=graph.name,
         inputs=[_get_tensor_spec(i) for i in graph.input],

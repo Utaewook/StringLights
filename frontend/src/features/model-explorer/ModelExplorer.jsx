@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel, getDatasets, getTensors } from '../api/client';
-import useModelStore from '../store/modelStore';
-import useUIStore from '../store/uiStore';
-import InputActionModal from './InputActionModal';
+import { getModels, uploadModel, getDatasets, getTensors } from '../../api/client';
+import useModelStore from '../../store/modelStore';
+import useUIStore from '../../store/uiStore';
+import InputActionModal from '../input-management/InputActionModal';
 
 import TreeItem from './TreeItem';
 

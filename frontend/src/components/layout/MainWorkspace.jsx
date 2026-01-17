@@ -1,6 +1,6 @@
 import React from 'react';
-import useModelStore from '../store/modelStore';
-import GraphCanvas from './GraphCanvas';
+import useModelStore from '../../store/modelStore';
+import GraphCanvas from '../common/GraphCanvas';
 
 const MainWorkspace = () => {
     const { selectedModel } = useModelStore();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import useModelStore from '../store/modelStore';
-import { api } from '../api/client';
+import useModelStore from '../../store/modelStore';
+import { api } from '../../api/client';
 
 const InputManager = () => {
     const { selectedModel } = useModelStore();

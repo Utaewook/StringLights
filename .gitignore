@@ -18,6 +18,7 @@ run/*
 */__pycache__/*
 */__pycache__/*.pyc
 *.pyc
+*cpython-3*
 
 # cache, temp, build, etc.
 .cache

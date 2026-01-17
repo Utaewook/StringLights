@@ -1,4 +1,5 @@
-from typing import List, Optional, Dict, Any, Union
+
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
 class TensorSpec(BaseModel):
@@ -21,21 +22,17 @@ class ModelMetaData(BaseModel):
     ir_version: int
     producer_name: str
     opset_import: List[Opset]
+    opset_version: Optional[int] = None
     graph_name: str
     inputs: List[TensorSpec]
     outputs: List[TensorSpec]
-    tensor_shapes: dict[str, list[Optional[int]]]
-    initializers: List[str] # List of names of tensors that are initializers (weights/bias)
+    tensor_shapes: Dict[str, List[Optional[int]]]
+    initializers: List[str]
     session_id: str
-    opset_version: Optional[int] = None
-    
+
 class ModelResponse(BaseModel):
     id: str
     filename: str
     upload_timestamp: float
     meta: ModelMetaData
     nodes: List[GraphNode]
-
-class InputGenerationRequest(BaseModel):
-    name: Optional[str] = "Generated Input" # Display name for the dataset
-    dynamic_axes: Dict[str, int] = {} # Mapping of dimension names to values

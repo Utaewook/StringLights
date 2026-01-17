@@ -10,8 +10,10 @@ import sys
 # Add parent directory to path to import backend modules
 sys.path.append(os.getcwd())
 
-from database import SQLALCHEMY_DATABASE_URL
-from models_orm import Base
+from app.db.base import Base
+from app.core.config import settings
+
+SQLALCHEMY_DATABASE_URL = settings.SQLALCHEMY_DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -1,9 +1,9 @@
 import React, { useMemo, useEffect } from 'react';
 import ReactFlow, { Background, Controls, Handle, Position, MarkerType, useNodesState, useEdgesState } from 'reactflow';
 import 'reactflow/dist/style.css';
-import useModelStore from '../store/modelStore';
-import useUIStore from '../store/uiStore';
-import { getLayoutedElements } from '../utils/graphLayout';
+import useModelStore from '../../store/modelStore';
+import useUIStore from '../../store/uiStore';
+import { getLayoutedElements } from '../../utils/graphLayout';
 
 // Custom Node Component to show more details
 const CustomNode = ({ data }) => {

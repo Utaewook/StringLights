@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '../api/client';
-import useModelStore from '../store/modelStore';
+import { api } from '../../api/client';
+import useModelStore from '../../store/modelStore';
 
 const InputActionModal = ({ model, onClose, initialMode = null }) => {
     const [mode, setMode] = useState(initialMode); // 'auto' or 'manual'

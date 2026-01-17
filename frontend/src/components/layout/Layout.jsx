@@ -2,10 +2,10 @@ import React from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MainWorkspace from './MainWorkspace';
-import ModelExplorer from './ModelExplorer';
-import useUIStore from '../store/uiStore';
+import ModelExplorer from '../../features/model-explorer/ModelExplorer';
+import useUIStore from '../../store/uiStore';
 
-import NodeInspector from './NodeInspector';
+import NodeInspector from '../../features/inspector/NodeInspector';
 
 const Layout = () => {
     const { leftPanelOpen, rightPanelOpen } = useUIStore();

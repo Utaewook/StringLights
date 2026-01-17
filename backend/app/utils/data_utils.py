@@ -1,16 +1,13 @@
+
 import os
 import numpy as np
 import onnx
 from typing import Dict, Any, List, Optional
-from utils.logger import setup_logger
+from app.utils.logger import setup_logger
 
-logger = setup_logger("backend")
+logger = setup_logger("backend.utils.data")
 
 def generate_dummy_inputs(model_path: str, dynamic_axes_values: Dict[str, int]) -> Dict[str, np.ndarray]:
-    """
-    Generate dummy numpy arrays for each input of the ONNX model.
-    dynamic_axes_values: mapping of dimension parameter names (or None index) to size.
-    """
     model = onnx.load(model_path, load_external_data=False)
     graph = model.graph
     
@@ -24,15 +21,11 @@ def generate_dummy_inputs(model_path: str, dynamic_axes_values: Dict[str, int]) 
             if dim.HasField("dim_value"):
                 shape.append(dim.dim_value)
             elif dim.HasField("dim_param"):
-                # Use provided value or default to 100
                 val = dynamic_axes_values.get(dim.dim_param, 100)
                 shape.append(val)
             else:
-                # Unnamed dynamic dimension
                 shape.append(100)
         
-        # Mapping ONNX type to numpy type
-        # For dummy data, we mostly care about float32 or int types
         elem_type = type_proto.elem_type
         if elem_type == onnx.TensorProto.FLOAT:
             data = np.random.randn(*shape).astype(np.float32)
@@ -48,38 +41,25 @@ def generate_dummy_inputs(model_path: str, dynamic_axes_values: Dict[str, int]) 
     return inputs
 
 def validate_npz_inputs(model_path: str, npz_path: str) -> bool:
-    """
-    Validate if the provided NPZ file matches the model's required inputs.
-    """
     model = onnx.load(model_path, load_external_data=False)
     graph = model.graph
     
     with np.load(npz_path) as data:
         provided_names = set(data.files)
-        required_inputs = []
-        
-        # Only consider graph.input that are NOT in graph.initializer (true model inputs)
+        # Only true inputs, not initializers
         initializers = {i.name for i in graph.initializer}
-        for i in graph.input:
-            if i.name not in initializers:
-                required_inputs.append(i.name)
+        required_inputs = [i.name for i in graph.input if i.name not in initializers]
         
         missing = [name for name in required_inputs if name not in provided_names]
         if missing:
             logger.error(f"Missing inputs in NPZ: {missing}")
             return False
-            
-        # Optional: check shapes (can be tricky with dynamic axes)
         return True
 
 def save_inputs(save_dir: str, inputs: Dict[str, np.ndarray], meta: Optional[Dict[str, Any]] = None):
-    """
-    Save each tensor as a separate .npy file and optionally save metadata.
-    """
     os.makedirs(save_dir, exist_ok=True)
     paths = []
     
-    # Save individual tensors
     for name, data in inputs.items():
         safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in name])
         path = os.path.join(save_dir, f"{safe_name}.npy")
@@ -87,11 +67,9 @@ def save_inputs(save_dir: str, inputs: Dict[str, np.ndarray], meta: Optional[Dic
         paths.append(path)
         logger.info(f"Saved tensor '{name}' to {path}")
     
-    # Save combined .npz
     combined_path = os.path.join(save_dir, "bundle.npz")
     np.savez(combined_path, **inputs)
     
-    # Save dataset metadata
     if meta:
         import json
         with open(os.path.join(save_dir, "dataset_meta.json"), "w") as f:

@@ -1,5 +1,5 @@
 import React from 'react';
-import useUIStore from '../store/uiStore';
+import useUIStore from '../../store/uiStore';
 
 const Header = () => {
     const { toggleLeftPanel, toggleRightPanel, leftPanelOpen, rightPanelOpen, theme, toggleTheme } = useUIStore();
