@@ -2,6 +2,15 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
+class ModelBase(BaseModel):
+    pass
+
+class ModelCreate(ModelBase):
+    pass
+
+class ModelUpdate(ModelBase):
+    pass
+
 class TensorSpec(BaseModel):
     name: str
     shape: List[Optional[int]]

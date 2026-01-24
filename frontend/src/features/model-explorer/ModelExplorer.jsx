@@ -3,6 +3,7 @@ import { getModels, uploadModel, getDatasets, getTensors } from '../../api/clien
 import useModelStore from '../../store/modelStore';
 import useUIStore from '../../store/uiStore';
 import InputActionModal from '../input-management/InputActionModal';
+import RunInferenceModal from './RunInferenceModal';
 
 import TreeItem from './TreeItem';
 
@@ -23,20 +24,19 @@ const ModelExplorer = () => {
 
     // Expansion States
     const [expandedModels, setExpandedModels] = useState(new Set());
-    const [expandedModelDatasets, setExpandedModelDatasets] = useState(new Set()); // Level 1: "Datasets" folder
-    const [expandedDatasets, setExpandedDatasets] = useState(new Set()); // Level 2: Individual Datasets
-    const [expandedInputs, setExpandedInputs] = useState(new Set()); // Level 3: "Inputs" folder
-    // Note: Outputs are static/placeholder for now
+    const [expandedModelDatasets, setExpandedModelDatasets] = useState(new Set());
+    const [expandedDatasets, setExpandedDatasets] = useState(new Set());
+    const [expandedInputs, setExpandedInputs] = useState(new Set());
 
     // Modal & Menu states
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false); // Input Action Modal
+    const [isRunModalOpen, setIsRunModalOpen] = useState(false); // Run Inference Modal
     const [modalMode, setModalMode] = useState(null);
     const [targetModel, setTargetModel] = useState(null);
-    const [menuAnchor, setMenuAnchor] = useState(null); // { x, y, model }
+    const [menuAnchor, setMenuAnchor] = useState(null);
 
     // --- Handlers ---
     const toggleExpandModel = async (e, modelId) => {
-        // e is optional if called from TreeItem directly via onToggle
         if (e) e.stopPropagation();
 
         const next = new Set(expandedModels);
@@ -89,7 +89,6 @@ const ModelExplorer = () => {
         }
     };
 
-    // ... (Menu & Modal handlers same as before) ...
     const handleOpenMenu = (e, model) => {
         e.stopPropagation();
         const rect = e.currentTarget.getBoundingClientRect();
@@ -102,7 +101,12 @@ const ModelExplorer = () => {
         setIsModalOpen(true);
         closeMenu();
     };
-    // ...
+
+    const handleOpenRunModal = (e, model) => {
+        e.stopPropagation();
+        setTargetModel(model);
+        setIsRunModalOpen(true);
+    };
 
     const handleTensorClick = (tensor) => {
         const mockNode = {
@@ -116,7 +120,7 @@ const ModelExplorer = () => {
             outputs: []
         };
         setSelectedNode(mockNode);
-        setRightPanelOpen(true); // Automatically open inspector
+        setRightPanelOpen(true);
     };
 
     const fetchModels = async () => {
@@ -181,6 +185,24 @@ const ModelExplorer = () => {
                         onToggle={(e) => toggleExpandModel(e, model.id)}
                         onClick={() => setSelectedModel(model)}
                         isActive={selectedModel?.id === model.id}
+                        actions={
+                            <button
+                                className="run-inference-btn"
+                                onClick={(e) => handleOpenRunModal(e, model)}
+                                title="Run Inference"
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#4caf50',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold',
+                                    marginLeft: '8px'
+                                }}
+                            >
+                                ▶
+                            </button>
+                        }
                     >
                         {/* Level 1: Datasets Group Folder */}
                         <TreeItem
@@ -242,7 +264,6 @@ const ModelExplorer = () => {
                                             label="Outputs"
                                             isLeaf={false} // Treat as folder
                                             expanded={false} // Always closed for now
-                                        // onToggle not needed strictly if always closed, or empty handler
                                         />
                                     </TreeItem>
                                 ))
@@ -276,6 +297,13 @@ const ModelExplorer = () => {
                     model={targetModel}
                     initialMode={modalMode}
                     onClose={() => setIsModalOpen(false)}
+                />
+            )}
+
+            {isRunModalOpen && (
+                <RunInferenceModal
+                    model={targetModel}
+                    onClose={() => setIsRunModalOpen(false)}
                 />
             )}
         </div>

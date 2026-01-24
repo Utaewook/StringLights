@@ -26,7 +26,7 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
                 });
             }
 
-            const response = await api.post(`/models/${model.id}/inputs/generate`, {
+            const response = await api.post(`/datasets/${model.id}/inputs/generate`, {
                 name: name || "Generated Input",
                 dynamic_axes: axes
             });
@@ -57,7 +57,7 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
         if (name) formData.append('name', name);
 
         try {
-            const response = await api.post(`/models/${model.id}/inputs/upload`, formData, {
+            const response = await api.post(`/datasets/${model.id}/inputs/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

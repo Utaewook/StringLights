@@ -2,6 +2,12 @@
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 
+class DatasetCreate(BaseModel):
+    pass
+
+class DatasetUpdate(BaseModel):
+    pass
+
 class InputGenerationRequest(BaseModel):
     name: Optional[str] = "Generated Input"
     dynamic_axes: Dict[str, int] = {} 

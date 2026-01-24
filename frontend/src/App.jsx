@@ -1,7 +1,9 @@
 import React from 'react'
 import Layout from './components/layout/Layout'
 import ErrorPage from './components/common/ErrorPage'
-import CookieConsent from './components/common/CookieConsent' // Import
+import CookieConsent from './components/common/CookieConsent'
+import ToastContainer from './components/common/ToastContainer';
+import RunPoller from './components/common/RunPoller';
 import useUIStore from './store/uiStore'
 import './App.css'
 
@@ -35,6 +37,8 @@ function App() {
             <ErrorBoundary>
                 <Layout />
                 <CookieConsent />
+                <ToastContainer />
+                <RunPoller />
             </ErrorBoundary>
         </div>
     )

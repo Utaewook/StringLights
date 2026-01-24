@@ -39,7 +39,7 @@ const InputManager = () => {
             const axesPayload = {};
             // Our backend generate_dummy_inputs uses dim_param if available, else 100.
 
-            const response = await api.post(`/models/${selectedModel.id}/inputs/generate`, {
+            const response = await api.post(`/datasets/${selectedModel.id}/inputs/generate`, {
                 dynamic_axes: dynamicAxes
             });
             setStatus({ type: 'success', message: 'Inputs generated successfully!' });
@@ -60,7 +60,7 @@ const InputManager = () => {
         formData.append('file', file);
 
         try {
-            await api.post(`/models/${selectedModel.id}/inputs/upload`, formData, {
+            await api.post(`/datasets/${selectedModel.id}/inputs/upload`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setStatus({ type: 'success', message: 'Inputs uploaded and validated!' });

@@ -5,3 +5,5 @@ onnxruntime
 numpy
 sqlalchemy
 psycopg2-binary
+pydantic-settings
+python-dotenv

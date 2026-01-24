@@ -74,13 +74,30 @@ export const api = {
 };
 
 export const getDatasets = async (modelId) => {
-    const response = await fetch(`${API_BASE}/models/${modelId}/datasets`);
+    const response = await fetch(`${API_BASE}/datasets/${modelId}/datasets`);
     if (!response.ok) throw new Error('Failed to fetch datasets');
     return response.json();
 };
 
 export const getTensors = async (modelId, datasetId) => {
-    const response = await fetch(`${API_BASE}/models/${modelId}/datasets/${datasetId}/tensors`);
+    const response = await fetch(`${API_BASE}/datasets/${modelId}/datasets/${datasetId}/tensors`);
     if (!response.ok) throw new Error('Failed to fetch tensors');
+    return response.json();
+};
+
+export const createRun = async (modelId, datasetId) => {
+    const response = await api.post('/runs/', { model_id: modelId, dataset_id: datasetId });
+    return response;
+};
+
+export const getRun = async (runId) => {
+    const response = await fetch(`${API_BASE}/runs/${runId}`);
+    if (!response.ok) throw new Error('Failed to fetch run status');
+    return response.json();
+};
+
+export const getRunTrace = async (runId) => {
+    const response = await fetch(`${API_BASE}/runs/${runId}/trace`);
+    if (!response.ok) throw new Error('Failed to fetch run trace');
     return response.json();
 };

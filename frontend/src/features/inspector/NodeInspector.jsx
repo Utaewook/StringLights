@@ -1,5 +1,6 @@
 import React from 'react';
 import useModelStore from '../../store/modelStore';
+import { formatDate } from '../../utils/dateUtils';
 
 const NodeInspector = () => {
     const { selectedNode, selectedDataset, selectedModel } = useModelStore();
@@ -15,9 +16,7 @@ const NodeInspector = () => {
 
     if (selectedDataset) {
         const { name, type, created_at, dynamic_axes } = selectedDataset;
-        const date = created_at ? new Date(created_at * 1000) : null;
-        const datePart = date ? date.toLocaleDateString() : 'Unknown';
-        const timePart = date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+        const formattedDate = formatDate(created_at);
 
         return (
             <div className="node-inspector dataset-inspector">
@@ -32,9 +31,7 @@ const NodeInspector = () => {
                         <tbody>
                             <tr>
                                 <td className="prop-key">Created At</td>
-                                <td className="prop-value">
-                                    {datePart}<br />{timePart}
-                                </td>
+                                <td className="prop-value">{formattedDate}</td>
                             </tr>
                             <tr>
                                 <td className="prop-key">Source Type</td>
