@@ -28,7 +28,7 @@ class DatasetService:
         
         # Generate inputs
         try:
-            model_path_file = os.path.join(model.path_files, "model.onnx")
+            model_path_file = os.path.join(model.path_files, model.filename)
             inputs = generate_dummy_inputs(model_path_file, request.dynamic_axes)
         except Exception as e:
             logger.error(f"Generation failed: {e}")
@@ -114,7 +114,7 @@ class DatasetService:
             raise HTTPException(status_code=500, detail="Failed to save file")
             
         # Validate
-        model_path_file = os.path.join(model.path_files, "model.onnx")
+        model_path_file = os.path.join(model.path_files, model.filename)
         if not validate_npz_inputs(model_path_file, target_path):
              shutil.rmtree(dataset_dir)
              raise HTTPException(status_code=422, detail="Starting input validation failed. Inputs do not match model.")

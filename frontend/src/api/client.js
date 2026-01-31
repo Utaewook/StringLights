@@ -13,9 +13,14 @@ if (!SESSION_ID) {
 
 console.log("Current Session ID:", SESSION_ID);
 
-export const uploadModel = async (file) => {
+export const uploadModel = async (files) => {
     const formData = new FormData();
-    formData.append('file', file);
+    // Support both single file and FileList/Array
+    const fileList = files instanceof FileList ? Array.from(files) : (Array.isArray(files) ? files : [files]);
+
+    fileList.forEach(file => {
+        formData.append('files', file);
+    });
 
     const response = await fetch(`${API_BASE}/models/upload`, {
         method: 'POST',
@@ -26,7 +31,32 @@ export const uploadModel = async (file) => {
     });
 
     if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Upload failed');
+    }
+
+    return response.json();
+};
+
+export const uploadModelFile = async (modelId, files) => {
+    const formData = new FormData();
+    const fileList = files instanceof FileList ? Array.from(files) : (Array.isArray(files) ? files : [files]);
+
+    fileList.forEach(file => {
+        formData.append('files', file);
+    });
+
+    const response = await fetch(`${API_BASE}/models/${modelId}/upload_file`, {
+        method: 'POST',
+        headers: {
+            'X-Session-Id': SESSION_ID,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Upload failed');
     }
 
     return response.json();

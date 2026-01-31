@@ -44,7 +44,8 @@ def execute_run(self, run_id: str):
         db.commit()
         
         # 2. Paths
-        model_path = os.path.join(settings.MODEL_DIR, str(run.model_id), "model.onnx")
+        # Need to join with model filename, not hardcoded model.onnx
+        model_path = os.path.join(settings.MODEL_DIR, str(run.model_id), run.model.filename)
         dataset_path = os.path.join(settings.DATA_DIR, str(run.model_id), str(run.dataset_id))
         
         run_dir = os.path.join(settings.RUN_DIR, str(run.model_id), run_id)

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel, getDatasets, getTensors } from '../../api/client';
+import { getModels, uploadModel, uploadModelFile, getDatasets, getTensors } from '../../api/client';
 import useModelStore from '../../store/modelStore';
 import useUIStore from '../../store/uiStore';
 import InputActionModal from '../input-management/InputActionModal';
@@ -142,11 +142,12 @@ const ModelExplorer = () => {
     const handleUploadClick = () => fileInputRef.current?.click();
 
     const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
         setIsLoading(true);
         try {
-            await uploadModel(file);
+            await uploadModel(files);
             await fetchModels();
         } catch (error) {
             alert("Upload failed: " + error.message);
@@ -156,15 +157,57 @@ const ModelExplorer = () => {
         }
     };
 
+    const [targetModelForUpload, setTargetModelForUpload] = useState(null);
+    const appendFileInputRef = useRef(null);
+
+    const handleAppendFileChange = async (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0 || !targetModelForUpload) return;
+
+        setIsLoading(true);
+        try {
+            await uploadModelFile(targetModelForUpload.id, files);
+            alert("File added successfully");
+            await fetchModels(); // Refresh status
+        } catch (error) {
+            alert("Failed to add file: " + error.message);
+        } finally {
+            setIsLoading(false);
+            if (appendFileInputRef.current) appendFileInputRef.current.value = '';
+            setTargetModelForUpload(null);
+        }
+    };
+
+    const handleMissingFileClick = (e, model) => {
+        e.stopPropagation();
+        alert(`Missing files: ${model.meta.missing_files?.join(', ')}\nPlease upload the missing files.`);
+        setTargetModelForUpload(model);
+        setTimeout(() => appendFileInputRef.current?.click(), 100);
+    };
+
+    const handleNoDatasetClick = (e, model) => {
+        e.stopPropagation();
+        alert("No input data found. Please add a dataset first.");
+        handleOpenMenu(e, model); // Open the "Add Input" menu
+    };
+
     return (
         <div className="model-explorer">
             <div className="explorer-actions">
                 <input
                     type="file"
-                    accept=".onnx"
+                    multiple
+                    accept=".onnx,.data,.json,.pth"
                     ref={fileInputRef}
                     style={{ display: 'none' }}
                     onChange={handleFileChange}
+                />
+                <input
+                    type="file"
+                    multiple
+                    ref={appendFileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleAppendFileChange}
                 />
                 <button className="primary-btn upload-model-btn" onClick={handleUploadClick} disabled={isLoading}>
                     {isLoading ? 'Uploading...' : 'Upload Model'}
@@ -176,101 +219,117 @@ const ModelExplorer = () => {
                     <div className="empty-message">No models found</div>
                 )}
 
-                {models.map(model => (
-                    <TreeItem
-                        key={model.id}
-                        level={0}
-                        label={model.filename}
-                        expanded={expandedModels.has(model.id)}
-                        onToggle={(e) => toggleExpandModel(e, model.id)}
-                        onClick={() => setSelectedModel(model)}
-                        isActive={selectedModel?.id === model.id}
-                        actions={
-                            <button
-                                className="run-inference-btn"
-                                onClick={(e) => handleOpenRunModal(e, model)}
-                                title="Run Inference"
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    color: '#4caf50',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    marginLeft: '8px'
-                                }}
-                            >
-                                ▶
-                            </button>
-                        }
-                    >
-                        {/* Level 1: Datasets Group Folder */}
+                {models.map(model => {
+                    const status = model.meta?.status || "READY";
+                    const isMissingFiles = status === "MISSING_FILES";
+                    const hasDatasets = (datasets[model.id] || []).length > 0;
+                    const isReady = !isMissingFiles && hasDatasets;
+
+                    return (
                         <TreeItem
-                            level={1}
-                            label="Datasets"
-                            expanded={expandedModelDatasets.has(model.id)}
-                            onToggle={(e) => toggleExpandModelDatasets(e, model.id)}
+                            key={model.id}
+                            level={0}
+                            label={model.filename}
+                            expanded={expandedModels.has(model.id)}
+                            onToggle={(e) => toggleExpandModel(e, model.id)}
+                            onClick={() => setSelectedModel(model)}
+                            isActive={selectedModel?.id === model.id}
                             actions={
-                                <button
-                                    className="add-input-btn"
-                                    onClick={(e) => handleOpenMenu(e, model)}
-                                    title="Add Input Data"
-                                >
-                                    +
-                                </button>
+                                isReady ? (
+                                    <button
+                                        className="run-inference-btn"
+                                        onClick={(e) => handleOpenRunModal(e, model)}
+                                        title="Run Inference"
+                                        style={{
+                                            background: 'none', border: 'none', cursor: 'pointer',
+                                            color: '#4caf50', fontSize: '14px', fontWeight: 'bold', marginLeft: '8px'
+                                        }}
+                                    >
+                                        ▶
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="warning-btn"
+                                        onClick={(e) => isMissingFiles ? handleMissingFileClick(e, model) : handleNoDatasetClick(e, model)}
+                                        title={isMissingFiles ? "Missing Files" : "No Input Data"}
+                                        style={{
+                                            background: 'none', border: 'none', cursor: 'pointer',
+                                            color: '#f44336', fontSize: '14px', fontWeight: 'bold', marginLeft: '8px'
+                                        }}
+                                    >
+                                        !
+                                    </button>
+                                )
                             }
                         >
-                            {/* Level 2: Individual Datasets */}
-                            {(datasets[model.id] || []).length === 0 ? (
-                                <div className="tree-empty-item" style={{ paddingLeft: '42px' }}>No datasets</div>
-                            ) : (
-                                datasets[model.id].map(ds => (
-                                    <TreeItem
-                                        key={ds.id}
-                                        level={2}
-                                        label={ds.name}
-                                        expanded={expandedDatasets.has(ds.id)}
-                                        onToggle={(e) => toggleExpandDataset(e, model.id, ds.id)}
-                                        onClick={() => setSelectedDataset(ds)}
-                                        isActive={selectedDataset?.id === ds.id}
-                                        actions={<span className="input-tag">{ds.type}</span>}
+                            {/* Level 1: Datasets Group Folder */}
+                            <TreeItem
+                                level={1}
+                                label="Datasets"
+                                expanded={expandedModelDatasets.has(model.id)}
+                                onToggle={(e) => toggleExpandModelDatasets(e, model.id)}
+                                actions={
+                                    <button
+                                        className="add-input-btn"
+                                        onClick={(e) => handleOpenMenu(e, model)}
+                                        title="Add Input Data"
                                     >
-                                        {/* Level 3: Inputs Folder */}
+                                        +
+                                    </button>
+                                }
+                            >
+                                {/* Level 2: Individual Datasets */}
+                                {(datasets[model.id] || []).length === 0 ? (
+                                    <div className="tree-empty-item" style={{ paddingLeft: '42px' }}>No datasets</div>
+                                ) : (
+                                    datasets[model.id].map(ds => (
                                         <TreeItem
-                                            level={3}
-                                            label="Inputs"
-                                            expanded={expandedInputs.has(ds.id)}
-                                            onToggle={(e) => toggleExpandInput(e, model.id, ds.id)}
+                                            key={ds.id}
+                                            level={2}
+                                            label={ds.name}
+                                            expanded={expandedDatasets.has(ds.id)}
+                                            onToggle={(e) => toggleExpandDataset(e, model.id, ds.id)}
+                                            onClick={() => setSelectedDataset(ds)}
+                                            isActive={selectedDataset?.id === ds.id}
+                                            actions={<span className="input-tag">{ds.type}</span>}
                                         >
-                                            {/* Level 4: Tensors */}
-                                            {(datasetTensors[ds.id] || []).length === 0 ? (
-                                                <div className="tree-empty-item" style={{ paddingLeft: '74px' }}>No tensors</div>
-                                            ) : (
-                                                datasetTensors[ds.id].map((tensor, idx) => (
-                                                    <TreeItem
-                                                        key={idx}
-                                                        level={4}
-                                                        label={tensor.tensor_name}
-                                                        isLeaf={true}
-                                                        onClick={() => handleTensorClick(tensor)}
-                                                    />
-                                                ))
-                                            )}
-                                        </TreeItem>
+                                            {/* Level 3: Inputs Folder */}
+                                            <TreeItem
+                                                level={3}
+                                                label="Inputs"
+                                                expanded={expandedInputs.has(ds.id)}
+                                                onToggle={(e) => toggleExpandInput(e, model.id, ds.id)}
+                                            >
+                                                {/* Level 4: Tensors */}
+                                                {(datasetTensors[ds.id] || []).length === 0 ? (
+                                                    <div className="tree-empty-item" style={{ paddingLeft: '74px' }}>No tensors</div>
+                                                ) : (
+                                                    datasetTensors[ds.id].map((tensor, idx) => (
+                                                        <TreeItem
+                                                            key={idx}
+                                                            level={4}
+                                                            label={tensor.tensor_name}
+                                                            isLeaf={true}
+                                                            onClick={() => handleTensorClick(tensor)}
+                                                        />
+                                                    ))
+                                                )}
+                                            </TreeItem>
 
-                                        {/* Level 3: Outputs Folder (Placeholder) */}
-                                        <TreeItem
-                                            level={3}
-                                            label="Outputs"
-                                            isLeaf={false} // Treat as folder
-                                            expanded={false} // Always closed for now
-                                        />
-                                    </TreeItem>
-                                ))
-                            )}
+                                            {/* Level 3: Outputs Folder (Placeholder) */}
+                                            <TreeItem
+                                                level={3}
+                                                label="Outputs"
+                                                isLeaf={false} // Treat as folder
+                                                expanded={false} // Always closed for now
+                                            />
+                                        </TreeItem>
+                                    ))
+                                )}
+                            </TreeItem>
                         </TreeItem>
-                    </TreeItem>
-                ))}
+                    );
+                })}
             </div>
 
             {menuAnchor && (

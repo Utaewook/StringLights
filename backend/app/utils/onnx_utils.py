@@ -1,5 +1,6 @@
 
 import onnx
+import os
 from app.schemas.model import ModelMetaData, GraphNode, TensorSpec, ModelResponse, Opset
 from app.utils.logger import setup_logger
 
@@ -50,6 +51,22 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
     model = onnx.load(file_path, load_external_data=False)
     graph = model.graph
     
+    # Check for missing external data
+    base_dir = os.path.dirname(file_path)
+    missing_files = set()
+    
+    # Check initializers
+    for tensor in graph.initializer:
+        if tensor.data_location == onnx.TensorProto.EXTERNAL:
+            for entry in tensor.external_data:
+                if entry.key == 'location':
+                    # Validation: Simple existence check
+                    # Sanitize path to prevent traversal? usually basename.
+                    ext_filename = os.path.basename(entry.value)
+                    ext_path = os.path.join(base_dir, ext_filename)
+                    if not os.path.exists(ext_path):
+                        missing_files.add(ext_filename)
+
     tensor_shapes = {}
     
     for i in graph.input:
@@ -83,6 +100,11 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
     if model.opset_import:
         opset_ver = model.opset_import[0].version
 
+    # Status determination
+    status = "READY"
+    if missing_files:
+        status = "MISSING_FILES"
+
     meta = ModelMetaData(
         ir_version=model.ir_version,
         producer_name=model.producer_name,
@@ -93,7 +115,10 @@ def parse_onnx_model(file_path: str, model_id: str, filename: str, session_id: s
         outputs=[_get_tensor_spec(o) for o in graph.output],
         tensor_shapes=tensor_shapes,
         initializers=initializers,
-        session_id=session_id
+        session_id=session_id,
+        # Extended Fields
+        status=status,
+        missing_files=list(missing_files)
     )
     
     import time

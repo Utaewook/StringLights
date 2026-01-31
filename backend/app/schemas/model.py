@@ -38,6 +38,8 @@ class ModelMetaData(BaseModel):
     tensor_shapes: Dict[str, List[Optional[int]]]
     initializers: List[str]
     session_id: str
+    status: str = "READY"
+    missing_files: List[str] = []
 
 class ModelResponse(BaseModel):
     id: str
