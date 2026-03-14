@@ -35,7 +35,8 @@ def create_model():
     
     # Model
     model_def = helper.make_model(graph_def, producer_name='string_lights_script')
-    model_def.opset_import[0].version = 13
+    model_def.opset_import[0].version = 11
+    model_def.ir_version = 7
     
     # Save
     os.makedirs("bak/simple-model", exist_ok=True)

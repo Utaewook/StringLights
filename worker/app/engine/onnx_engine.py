@@ -27,6 +27,8 @@ class OnnxInferenceEngine(InferenceEngine):
 
         # Setup Runtime Options
         sess_options = ort.SessionOptions()
+        # Disable optimization to ensure we can trace all nodes for visualization
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
         # Enable profiling to get accurate node execution times if needed
         # sess_options.enable_profiling = True 
         
@@ -116,5 +118,6 @@ class OnnxInferenceEngine(InferenceEngine):
                 "timestamp": start_time
             },
             "trace_events": trace_events,
-            "tensor_stats": tensor_stats
+            "tensor_stats": tensor_stats,
+            "outputs": output_map
         }

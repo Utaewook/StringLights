@@ -24,3 +24,10 @@ async def upload_inputs(model_id: str, file: UploadFile, db: Session = Depends(g
 @router.get("/{model_id}/datasets/{dataset_id}/tensors", response_model=List[TensorInfo])
 def list_tensors(model_id: str, dataset_id: str, db: Session = Depends(get_db)):
     return dataset_service.get_tensors(db, model_id, dataset_id)
+
+@router.get("/{model_id}/datasets/{dataset_id}/outputs")
+def list_dataset_outputs(model_id: str, dataset_id: str, db: Session = Depends(get_db)):
+    """
+    List output files that are saved under the dataset directory, grouped by Run.
+    """
+    return dataset_service.get_dataset_outputs(db, model_id, dataset_id)

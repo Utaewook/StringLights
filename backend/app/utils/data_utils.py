@@ -17,14 +17,25 @@ def generate_dummy_inputs(model_path: str, dynamic_axes_values: Dict[str, int]) 
         type_proto = input_proto.type.tensor_type
         
         shape = []
-        for dim in type_proto.shape.dim:
+        for idx, dim in enumerate(type_proto.shape.dim):
             if dim.HasField("dim_value"):
                 shape.append(dim.dim_value)
-            elif dim.HasField("dim_param"):
-                val = dynamic_axes_values.get(dim.dim_param, 100)
-                shape.append(val)
             else:
-                shape.append(100)
+                # Dynamic dimension
+                val = 100 # Default
+                
+                # 1. Try by param name
+                if dim.HasField("dim_param"):
+                    if dim.dim_param in dynamic_axes_values:
+                        val = dynamic_axes_values[dim.dim_param]
+                    elif f"dim_{idx}" in dynamic_axes_values:
+                        val = dynamic_axes_values[f"dim_{idx}"]
+                
+                # 2. Try by index (if not found by name or no name)
+                elif f"dim_{idx}" in dynamic_axes_values:
+                    val = dynamic_axes_values[f"dim_{idx}"]
+                
+                shape.append(val)
         
         elem_type = type_proto.elem_type
         if elem_type == onnx.TensorProto.FLOAT:

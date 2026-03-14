@@ -15,11 +15,13 @@ const NodeInspector = () => {
     }
 
     if (selectedDataset) {
+        // ... (existing dataset logic) ...
         const { name, type, created_at, dynamic_axes } = selectedDataset;
         const formattedDate = formatDate(created_at);
 
         return (
             <div className="node-inspector dataset-inspector">
+                {/* ... existing render ... */}
                 <div className="inspector-header">
                     <div className="inspector-title">{name}</div>
                     <div className="inspector-subtitle">Dataset • {type}</div>
@@ -60,6 +62,70 @@ const NodeInspector = () => {
         );
     }
 
+    // Custom Run Info Inspector
+    if (selectedNode && selectedNode.op_type === 'RunInfo') {
+        const { name, id, status, duration, tensors } = selectedNode.attributes;
+
+        return (
+            <div className="node-inspector run-inspector">
+                <div className="inspector-header">
+                    <div className="inspector-title">Run Details</div>
+                    <div className="inspector-subtitle">{name}</div>
+                </div>
+
+                <div className="inspector-section">
+                    <h3>Summary</h3>
+                    <table className="property-table">
+                        <tbody>
+                            <tr>
+                                <td className="prop-key">Status</td>
+                                <td className="prop-value"><span className={`status-tag ${status?.toLowerCase()}`}>{status}</span></td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Duration</td>
+                                <td className="prop-value">{typeof duration === 'number' ? (duration * 1000).toFixed(2) + ' ms' : duration}</td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Run ID</td>
+                                <td className="prop-value" style={{ fontSize: '11px' }}>{id}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="inspector-section">
+                    <h3>Tensor Statistics</h3>
+                    {tensors && Object.keys(tensors).length > 0 ? (
+                        <div className="table-container" style={{ overflowX: 'auto' }}>
+                            <table className="data-table" style={{ width: '100%', fontSize: '11px' }}>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Shape</th>
+                                        <th>Min</th>
+                                        <th>Max</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(tensors).map(([tName, stat]) => (
+                                        <tr key={tName}>
+                                            <td style={{ wordBreak: 'break-all' }}>{tName}</td>
+                                            <td>{JSON.stringify(stat.shape)}</td>
+                                            <td>{stat.min?.toPrecision(3)}</td>
+                                            <td>{stat.max?.toPrecision(3)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="empty-section">No tensor stats available</div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     // Node Inspection logic
     const { label, op_type, attributes, inputs, outputs } = selectedNode;
     const meta = selectedModel?.meta || {};
@@ -78,6 +144,102 @@ const NodeInspector = () => {
             </div>
         );
     };
+
+    // Custom Tensor Inspector
+    if (selectedNode && selectedNode.op_type === 'Tensor') {
+        const { name, size_bytes, filename, shape, dtype, statistics } = selectedNode.attributes;
+        const sizeStr = size_bytes ? (size_bytes / 1024).toFixed(2) + ' KB' : '0 KB';
+        const stats = statistics || {};
+
+        return (
+            <div className="node-inspector tensor-inspector">
+                <div className="inspector-header">
+                    <div className="inspector-title">{name}</div>
+                    <div className="inspector-subtitle">Input Tensor</div>
+                </div>
+
+                <div className="inspector-section">
+                    <h3>Metadata</h3>
+                    <table className="property-table">
+                        <tbody>
+                            <tr>
+                                <td className="prop-key">Shape</td>
+                                <td className="prop-value">{shape ? JSON.stringify(shape) : "N/A"}</td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Data Type</td>
+                                <td className="prop-value">{dtype || "N/A"}</td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Size</td>
+                                <td className="prop-value">{sizeStr}</td>
+                            </tr>
+                            <tr>
+                                <td className="prop-key">Filename</td>
+                                <td className="prop-value" style={{ fontSize: '11px' }}>{filename}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Statistics Section */}
+                <div className="inspector-section">
+                    <h3>Data Statistics</h3>
+                    {stats.mean !== undefined ? (
+                        <table className="property-table">
+                            <tbody>
+                                <tr>
+                                    <td className="prop-key">Min</td>
+                                    <td className="prop-value">{typeof stats.min === 'number' ? stats.min.toPrecision(4) : "N/A"}</td>
+                                </tr>
+                                <tr>
+                                    <td className="prop-key">Max</td>
+                                    <td className="prop-value">{typeof stats.max === 'number' ? stats.max.toPrecision(4) : "N/A"}</td>
+                                </tr>
+                                <tr>
+                                    <td className="prop-key">Mean</td>
+                                    <td className="prop-value">{typeof stats.mean === 'number' ? stats.mean.toPrecision(4) : "N/A"}</td>
+                                </tr>
+                                <tr>
+                                    <td className="prop-key">Std Dev</td>
+                                    <td className="prop-value">{typeof stats.std === 'number' ? stats.std.toPrecision(4) : "N/A"}</td>
+                                </tr>
+                                {(stats.has_nan || stats.has_inf) && (
+                                    <tr>
+                                        <td className="prop-key" style={{ color: '#ff4444' }}>Integrity</td>
+                                        <td className="prop-value" style={{ color: '#ff4444' }}>
+                                            {stats.has_nan ? "Contains NaN " : ""}
+                                            {stats.has_inf ? "Contains Inf" : ""}
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="empty-section">No statistics available</div>
+                    )}
+                </div>
+
+                <div className="inspector-section">
+                    <h3>Preview</h3>
+                    <div className="tensor-preview-placeholder" style={{
+                        padding: '20px',
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: '4px',
+                        textAlign: 'center',
+                        color: '#888'
+                    }}>
+                        {/* Future: Render image or 3D object based on shape/dtype */}
+                        {dtype === 'float32' && shape?.length === 4 ? (
+                            <span>📷 Image Preview Support Coming Soon</span>
+                        ) : (
+                            <span>📊 Raw Data Visualization</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="node-inspector">

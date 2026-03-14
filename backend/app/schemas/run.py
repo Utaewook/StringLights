@@ -13,12 +13,16 @@ class RunCreate(RunBase):
 
 class RunUpdate(BaseModel):
     status: Optional[str] = None
-    result_path: Optional[str] = None
+    output_path: Optional[str] = None
 
 class Run(RunBase):
     id: UUID
+    name: Optional[str] = None
     status: str
-    result_path: Optional[str] = None
+    output_path: Optional[str] = None
+    metrics: Optional[dict] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     class Config:

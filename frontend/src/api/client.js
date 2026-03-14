@@ -115,6 +115,28 @@ export const getTensors = async (modelId, datasetId) => {
     return response.json();
 };
 
+export const getDatasetOutputs = async (modelId, datasetId) => {
+    const response = await fetch(`${API_BASE}/datasets/${modelId}/datasets/${datasetId}/outputs`);
+    if (!response.ok) throw new Error('Failed to fetch dataset outputs');
+    return response.json();
+};
+
+export const getRuns = async (modelId, datasetId) => {
+    let url = `${API_BASE}/runs/?session_id=${SESSION_ID}`;
+    if (modelId) url += `&model_id=${modelId}`;
+    if (datasetId) url += `&dataset_id=${datasetId}`;
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch runs');
+    return response.json();
+};
+
+export const getRunOutputs = async (runId) => {
+    const response = await fetch(`${API_BASE}/runs/${runId}/outputs`);
+    if (!response.ok) throw new Error('Failed to fetch run outputs');
+    return response.json();
+};
+
 export const createRun = async (modelId, datasetId) => {
     const response = await api.post('/runs/', { model_id: modelId, dataset_id: datasetId });
     return response;

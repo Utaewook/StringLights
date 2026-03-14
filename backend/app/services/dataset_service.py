@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.utils.logger import setup_logger
 from app.utils.data_utils import generate_dummy_inputs, validate_npz_inputs, save_inputs
+from app.utils.data_analyzer import analyze_numpy_file
 from app.repositories.model_repo import model_repo
 from app.repositories.dataset_repo import dataset_repo, tensor_repo
 from app.models.dataset import Dataset, Tensor
@@ -62,20 +63,24 @@ class DatasetService:
         # Save Tensors to DB
         for name, data in inputs.items():
             fname = f"{name}.npy"
-            # Sanitize name logic duplicated from save_inputs is risky, relying on FS check or explicit logic
-            # Let's rely on syncing or better explicit creation
+            # Sanitize name logic duplicated from save_inputs is risky
             safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in name])
             fname_safe = f"{safe_name}.npy"
+            file_full_path = os.path.join(dataset_dir, fname_safe)
+             
+            # Use Detailed Analysis
+            stats = analyze_numpy_file(file_full_path)
             
             tensor = Tensor(
                 dataset_id=dataset.id,
                 name=name,
                 filename=fname_safe,
-                size_bytes=data.nbytes,
-                dtype=str(data.dtype),
-                shape=list(data.shape)
+                size_bytes=stats.get("size_bytes", 0),
+                dtype=stats.get("dtype"),
+                shape=stats.get("shape"),
+                statistics=stats
             )
-            tensor_repo.create(db, tensor) # Individual commits might be slow but safe
+            tensor_repo.create(db, tensor)
             
         return meta
 
@@ -150,13 +155,19 @@ class DatasetService:
         for name, data in inputs.items():
             safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in name])
             fname_safe = f"{safe_name}.npy"
+            file_full_path = os.path.join(dataset_dir, fname_safe)
+            
+            # Use Detailed Analysis
+            stats = analyze_numpy_file(file_full_path)
+            
             tensor = Tensor(
                 dataset_id=dataset.id,
                 name=name,
                 filename=fname_safe,
-                size_bytes=data.nbytes,
-                dtype=str(data.dtype),
-                shape=list(data.shape)
+                size_bytes=stats.get("size_bytes", 0),
+                dtype=stats.get("dtype"),
+                shape=stats.get("shape"),
+                statistics=stats
             )
             tensor_repo.create(db, tensor)
             
@@ -164,16 +175,71 @@ class DatasetService:
 
     def get_tensors(self, db: Session, model_id: str, dataset_id: str) -> List[TensorInfo]:
         # Validate Model/Dataset relation
-        # In a strict service, we should check ownership, but for now trusting IDs
         tensors = tensor_repo.get_by_dataset(db, dataset_id)
         return [
             TensorInfo(
                 name=t.filename, 
                 tensor_name=t.name,
                 size_bytes=t.size_bytes or 0,
-                filename=t.filename
+                filename=t.filename,
+                shape=t.shape,
+                dtype=t.dtype,
+                statistics=t.statistics
             )
             for t in tensors
         ]
+
+    def get_dataset_outputs(self, db: Session, model_id: str, dataset_id: str) -> List[Dict[str, Any]]:
+        dataset = dataset_repo.get(db, dataset_id)
+        if not dataset:
+            return []
+            
+        outputs_dir = os.path.join(dataset.path_dir, "outputs")
+        if not os.path.exists(outputs_dir):
+            return []
+            
+        results = []
+        # Lazy import to avoid circular dependency risks if any
+        from app.repositories.run_repo import run_repo
+        
+        # Iterate over Run IDs (directories)
+        for run_id_str in os.listdir(outputs_dir):
+            run_dir = os.path.join(outputs_dir, run_id_str)
+            if not os.path.isdir(run_dir):
+                continue
+                
+            # Try to resolve Run Name
+            try:
+                run_guid = uuid.UUID(run_id_str)
+                run = run_repo.get(db, run_guid)
+                run_name = run.name if run else run_id_str
+            except ValueError:
+                run_name = run_id_str
+                
+            files = []
+            for f in os.listdir(run_dir):
+                if f.endswith(".npy"):
+                    f_path = os.path.join(run_dir, f)
+                    
+                    # Detailed Analysis for Output
+                    stats = analyze_numpy_file(f_path)
+                    
+                    files.append({
+                        "name": f,
+                        "size_bytes": stats.get("size_bytes", 0),
+                        "filename": f,
+                        "shape": stats.get("shape"),
+                        "dtype": stats.get("dtype"),
+                        "statistics": stats
+                    })
+            
+            if files:
+                results.append({
+                    "run_id": run_id_str,
+                    "run_name": run_name,
+                    "files": files
+                })
+        
+        return results
 
 dataset_service = DatasetService()

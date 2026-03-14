@@ -17,6 +17,9 @@ class TensorInfo(BaseModel):
     tensor_name: str # e.g. input_1 (logic name)
     size_bytes: int
     filename: str
+    shape: Optional[List[int]] = None
+    dtype: Optional[str] = None
+    statistics: Optional[Dict] = {}
 
 class DatasetResponse(BaseModel):
     id: str

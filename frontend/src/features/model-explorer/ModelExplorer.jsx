@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel, uploadModelFile, getDatasets, getTensors } from '../../api/client';
+import { getModels, uploadModel, uploadModelFile, getDatasets, getTensors, getRuns, getDatasetOutputs } from '../../api/client';
 import useModelStore from '../../store/modelStore';
 import useUIStore from '../../store/uiStore';
+import useNotificationStore from '../../store/notificationStore';
 import InputActionModal from '../input-management/InputActionModal';
 import RunInferenceModal from './RunInferenceModal';
 
@@ -13,7 +14,8 @@ const ModelExplorer = () => {
     const fileInputRef = useRef(null);
 
     // Stores
-    const { setRightPanelOpen } = useUIStore();
+    const { setRightPanelOpen, setSelectedNode: setSelectedNodeUI } = useUIStore(); // UI Store for right panel
+    const { addNotification } = useNotificationStore();
     const {
         selectedModel, setSelectedModel,
         datasets, setDatasets,
@@ -27,6 +29,14 @@ const ModelExplorer = () => {
     const [expandedModelDatasets, setExpandedModelDatasets] = useState(new Set());
     const [expandedDatasets, setExpandedDatasets] = useState(new Set());
     const [expandedInputs, setExpandedInputs] = useState(new Set());
+
+    // Output Expansion States
+    const [expandedOutputs, setExpandedOutputs] = useState(new Set());
+    const [datasetOutputs, setDatasetOutputs] = useState({}); // datasetId -> [{run_id, run_name, files}]
+
+    // Run Expansion States
+    const [expandedModelRuns, setExpandedModelRuns] = useState(new Set()); // For "Runs" folder under Model
+    const [modelRuns, setModelRuns] = useState({}); // modelId -> [Run]
 
     // Modal & Menu states
     const [isModalOpen, setIsModalOpen] = useState(false); // Input Action Modal
@@ -89,6 +99,42 @@ const ModelExplorer = () => {
         }
     };
 
+    const toggleExpandOutput = async (e, modelId, datasetId) => {
+        if (e) e.stopPropagation();
+        const next = new Set(expandedOutputs);
+        const isExpanding = !next.has(datasetId);
+        if (isExpanding) next.add(datasetId);
+        else next.delete(datasetId);
+        setExpandedOutputs(next);
+
+        if (isExpanding) {
+            try {
+                const outputs = await getDatasetOutputs(modelId, datasetId);
+                setDatasetOutputs(prev => ({ ...prev, [datasetId]: outputs }));
+            } catch (error) {
+                console.error("Failed to load outputs:", error);
+            }
+        }
+    };
+
+    const toggleExpandModelRuns = async (e, modelId) => {
+        if (e) e.stopPropagation();
+        const next = new Set(expandedModelRuns);
+        const isExpanding = !next.has(modelId);
+        if (isExpanding) next.add(modelId);
+        else next.delete(modelId);
+        setExpandedModelRuns(next);
+
+        if (isExpanding) {
+            try {
+                const runs = await getRuns(modelId);
+                setModelRuns(prev => ({ ...prev, [modelId]: runs }));
+            } catch (error) {
+                console.error("Failed to load runs:", error);
+            }
+        }
+    };
+
     const handleOpenMenu = (e, model) => {
         e.stopPropagation();
         const rect = e.currentTarget.getBoundingClientRect();
@@ -110,15 +156,44 @@ const ModelExplorer = () => {
 
     const handleTensorClick = (tensor) => {
         const mockNode = {
-            name: tensor.tensor_name,
+            name: tensor.tensor_name || tensor.name,
             op_type: 'Tensor',
             attributes: {
                 size_bytes: tensor.size_bytes,
-                filename: tensor.name
+                filename: tensor.name,
+                shape: tensor.shape || [],
+                dtype: tensor.dtype || 'unknown',
+                statistics: tensor.statistics || {}
             },
             inputs: [],
             outputs: []
         };
+        setSelectedNode(mockNode);
+        setRightPanelOpen(true);
+    };
+
+    const handleRunClick = (run) => {
+        // Show details in Right Panel
+        const metrics = run.metrics || {};
+
+        // Transform metrics to friendly format
+        const details = {
+            name: run.name || `Run ${new Date(run.start_time).toLocaleString()}`,
+            id: run.id,
+            status: run.status,
+            duration: metrics?.total_duration || "N/A",
+            tensors: metrics
+        };
+
+        const mockNode = {
+            name: "Run Details",
+            op_type: 'RunInfo',
+            attributes: details,
+            inputs: [],
+            outputs: []
+        };
+
+        // We need to use setSelectedNode from modelStore, but ensure UI store opens panel
         setSelectedNode(mockNode);
         setRightPanelOpen(true);
     };
@@ -149,8 +224,9 @@ const ModelExplorer = () => {
         try {
             await uploadModel(files);
             await fetchModels();
+            addNotification("Model uploaded successfully", "success");
         } catch (error) {
-            alert("Upload failed: " + error.message);
+            addNotification("Upload failed: " + error.message, "error");
         } finally {
             setIsLoading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -167,10 +243,10 @@ const ModelExplorer = () => {
         setIsLoading(true);
         try {
             await uploadModelFile(targetModelForUpload.id, files);
-            alert("File added successfully");
+            addNotification("File added successfully", "success");
             await fetchModels(); // Refresh status
         } catch (error) {
-            alert("Failed to add file: " + error.message);
+            addNotification("Failed to add file: " + error.message, "error");
         } finally {
             setIsLoading(false);
             if (appendFileInputRef.current) appendFileInputRef.current.value = '';
@@ -180,14 +256,14 @@ const ModelExplorer = () => {
 
     const handleMissingFileClick = (e, model) => {
         e.stopPropagation();
-        alert(`Missing files: ${model.meta.missing_files?.join(', ')}\nPlease upload the missing files.`);
+        addNotification(`Missing files: ${model.meta.missing_files?.join(', ')}. Please upload them.`, "warning", 5000);
         setTargetModelForUpload(model);
         setTimeout(() => appendFileInputRef.current?.click(), 100);
     };
 
     const handleNoDatasetClick = (e, model) => {
         e.stopPropagation();
-        alert("No input data found. Please add a dataset first.");
+        addNotification("No input data found. Please add a dataset first.", "warning");
         handleOpenMenu(e, model); // Open the "Add Input" menu
     };
 
@@ -316,15 +392,74 @@ const ModelExplorer = () => {
                                                 )}
                                             </TreeItem>
 
-                                            {/* Level 3: Outputs Folder (Placeholder) */}
+                                            {/* Level 3: Outputs Folder */}
                                             <TreeItem
                                                 level={3}
                                                 label="Outputs"
-                                                isLeaf={false} // Treat as folder
-                                                expanded={false} // Always closed for now
-                                            />
+                                                expanded={expandedOutputs.has(ds.id)}
+                                                onToggle={(e) => toggleExpandOutput(e, model.id, ds.id)}
+                                            >
+                                                {(datasetOutputs[ds.id] || []).length === 0 ? (
+                                                    <div className="tree-empty-item" style={{ paddingLeft: '74px' }}>No outputs</div>
+                                                ) : (
+                                                    datasetOutputs[ds.id].map((runOutput) => (
+                                                        <TreeItem
+                                                            key={runOutput.run_id}
+                                                            level={4}
+                                                            label={runOutput.run_name}
+                                                        >
+                                                            {runOutput.files.map((file, fIdx) => (
+                                                                <TreeItem
+                                                                    key={fIdx}
+                                                                    level={5}
+                                                                    label={file.name}
+                                                                    isLeaf={true}
+                                                                    onClick={() => handleTensorClick({
+                                                                        tensor_name: file.name,
+                                                                        name: file.filename,
+                                                                        size_bytes: file.size_bytes,
+                                                                        shape: file.shape,
+                                                                        dtype: file.dtype,
+                                                                        statistics: file.statistics
+                                                                    })}
+                                                                />
+                                                            ))}
+                                                        </TreeItem>
+                                                    ))
+                                                )}
+                                            </TreeItem>
                                         </TreeItem>
                                     ))
+                                )}
+                            </TreeItem>
+
+                            {/* Level 1: Runs (Sibling of Datasets) */}
+                            <TreeItem
+                                level={1}
+                                label="Runs"
+                                expanded={expandedModelRuns.has(model.id)}
+                                onToggle={(e) => toggleExpandModelRuns(e, model.id)}
+                            >
+                                {(modelRuns[model.id] || []).length === 0 ? (
+                                    <div className="tree-empty-item" style={{ paddingLeft: '42px' }}>No runs</div>
+                                ) : (
+                                    modelRuns[model.id].map(run => {
+                                        // Find dataset name
+                                        const dsList = datasets[model.id] || [];
+                                        const ds = dsList.find(d => d.id === run.dataset_id);
+                                        const dsName = ds ? ds.name : 'Unknown';
+
+                                        return (
+                                            <TreeItem
+                                                key={run.id}
+                                                level={2}
+                                                label={run.name || `${dsName}_${new Date(run.start_time).toLocaleString()}`}
+                                                isLeaf={true}
+                                                onClick={() => handleRunClick(run)}
+                                            // Status tag removed as requested
+                                            />
+                                        );
+                                    })
                                 )}
                             </TreeItem>
                         </TreeItem>
@@ -368,5 +503,4 @@ const ModelExplorer = () => {
         </div>
     );
 };
-
 export default ModelExplorer;

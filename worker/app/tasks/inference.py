@@ -3,9 +3,11 @@ import os
 import json
 import numpy as np
 import traceback
+from datetime import datetime
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 
 from app.db.session import SessionLocal
 from app.models.run import Run
@@ -67,6 +69,19 @@ def execute_run(self, run_id: str):
         result = engine.run(input_feed)
         
         # 5. Save Results
+        # Paths
+        dataset_output_dir = os.path.join(dataset_path, "outputs", run_id)
+        os.makedirs(dataset_output_dir, exist_ok=True)
+
+        # Save Tensors as .npy files for visualization
+        for name, data in result.get('outputs', {}).items():
+            # Sanitize filename
+            safe_name = "".join([c if c.isalnum() or c in "._-" else "_" for c in name])
+            # 1. Save to Run Dir
+            np.save(os.path.join(run_dir, f"{safe_name}.npy"), data)
+            # 2. Save to Dataset Dir (Copy)
+            np.save(os.path.join(dataset_output_dir, f"{safe_name}.npy"), data)
+
         # Trace Events
         save_json(os.path.join(run_dir, "trace.json"), result['trace_events'])
         
@@ -83,7 +98,13 @@ def execute_run(self, run_id: str):
         
         # 6. Update DB
         run.status = "COMPLETED"
-        run.result_path = run_dir
+        run.output_path = run_dir
+        # Store stats in metrics for easy retrieval
+        # Store stats in metrics for easy retrieval
+        metrics = result['tensor_stats']
+        metrics['total_duration'] = result['metadata']['total_duration']
+        run.metrics = metrics
+        run.end_time = datetime.now()
         db.commit()
         
         logger.info(f"Run {run_id} completed successfully.")
@@ -94,6 +115,8 @@ def execute_run(self, run_id: str):
         
         if db:
             run.status = "FAILED"
+            run.error_log = str(e)
+            run.end_time = datetime.now()
             db.commit()
             
         # Optional: Save error log to file

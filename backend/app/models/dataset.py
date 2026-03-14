@@ -33,6 +33,7 @@ class Tensor(Base):
     shape = Column(ARRAY(Integer))
     dtype = Column(String)
     size_bytes = Column(BigInteger)
+    statistics = Column(JSONB, default={})
 
     # Relationships
     dataset = relationship("Dataset", back_populates="tensors")

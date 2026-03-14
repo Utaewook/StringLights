@@ -12,40 +12,42 @@ from app.db.session import SessionLocal, engine
 from app.core.config import settings
 
 def clean_data():
-    print("WARNING: This will delete ALL data in the database and local storage.")
-    confirm = input("Are you sure? (y/n): ")
-    if confirm.lower() != 'y':
-        print("Aborted.")
-        return
-
-    # 1. Truncate Tables
-    # Need to handle foreign keys. CASCADE is usually best.
-    # Postgres specific
+    # 1. Clear Database
     print("Cleaning database...")
+    tables = ["runs", "tensors", "datasets", "models"]
     try:
         with engine.connect() as connection:
-            connection.execute(text("TRUNCATE TABLE runs, tensors, datasets, models CASCADE;"))
+            for table in tables:
+                result = connection.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE;"))
+                print(f"Dropped table {table}")
             connection.commit()
     except Exception as e:
-        print(f"Error truncating tables: {e}")
-        # Fallback: Delete via ORM if truncate fails (e.g., permissions)
-        # But Truncate is faster/cleaner.
+        print(f"Error cleaning database: {e}")
     
-    # 2. Delete Directories
+    # 2. Delete Directories (Content only)
     print("Cleaning local storage...")
-    paths_to_clean = [settings.MODEL_DIR, settings.DATA_DIR]
+    paths_to_clean = [settings.MODEL_DIR, settings.DATA_DIR, settings.RUN_DIR]
     
     for path in paths_to_clean:
         if os.path.exists(path):
             try:
-                shutil.rmtree(path)
-                print(f"Deleted {path}")
+                # Iterate over entries and delete them, keeping the root dir (mount point)
+                for item in os.listdir(path):
+                    item_path = os.path.join(path, item)
+                    try:
+                        if os.path.isfile(item_path) or os.path.islink(item_path):
+                            os.unlink(item_path)
+                        elif os.path.isdir(item_path):
+                            shutil.rmtree(item_path)
+                    except Exception as e:
+                         print(f"Error deleting inner path {item_path}: {e}")
+                print(f"Cleaned {path}")
             except Exception as e:
-                print(f"Error deleting {path}: {e}")
-        
-        # Recreate empty dir
-        os.makedirs(path, exist_ok=True)
-        print(f"Recreated {path}")
+                print(f"Error cleaning directory {path}: {e}")
+        else:
+            # If it doesn't exist, create it (just in case)
+            os.makedirs(path, exist_ok=True)
+            print(f"Created {path}")
 
     print("Cleanup complete.")
 
