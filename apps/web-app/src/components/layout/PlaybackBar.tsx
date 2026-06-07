@@ -50,7 +50,7 @@ export default function PlaybackBar() {
         <button
           className="playback-btn"
           onClick={() => seekStep(-1)}
-          title="이전 스텝"
+          title="Previous Step"
           disabled={currentStep === 0}
         >
           ⏮
@@ -59,7 +59,7 @@ export default function PlaybackBar() {
         <button
           className="playback-btn primary"
           onClick={isPlaying ? pausePlayback : startPlayback}
-          title={isPlaying ? '일시정지' : '재생'}
+          title={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
@@ -67,13 +67,13 @@ export default function PlaybackBar() {
         <button
           className="playback-btn"
           onClick={() => seekStep(1)}
-          title="다음 스텝"
+          title="Next Step"
           disabled={currentStep >= totalSteps - 1}
         >
           ⏭
         </button>
 
-        <button className="playback-btn" onClick={stopPlayback} title="정지">
+        <button className="playback-btn" onClick={stopPlayback} title="Stop">
           ⏹
         </button>
 
@@ -107,7 +107,7 @@ export default function PlaybackBar() {
       </div>
 
       {/* Close button */}
-      <button className="playback-btn close-btn" onClick={closePlayback} title="닫기">
+      <button className="playback-btn close-btn" onClick={closePlayback} title="Close">
         ✕
       </button>
     </div>

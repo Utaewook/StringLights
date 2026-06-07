@@ -12,7 +12,7 @@ export default function NodeInspector() {
       <div className="node-inspector empty-inspector">
         <div className="empty-state">
           <div className="empty-icon-wrap">◎</div>
-          <p>그래프 노드를 클릭하면<br />상세 정보가 표시됩니다</p>
+          <p>Click a graph node<br />to view details</p>
         </div>
       </div>
     );
@@ -55,7 +55,7 @@ export default function NodeInspector() {
         {inputs.length > 0 ? (
           <div className="io-list">{inputs.map(renderTensorRow)}</div>
         ) : (
-          <div className="empty-section">입력 없음</div>
+          <div className="empty-section">No inputs</div>
         )}
       </div>
 
@@ -65,7 +65,7 @@ export default function NodeInspector() {
         {outputs.length > 0 ? (
           <div className="io-list">{outputs.map(renderTensorRow)}</div>
         ) : (
-          <div className="empty-section">출력 없음</div>
+          <div className="empty-section">No outputs</div>
         )}
       </div>
 
@@ -78,7 +78,7 @@ export default function NodeInspector() {
         return (
           <div className="inspector-section" key={tensorKey}>
             <h3>
-              통계 · <span className="inspector-tensor-name">{tensorKey}</span>
+              Stats · <span className="inspector-tensor-name">{tensorKey}</span>
             </h3>
 
             <div className="stat-meta-row">
@@ -114,10 +114,10 @@ export default function NodeInspector() {
                 </tr>
                 {(stats.hasNaN || stats.hasInf) && (
                   <tr>
-                    <td className="prop-key stat-warning">⚠ 무결성</td>
+                    <td className="prop-key stat-warning">⚠ Integrity</td>
                     <td className="prop-value stat-warning">
-                      {stats.hasNaN ? 'NaN 포함 ' : ''}
-                      {stats.hasInf ? 'Inf 포함' : ''}
+                      {stats.hasNaN ? 'Contains NaN ' : ''}
+                      {stats.hasInf ? 'Contains Inf' : ''}
                     </td>
                   </tr>
                 )}

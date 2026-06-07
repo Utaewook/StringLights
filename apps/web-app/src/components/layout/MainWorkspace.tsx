@@ -13,7 +13,7 @@ export default function MainWorkspace() {
         <div className="workspace-empty">
           <div className="watermark-glow" />
           <h1 className="workspace-title">String Lights</h1>
-          <p className="workspace-hint">좌측 Explorer 패널에서 ONNX 모델을 업로드하세요</p>
+          <p className="workspace-hint">Upload an ONNX model via the Explorer panel</p>
         </div>
       )}
     </div>

@@ -74,7 +74,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
 
   const handleModelUpload = async (file: File) => {
     if (!file.name.endsWith('.onnx')) {
-      useUIStore.getState().setErrorMsg('유효한 .onnx 파일을 업로드해 주세요.');
+      useUIStore.getState().setErrorMsg('Please upload a valid .onnx file.');
       return;
     }
 
@@ -101,8 +101,8 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/surgery', { method: 'POST', body: formData });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({ detail: 'Graph Surgery 실패' }));
-        throw new Error(errData.detail ?? 'Surgery 요청 실패');
+        const errData = await response.json().catch(() => ({ detail: 'Graph surgery failed' }));
+        throw new Error(errData.detail ?? 'Surgery request failed');
       }
 
       // C: Unzip response
@@ -121,7 +121,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       const onnxEntry = Object.values(responseZip.files).find(
         (f) => !f.dir && f.name.toLowerCase().endsWith('.onnx')
       );
-      if (!onnxEntry) throw new Error('응답 ZIP에서 ONNX 파일을 찾을 수 없습니다.');
+      if (!onnxEntry) throw new Error('No ONNX file found in the response ZIP.');
 
       const modelBytes = await onnxEntry.async('uint8array');
       model.setLoadedModelBytes(modelBytes);
@@ -130,7 +130,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       workerRef.current?.postMessage({ type: 'LOAD', payload: { modelBytes } });
 
     } catch (err: any) {
-      useUIStore.getState().setErrorMsg(err.message ?? '업로드 중 오류 발생');
+      useUIStore.getState().setErrorMsg(err.message ?? 'An error occurred during upload.');
       useUIStore.getState().setModelLoading(false);
     }
   };

@@ -55,13 +55,13 @@ export default function InferencePanel() {
           {isModelLoading ? (
             <div className="upload-loading">
               <Loader2 className="spin-icon" size={28} />
-              <span>Surgery 처리 중…</span>
+              <span>Processing Surgery…</span>
             </div>
           ) : (
             <>
               <Upload className="upload-icon" size={28} />
-              <span className="upload-label-text">ONNX 파일 업로드</span>
-              <span className="upload-hint">클릭 또는 드래그 · 최대 50MB</span>
+              <span className="upload-label-text">Upload ONNX File</span>
+              <span className="upload-hint">Click or drag · Max 50MB</span>
             </>
           )}
         </div>
@@ -83,7 +83,7 @@ export default function InferencePanel() {
             <div className="status-row">
               <span className="status-label">Engine</span>
               <span className={`status-value ${engineProvider ? 'loaded' : 'muted'}`}>
-                {engineProvider ? engineProvider.toUpperCase() : '로딩 중…'}
+                {engineProvider ? engineProvider.toUpperCase() : 'Loading…'}
               </span>
             </div>
             <div className="status-row">
@@ -128,7 +128,7 @@ export default function InferencePanel() {
                 className={`data-mode-btn ${dataMode === m ? 'active' : ''}`}
                 onClick={() => setDataMode(m)}
               >
-                {m === 'zeros' ? 'Zero 텐서' : 'Random 텐서'}
+                {m === 'zeros' ? 'Zero Tensors' : 'Random Tensors'}
               </button>
             ))}
           </div>
@@ -162,7 +162,7 @@ export default function InferencePanel() {
             {isInferenceRunning ? (
               <>
                 <Loader2 className="spin-icon" size={16} />
-                <span>추론 실행 중…</span>
+                <span>Running Inference…</span>
               </>
             ) : (
               <>
