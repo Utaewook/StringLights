@@ -1,0 +1,72 @@
+[
+  {
+    "node_name": "node_linear_5",
+    "op_type": "Gemm",
+    "output_tensor": "reconstructed_data",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_linear",
+    "op_type": "Gemm",
+    "output_tensor": "linear",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_relu",
+    "op_type": "Relu",
+    "output_tensor": "relu",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_linear_1",
+    "op_type": "Gemm",
+    "output_tensor": "linear_1",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_relu_1",
+    "op_type": "Relu",
+    "output_tensor": "relu_1",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_linear_2",
+    "op_type": "Gemm",
+    "output_tensor": "linear_2",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_linear_3",
+    "op_type": "Gemm",
+    "output_tensor": "linear_3",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_relu_2",
+    "op_type": "Relu",
+    "output_tensor": "relu_2",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_linear_4",
+    "op_type": "Gemm",
+    "output_tensor": "linear_4",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  },
+  {
+    "node_name": "node_relu_3",
+    "op_type": "Relu",
+    "output_tensor": "relu_3",
+    "timestamp": 1773458642.7988358,
+    "duration": 0
+  }
+]
