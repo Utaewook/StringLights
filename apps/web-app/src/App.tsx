@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, Cpu, Sparkles, Upload, Play, CheckCircle2, AlertCircle } from 'lucide-react';
+import JSZip from 'jszip';
 import './App.css';
 
 function App() {
@@ -13,13 +14,11 @@ function App() {
 
   // 1. Initialize Web Worker
   useEffect(() => {
-    // Create the worker using Vite's native worker import syntax
     workerRef.current = new Worker(
       new URL('./ort-worker.ts', import.meta.url),
       { type: 'module' }
     );
 
-    // Listen to worker messages
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { type, provider, outputs, detail } = e.data;
 
@@ -49,8 +48,8 @@ function App() {
     };
   }, []);
 
-  // 2. Handle file upload (converts uploaded ONNX file to ArrayBuffer)
-  const handleModelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 2. Handle file upload (client zip -> API surgery -> client unzip -> load worker)
+  const handleModelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -65,24 +64,58 @@ function App() {
     setEngineProvider(null);
     setOutputs(null);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const arrayBuffer = reader.result as ArrayBuffer;
-      const modelBytes = new Uint8Array(arrayBuffer);
+    try {
+      // Step A: Zip the ONNX file locally to save network bandwidth/server storage
+      const zip = new JSZip();
+      zip.file(file.name, file);
+      const zippedBlob = await zip.generateAsync({ type: 'blob' });
+
+      // Step B: Send the ZIP payload to the FastAPI surgery endpoint
+      const formData = new FormData();
+      formData.append('file', zippedBlob, 'model.zip');
+      formData.append('perform_surgery', 'true');
+
+      const response = await fetch('/api/surgery', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        let errMsg = "Graph surgery failed on the server.";
+        try {
+          const errData = await response.json();
+          errMsg = errData.detail || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      // Step C: Retrieve and unzip the server's processed output ZIP
+      const responseBlob = await response.blob();
+      const responseZip = await JSZip.loadAsync(responseBlob);
       
-      // Send load command to worker
+      // Find the output .onnx model inside the zip
+      const onnxFileEntry = Object.values(responseZip.files).find(
+        (entry) => entry.name.toLowerCase().endsWith('.onnx')
+      );
+
+      if (!onnxFileEntry) {
+        throw new Error("No ONNX model found in the returned ZIP archive.");
+      }
+
+      const modifiedOnnxBytes = await onnxFileEntry.async('uint8array');
+
+      // Step D: Spin up the Web Worker session with the modified ONNX model bytes
       if (workerRef.current) {
         workerRef.current.postMessage({
           type: 'LOAD',
-          payload: { modelBytes }
+          payload: { modelBytes: modifiedOnnxBytes }
         });
       }
-    };
-    reader.onerror = () => {
-      setErrorMsg("Failed to read file.");
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "An error occurred during file upload or surgery.");
       setLoading(false);
-    };
-    reader.readAsArrayBuffer(file);
+    }
   };
 
   // 3. Run a mock/toy inference (assumes standard input names for the test model)
@@ -92,10 +125,8 @@ function App() {
     setLoading(true);
     setErrorMsg(null);
 
-    // Mock input tensor: [1, 2] shape float32 array
     const mockInputData = new Float32Array([1.0, 2.0]);
     const mockInputs = {
-      // Key should match the model's actual input node name
       "X": {
         data: mockInputData,
         shape: [1, 2],
@@ -141,7 +172,7 @@ function App() {
         {/* Left Control Card */}
         <div className="card control-card">
           <h2>Model Environment Setup</h2>
-          <p className="card-desc">Upload an ONNX model file to load it into the browser session.</p>
+          <p className="card-desc">Upload an ONNX model file. It will be zipped, sent to backend for Graph Surgery, unzipped, and loaded in browser.</p>
 
           <div className="upload-zone">
             <input 
