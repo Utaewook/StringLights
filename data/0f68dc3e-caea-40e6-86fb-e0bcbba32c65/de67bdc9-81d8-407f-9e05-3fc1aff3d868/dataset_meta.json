@@ -1,9 +1,0 @@
-{
-  "id": "de67bdc9-81d8-407f-9e05-3fc1aff3d868",
-  "name": "tests",
-  "type": "Auto",
-  "created_at": 1773447439.762343,
-  "dynamic_axes": {
-    "dim_0": 100
-  }
-}

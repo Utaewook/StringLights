@@ -1,9 +1,0 @@
-{
-  "id": "e4761c17-6337-4660-9c59-57abf97acb67",
-  "name": "large_batch",
-  "type": "Auto",
-  "created_at": 1773447460.173272,
-  "dynamic_axes": {
-    "dim_0": 16000
-  }
-}
