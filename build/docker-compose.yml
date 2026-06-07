@@ -4,7 +4,7 @@ services:
   backend:
     build:
       context: ../apps/backend
-      dockerfile: Dockerfile
+      dockerfile: ../../build/Dockerfile
     container_name: string_lights_backend
     restart: always
     expose:
