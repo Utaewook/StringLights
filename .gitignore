@@ -17,7 +17,6 @@ temp_out_*
 # Node.js / Frontend
 node_modules/
 dist/
-build/
 .npm/
 *.log
 npm-debug.log*

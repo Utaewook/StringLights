@@ -3,13 +3,12 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./apps/backend
+      context: ../apps/backend
       dockerfile: Dockerfile
     container_name: string_lights_backend
     restart: always
     expose:
       - "8000"
-    # Set memory limits to prevent docker process from hogging the system
     deploy:
       resources:
         limits:
@@ -23,7 +22,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./apps/web-app/dist:/usr/share/nginx/html:ro
+      - ../apps/web-app/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     deploy:
