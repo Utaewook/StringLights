@@ -13,6 +13,7 @@ htmlcov/
 temp_in_*
 temp_out_*
 *.onnx
+*.wasm
 
 # Node.js / Frontend
 node_modules/

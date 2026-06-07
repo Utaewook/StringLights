@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node scripts/copy-wasm.cjs",
+    "copy-wasm": "node scripts/copy-wasm.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
