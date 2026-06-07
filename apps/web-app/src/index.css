@@ -1,16 +1,14 @@
-/* Simple CSS Reset for StringLights v2 App */
-html,
-body,
-#root {
+/* Global Reset — StringLights v2 */
+html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 body {
-  margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
