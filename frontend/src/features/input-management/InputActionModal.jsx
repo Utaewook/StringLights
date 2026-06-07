@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { api } from '../../api/client';
 import useModelStore from '../../store/modelStore';
 
@@ -76,7 +77,7 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
         }
     };
 
-    return (
+    return ReactDOM.createPortal(
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
@@ -153,7 +154,8 @@ const InputActionModal = ({ model, onClose, initialMode = null }) => {
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

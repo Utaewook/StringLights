@@ -1,5 +1,9 @@
 # String Lights
 
+**This branch is archive of old version**
+
+---
+
 **String Lights** is a web-based platform designed to visually trace the inference process of Deep Learning/Machine Learning models (specifically ONNX). It allows users to replay the execution as an animation, making it easier to understand the internal dynamics of a model.
 
 ---

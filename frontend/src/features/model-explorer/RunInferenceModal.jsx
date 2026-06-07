@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { getDatasets, createRun } from '../../api/client';
 
 const RunInferenceModal = ({ model, onClose }) => {
@@ -62,7 +62,7 @@ const RunInferenceModal = ({ model, onClose }) => {
 
     if (!model) return null;
 
-    return (
+    return ReactDOM.createPortal(
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
@@ -116,7 +116,8 @@ const RunInferenceModal = ({ model, onClose }) => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

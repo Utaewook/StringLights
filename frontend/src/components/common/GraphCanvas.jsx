@@ -3,21 +3,34 @@ import ReactFlow, { Background, Controls, Handle, Position, MarkerType, useNodes
 import 'reactflow/dist/style.css';
 import useModelStore from '../../store/modelStore';
 import useUIStore from '../../store/uiStore';
+import usePlaybackStore from '../../store/playbackStore';
 import { getLayoutedElements } from '../../utils/graphLayout';
 
 // Custom Node Component to show more details
 const CustomNode = ({ data }) => {
+    const isHighlighted = data.isHighlighted;
+    const stepNonce = data.stepNonce || 0;
+
+    // Use two alternating classes to force animation re-trigger without remounting the node
+    const highlightClass = isHighlighted
+        ? (stepNonce % 2 === 0 ? 'highlighted-node' : 'highlighted-node-alt')
+        : '';
+
     return (
-        <div className="custom-node-body" style={{
-            padding: '10px',
-            border: '1px solid var(--node-border)',
-            borderRadius: '5px',
-            background: 'var(--node-bg)',
-            color: 'var(--node-text)',
-            minWidth: '150px',
-            fontSize: '12px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
-        }}>
+        <div
+            className={`custom-node-body ${highlightClass}`}
+            style={{
+                padding: '10px',
+                border: '1px solid var(--node-border)',
+                borderRadius: '8px',
+                background: 'var(--node-bg)',
+                color: 'var(--node-text)',
+                minWidth: '150px',
+                fontSize: '12px',
+                transition: 'all 0.3s ease',
+                position: 'relative'
+            }}
+        >
             <Handle type="target" position={Position.Left} style={{ background: 'var(--node-handle)' }} />
             <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.op_type}</div>
             <div style={{ color: 'var(--node-text-secondary)' }}>{data.label}</div>
@@ -35,6 +48,7 @@ const GraphCanvas = () => {
     const { setRightPanelOpen } = useUIStore();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const { activeNodeNames, stepNonce } = usePlaybackStore();
 
     const onNodeClick = (event, node) => {
         setSelectedNode(node.data.fullNode); // Pass the original ONNX structure
@@ -107,6 +121,20 @@ const GraphCanvas = () => {
         setEdges(layoutedEdges);
 
     }, [selectedModel, setNodes, setEdges]);
+
+    // Update highlight state when activeNodeNames or stepNonce changes
+    useEffect(() => {
+        setNodes((nds) =>
+            nds.map((node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    isHighlighted: activeNodeNames.has(node.data.label),
+                    stepNonce: stepNonce
+                },
+            }))
+        );
+    }, [activeNodeNames, stepNonce, setNodes]);
 
     if (!selectedModel) return null;
 

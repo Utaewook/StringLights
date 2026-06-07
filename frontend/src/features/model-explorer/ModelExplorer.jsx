@@ -1,8 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getModels, uploadModel, uploadModelFile, getDatasets, getTensors, getRuns, getDatasetOutputs } from '../../api/client';
+import {
+    getModels, uploadModel, uploadModelFile,
+    getDatasets, getTensors, getRuns,
+    getDatasetOutputs, getRunTrace
+} from '../../api/client';
 import useModelStore from '../../store/modelStore';
 import useUIStore from '../../store/uiStore';
 import useNotificationStore from '../../store/notificationStore';
+import usePlaybackStore from '../../store/playbackStore';
 import InputActionModal from '../input-management/InputActionModal';
 import RunInferenceModal from './RunInferenceModal';
 
@@ -23,6 +28,8 @@ const ModelExplorer = () => {
         datasetTensors, setDatasetTensors,
         setSelectedNode
     } = useModelStore();
+
+    const { setTraceData } = usePlaybackStore();
 
     // Expansion States
     const [expandedModels, setExpandedModels] = useState(new Set());
@@ -172,11 +179,22 @@ const ModelExplorer = () => {
         setRightPanelOpen(true);
     };
 
-    const handleRunClick = (run) => {
+    const handleRunClick = async (run, model) => {
+        // 1. Auto-switch to the model if it's not selected
+        if (!selectedModel || selectedModel.id !== model.id) {
+            setGlobalSelectedModel(model);
+        }
+
+        // 2. Load Trace Data
+        try {
+            // No need to fetch trace here, just showing run details
+            // If we needed it, we could call getRunTrace(run.id)
+        } catch (error) {
+            console.error("Failed to load run details:", error);
+        }
+
         // Show details in Right Panel
         const metrics = run.metrics || {};
-
-        // Transform metrics to friendly format
         const details = {
             name: run.name || `Run ${new Date(run.start_time).toLocaleString()}`,
             id: run.id,
@@ -193,9 +211,24 @@ const ModelExplorer = () => {
             outputs: []
         };
 
-        // We need to use setSelectedNode from modelStore, but ensure UI store opens panel
         setSelectedNode(mockNode);
         setRightPanelOpen(true);
+    };
+
+    const handlePlayTrace = async (e, run, model) => {
+        e.stopPropagation();
+
+        // Auto-switch model
+        if (!selectedModel || selectedModel.id !== model.id) {
+            setGlobalSelectedModel(model);
+        }
+
+        try {
+            const traceData = await getRunTrace(run.id);
+            setTraceData(run.id, traceData);
+        } catch (error) {
+            addNotification("Failed to load trace data", "error");
+        }
     };
 
     const fetchModels = async () => {
@@ -455,8 +488,17 @@ const ModelExplorer = () => {
                                                 level={2}
                                                 label={run.name || `${dsName}_${new Date(run.start_time).toLocaleString()}`}
                                                 isLeaf={true}
-                                                onClick={() => handleRunClick(run)}
-                                            // Status tag removed as requested
+                                                onClick={() => handleRunClick(run, model)}
+                                                actions={
+                                                    <button
+                                                        className="play-trace-btn"
+                                                        onClick={(e) => handlePlayTrace(e, run, model)}
+                                                        title="Play Trace Animation"
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-color)' }}
+                                                    >
+                                                        ▶
+                                                    </button>
+                                                }
                                             />
                                         );
                                     })

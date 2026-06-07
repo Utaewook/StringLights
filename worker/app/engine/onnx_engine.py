@@ -1,8 +1,8 @@
-
 import onnx
 import onnxruntime as ort
 import numpy as np
 import time
+import os
 from typing import Dict, Any, List
 from .base import InferenceEngine
 
@@ -12,50 +12,108 @@ class OnnxInferenceEngine(InferenceEngine):
         self.model_path = None
         self.output_names = []
         self.input_names = []
-        self.node_name_map = {} # output_name -> node_name mapping
+        self.tensor_to_node = {} # tensor_name -> {name, op_type}
 
     def load_model(self, model_path: str):
         self.model_path = model_path
-        # Load ONNX model to get graph structure and node names
+        # 1. Load original model
         model = onnx.load(model_path)
         
-        # Build map to link tensor outputs back to producer nodes
-        # This is strictly for visualization mapping
-        for node in model.graph.node:
-            for output in node.output:
-                self.node_name_map[output] = node.name if node.name else f"{node.op_type}_{output}"
-
-        # Setup Runtime Options
+        # 2. Instrument Model: Name nodes/tensors and promote all to outputs
+        instrumented_model = self._instrument_model(model)
+        
+        # 3. Setup Runtime Options
         sess_options = ort.SessionOptions()
-        # Disable optimization to ensure we can trace all nodes for visualization
+        # Optimization MUST be disabled to keep the instrumented graph structure intact
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
-        # Enable profiling to get accurate node execution times if needed
-        # sess_options.enable_profiling = True 
         
-        self.session = ort.InferenceSession(model_path, sess_options, providers=['CPUExecutionProvider'])
+        # Load the instrumented model from bytes
+        model_bytes = instrumented_model.SerializeToString()
+        self.session = ort.InferenceSession(model_bytes, sess_options, providers=['CPUExecutionProvider'])
         
+        # 4. Map outputs for tracing
         self.input_names = [i.name for i in self.session.get_inputs()]
-        # To trace everything, we request all possible outputs that are graph nodes
-        # Note: In a real complex model, this might be heavy. For demo, it's fine.
-        # We need to filter out inputs from candidates.
+        # The instrumented model now has all node outputs as graph outputs
+        self.output_names = [o.name for o in self.session.get_outputs()]
         
-        # Strategy: Get all outputs of all nodes from the ONNX graph definition
-        all_intermediate_outputs = []
-        for node in model.graph.node:
+        # Build map: tensor_name -> node_info for easy trace generation
+        self.tensor_to_node = {} # tensor_name -> {name, op_type}
+        for node in instrumented_model.graph.node:
             for output in node.output:
-                all_intermediate_outputs.append(output)
-                
-        # Register them as outputs for the session run
-        self.output_names = list(set(all_intermediate_outputs))
+                self.tensor_to_node[output] = {
+                    "name": node.name,
+                    "op_type": node.op_type
+                }
+
+    def _instrument_model(self, model: onnx.ModelProto) -> onnx.ModelProto:
+        """
+        Names anonymous nodes/tensors and adds ALL intermediate tensors as graph outputs
+        to ensure they are fetchable by ORT.
+        """
+        graph = model.graph
+        
+        # 1. Name anonymous nodes/tensors
+        for i, node in enumerate(graph.node):
+            if not node.name:
+                node.name = f"unnamed_node_{i}_{node.op_type}"
+            
+            for j, output in enumerate(node.output):
+                if not output:
+                    # Create a deterministic name for unnamed output tensors
+                    # Using node name + index is safe
+                    new_output_name = f"{node.name}_out_{j}"
+                    node.output[j] = new_output_name
+        
+        # 2. Collect all produced tensors
+        all_produces = []
+        for node in graph.node:
+            for out in node.output:
+                all_produces.append(out)
+        
+        # 3. Prevent duplicate outputs (already in graph.output)
+        existing_outputs = {o.name for o in graph.output}
+        
+        # 4. Add all produced tensors as outputs
+        for tensor_name in all_produces:
+            if tensor_name not in existing_outputs:
+                # Add as an output
+                new_output = graph.output.add()
+                new_output.name = tensor_name
+        
+        # 5. Run shape inference to populate TypeProto/Shape for the new outputs
+        # ORT requires outputs to have valid definitions
+        try:
+            model = onnx.shape_inference.infer_shapes(model)
+        except Exception as e:
+            # We log but continue, ORT might still work if types can be inferred at runtime
+            print(f"Warning: Shape inference failed during instrumentation: {e}")
+            
+        return model
 
     def _get_tensor_stats(self, tensor: np.ndarray) -> Dict[str, Any]:
-        return {
+        if not isinstance(tensor, np.ndarray):
+            tensor = np.array(tensor)
+            
+        # Basic stats for visualization
+        stats = {
             "shape": list(tensor.shape),
             "dtype": str(tensor.dtype),
-            "min": float(np.min(tensor)) if tensor.size > 0 else 0,
-            "max": float(np.max(tensor)) if tensor.size > 0 else 0,
-            "mean": float(np.mean(tensor)) if tensor.size > 0 else 0,
         }
+        
+        if tensor.size > 0:
+            try:
+                stats.update({
+                    "min": float(np.min(tensor)),
+                    "max": float(np.max(tensor)),
+                    "mean": float(np.mean(tensor)),
+                })
+            except:
+                # For non-numeric dtypes (bool, etc.)
+                stats.update({"min": 0, "max": 0, "mean": 0})
+        else:
+            stats.update({"min": 0, "max": 0, "mean": 0})
+            
+        return stats
 
     def run(self, input_data: Dict[str, np.ndarray]) -> Dict[str, Any]:
         if not self.session:
@@ -64,27 +122,13 @@ class OnnxInferenceEngine(InferenceEngine):
         # Prepare inputs
         filtered_inputs = {k: v for k, v in input_data.items() if k in self.input_names}
         
-        # Run inference requesting ALL intermediate outputs
-        # We measure total time here. Granular execution control in ORT is hard without loop.
-        # For simple animation, we can simulate 'duration' or rely on ORT profiling.
-        # Here we will capture values and sequence.
-        
         start_time = time.time()
-        # Requesting all outputs allows us to "see" inside
-        # Note: model_output_names should strictly be what the model *can* output.
-        # Sometimes requesting internal tensors might fail in optimized graphs if they are fused.
-        # Fallback: Just request model outputs? No, we need intermediate for lights.
-        # We try to request all visible outputs.
         
+        # Run inference - No fallback needed anymore because all outputs are explicitly defined
         try:
             outputs = self.session.run(self.output_names, filtered_inputs)
         except Exception as e:
-            # Fallback if optimization removed some nodes (fused)
-            # We retry with only standard outputs
-            print(f"Warning: Failed to trace all nodes, falling back to standard outputs. Error: {e}")
-            final_outputs = [o.name for o in self.session.get_outputs()]
-            outputs = self.session.run(final_outputs, filtered_inputs)
-            self.output_names = final_outputs
+            raise RuntimeError(f"Inference failed even after instrumentation: {e}")
 
         end_time = time.time()
         
@@ -94,23 +138,21 @@ class OnnxInferenceEngine(InferenceEngine):
         trace_events = []
         tensor_stats = {}
         
-        # Naive ordering: We don't have exact execution order from ORT run()
-        # But we can assume topological order from ONNX graph. 
-        # For now, we return the data, and the frontend can play it sequentially 
-        # based on the static graph structure or valid timestamps we might add later.
-        
-        # Collect stats
+        # Collect stats and generate events
         for name, val in output_map.items():
-            tensor_stats[name] = self._get_tensor_stats(val)
+            stats = self._get_tensor_stats(val)
+            tensor_stats[name] = stats
             
-            # Create a mock event for triggering the node that produced this output
-            node_name = self.node_name_map.get(name, f"Node_{name}")
-            trace_events.append({
-                "node_name": node_name,
-                "output_tensor": name,
-                "timestamp": end_time, # currently all happen at once effectively
-                "duration": 0
-            })
+            # Map back to node
+            node_info = self.tensor_to_node.get(name)
+            if node_info:
+                trace_events.append({
+                    "node_name": node_info["name"],
+                    "op_type": node_info["op_type"],
+                    "output_tensor": name,
+                    "timestamp": end_time,
+                    "duration": 0
+                })
 
         return {
             "metadata": {

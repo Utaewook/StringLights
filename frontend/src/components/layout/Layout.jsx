@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import MainWorkspace from './MainWorkspace';
 import ModelExplorer from '../../features/model-explorer/ModelExplorer';
 import useUIStore from '../../store/uiStore';
+import PlaybackBar from './PlaybackBar';
 
 import NodeInspector from '../../features/inspector/NodeInspector';
 
@@ -24,6 +25,7 @@ const Layout = () => {
                     <NodeInspector />
                 </Sidebar>
             </div>
+            <PlaybackBar />
         </div>
     );
 };
