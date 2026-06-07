@@ -140,7 +140,12 @@ async function loadSession(modelBytes: Uint8Array) {
 
 ### Rule 1: Conventional Commits
 All commits must strictly adhere to the Conventional Commits specification.
-*   **Format:** `<type>(<scope>): <subject>`
+*   **Format:**
+    ```
+    <type>(<scope>): <subject>
+
+    <body>
+    ```
 *   **Types:**
     *   `feat`: A new feature implementation
     *   `fix`: A bug fix
@@ -151,9 +156,8 @@ All commits must strictly adhere to the Conventional Commits specification.
     *   `test`: Adding or correcting tests
     *   `chore`: Tooling, configs, dependency updates, and boilerplate builds
 *   **Rules:**
-    *   Write the subject in English, using the imperative mood (e.g., `fix: correct tensor release in worker`).
-    *   Keep the subject under 50 characters.
-    *   Do not end the subject with a period.
+    *   **Subject:** Write in English, using the imperative mood (e.g., `fix: correct tensor release in worker`). Keep under 50 characters, and do not end with a period.
+    *   **Body:** Separate the subject and body with a single blank line. Use the body to describe the detailed context, what was changed, and the motivation ("why") behind the change. Wrap body lines at 72 characters.
 
 ### Rule 2: Branching Strategy
 *   **Strict Branch Limitation:** Only `main`, `develop`, and archiving branches (e.g., `legacy-v1`) are permitted in the repository. No other branch names (such as `feature/*` or `bugfix/*`) are allowed to be created.
