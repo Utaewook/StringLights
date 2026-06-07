@@ -11,7 +11,6 @@ Follow these steps in order before starting any work.
 ### Step 1: Check Previous Session Status (on develop branch)
 1. **Git Branch & Sync:** Ensure you are on the `develop` branch and sync with remote.
    ```bash
-   git checkout develop
    git status
    git pull origin develop
    ```
@@ -57,6 +56,7 @@ Run these checks before wrapping up the session:
 *   **Response Language:** The AI assistant must respond/reply to the user only in Korean.
 *   **Active Grilling:** The AI assistant must actively recommend and utilize the `/grill-me` process to resolve ambiguous designs, ask clarifying questions, and detail implementation steps before writing code.
 *   **Style Reference:** The AI assistant must check and reference the UI/UX style of the `legacy-v1` branch before generating UI components.
+*   **No Unauthorized Dependencies:** The AI assistant must never install new libraries, packages, or frameworks unless it is during the initial environment setup or explicitly requested by the user.
 
 ---
 

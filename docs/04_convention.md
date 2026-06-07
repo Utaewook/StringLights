@@ -166,6 +166,9 @@ All commits must strictly adhere to the Conventional Commits specification.
 *   **Archiving Branches & Tags:** For large-scale or structural updates, or when keeping a snapshot of a major product version, use dedicated archiving branches (e.g., `legacy-v1`) and Git tags.
 *   **Merge Policy:** When development for a release is complete, merge changes from `develop` into `main`.
 
+### Rule 3: Dependency Installation Limit
+*   **No Unauthorized Dependencies:** Do not install any additional libraries, packages, tools, or frameworks unless it is during the initial environment setup or explicitly instructed by the user.
+
 ---
 
 ## 4. Next Documents
