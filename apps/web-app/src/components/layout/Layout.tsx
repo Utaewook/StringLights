@@ -3,6 +3,7 @@ import Header       from './Header';
 import Sidebar      from './Sidebar';
 import MainWorkspace from './MainWorkspace';
 import PlaybackBar  from './PlaybackBar';
+import ToastContainer from '../common/ToastContainer';
 import InferencePanel from '../../features/inference/InferencePanel';
 import NodeInspector  from '../../features/inspector/NodeInspector';
 import { useUIStore } from '../../store/uiStore';
@@ -25,6 +26,7 @@ export default function Layout() {
         </Sidebar>
       </div>
       <PlaybackBar />
+      <ToastContainer />
     </div>
   );
 }
