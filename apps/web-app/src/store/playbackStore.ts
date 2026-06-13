@@ -48,7 +48,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       traceData: trace,
       currentStep: 0,
       totalSteps: trace.length,
-      activeNodeNames: new Set(),
+      activeNodeNames: trace.length > 0 ? new Set([trace[0].nodeName]) : new Set(),
       stepNonce: 0,
     });
   },
@@ -60,7 +60,12 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
 
     // Restart from beginning if at end
     if (currentStep >= totalSteps - 1) {
-      set({ currentStep: 0, activeNodeNames: new Set(), stepNonce: 0 });
+      const trace = get().traceData;
+      set({
+        currentStep: 0,
+        activeNodeNames: trace.length > 0 ? new Set([trace[0].nodeName]) : new Set(),
+        stepNonce: 0
+      });
     }
 
     set({ isPlaying: true });
@@ -108,12 +113,12 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   },
 
   stopPlayback: () => {
-    const { _timerId } = get();
+    const { _timerId, traceData } = get();
     if (_timerId) clearTimeout(_timerId);
     set({
       isPlaying: false,
       currentStep: 0,
-      activeNodeNames: new Set(),
+      activeNodeNames: traceData.length > 0 ? new Set([traceData[0].nodeName]) : new Set(),
       stepNonce: 0,
       _timerId: null,
     });
