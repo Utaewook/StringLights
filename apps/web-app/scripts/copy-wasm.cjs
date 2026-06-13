@@ -11,7 +11,7 @@ if (!fs.existsSync(destDir)) {
 if (fs.existsSync(srcDir)) {
     const files = fs.readdirSync(srcDir);
     files.forEach(file => {
-        if (file.endsWith('.wasm')) {
+        if (file.endsWith('.wasm') || file.endsWith('.mjs')) {
             const srcPath = path.join(srcDir, file);
             const destPath = path.join(destDir, file);
             fs.copyFileSync(srcPath, destPath);
