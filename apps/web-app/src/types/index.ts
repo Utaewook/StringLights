@@ -71,5 +71,6 @@ export interface WorkerOutgoingMessage {
   type: WorkerMessageType;
   provider?: 'webgpu' | 'wasm';
   outputs?: InferenceOutputs;
+  stats?: Record<string, TensorStats>;
   detail?: string;
 }

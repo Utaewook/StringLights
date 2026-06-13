@@ -5,6 +5,7 @@ import { computeStats, formatBytes, tensorByteSize } from '../../utils/tensorSta
 export default function NodeInspector() {
   const selectedNode     = useModelStore((s) => s.selectedNode);
   const inferenceOutputs = useModelStore((s) => s.inferenceOutputs);
+  const inferenceStats   = useModelStore((s) => s.inferenceStats);
   const modelMeta        = useModelStore((s) => s.modelMeta);
 
   if (!selectedNode) {
@@ -72,7 +73,7 @@ export default function NodeInspector() {
       {/* Tensor Statistics — shown when inference data is available */}
       {availableOutputs.map((tensorKey) => {
         const tensor = inferenceOutputs[tensorKey];
-        const stats  = computeStats(tensor);
+        const stats  = inferenceStats[tensorKey] || computeStats(tensor); // fallback if not precomputed
         const bytes  = tensorByteSize(tensor.shape, tensor.type);
 
         return (

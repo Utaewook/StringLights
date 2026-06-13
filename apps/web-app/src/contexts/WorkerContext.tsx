@@ -32,7 +32,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     );
 
     workerRef.current.onmessage = (e: MessageEvent) => {
-      const { type, provider, outputs, detail } = e.data;
+      const { type, provider, outputs, stats, detail } = e.data;
 
       // Access stores directly (Zustand .getState() is safe outside React)
       const ui       = useUIStore.getState();
@@ -47,7 +47,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
           break;
 
         case 'RUN_SUCCESS':
-          model.setInferenceOutputs(outputs);
+          model.setInferenceOutputs(outputs, stats || {});
           ui.setInferenceRunning(false);
           ui.setErrorMsg(null);
           if (model.modelMeta) {

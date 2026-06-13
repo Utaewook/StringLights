@@ -1,10 +1,46 @@
 import * as ort from 'onnxruntime-web';
+import type { TensorStats } from './types';
 
 ort.env.wasm.wasmPaths = import.meta.env.DEV 
   ? '/node_modules/onnxruntime-web/dist/' 
   : '/';
 
 let currentSession: ort.InferenceSession | null = null;
+
+function calculateStats(data: any): TensorStats {
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+  let hasNaN = false;
+  let hasInf = false;
+  const len = data.length;
+
+  for (let i = 0; i < len; i++) {
+    const val = Number(data[i]);
+    if (Number.isNaN(val)) {
+      hasNaN = true;
+      continue;
+    }
+    if (!Number.isFinite(val)) {
+      hasInf = true;
+    }
+    if (val < min) min = val;
+    if (val > max) max = val;
+    sum += val;
+  }
+  
+  if (min === Infinity) min = 0;
+  if (max === -Infinity) max = 0;
+
+  return {
+    min,
+    max,
+    mean: len > 0 ? sum / len : 0,
+    std: 0, // Skipping std for performance
+    hasNaN,
+    hasInf,
+  };
+}
 
 self.onmessage = async (e: MessageEvent) => {
   const { type, payload } = e.data;
@@ -63,8 +99,10 @@ self.onmessage = async (e: MessageEvent) => {
         // Run inference
         const rawOutputs = await currentSession.run(ortInputs);
 
-        // Serialize outputs to plain objects (ort.Tensor is not structured-clonable)
+        // Serialize outputs and compute stats
         const serializableOutputs: Record<string, { data: any; shape: number[]; type: string }> = {};
+        const stats: Record<string, TensorStats> = {};
+
         for (const key of Object.keys(rawOutputs)) {
           const tensor = rawOutputs[key];
           serializableOutputs[key] = {
@@ -72,6 +110,8 @@ self.onmessage = async (e: MessageEvent) => {
             shape: [...tensor.dims],
             type:  tensor.type,
           };
+          stats[key] = calculateStats(tensor.data);
+          
           if (typeof (tensor as any).dispose === 'function') (tensor as any).dispose();
         }
 
@@ -81,7 +121,7 @@ self.onmessage = async (e: MessageEvent) => {
           if (typeof (t as any).dispose === 'function') (t as any).dispose();
         }
 
-        self.postMessage({ type: 'RUN_SUCCESS', outputs: serializableOutputs });
+        self.postMessage({ type: 'RUN_SUCCESS', outputs: serializableOutputs, stats });
       } catch (error: any) {
         console.error('Inference run failed:', error);
         self.postMessage({ type: 'ERROR', detail: `Inference failed: ${error.message ?? error}` });
