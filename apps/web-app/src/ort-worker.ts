@@ -1,7 +1,8 @@
 import * as ort from 'onnxruntime-web';
 
-// Point to WASM binaries in the public directory
-ort.env.wasm.wasmPaths = '/';
+ort.env.wasm.wasmPaths = import.meta.env.DEV 
+  ? '/node_modules/onnxruntime-web/dist/' 
+  : '/';
 
 let currentSession: ort.InferenceSession | null = null;
 
