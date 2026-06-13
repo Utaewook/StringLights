@@ -34,11 +34,11 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   _timerId: null,
 
   setTraceData: (outputKeys, nodes) => {
-    // Map each output tensor key → the node that produces it
-    const trace: TraceStep[] = outputKeys
-      .map((key) => {
-        const producer = nodes.find((n) => n.outputs.includes(key));
-        return producer ? { nodeName: producer.name, outputTensorKey: key } : null;
+    const valid = new Set(outputKeys);
+    const trace: TraceStep[] = nodes
+      .map((node) => {
+        const key = node.outputs.find((k) => valid.has(k));
+        return key ? { nodeName: node.name, outputTensorKey: key } : null;
       })
       .filter((s): s is TraceStep => s !== null);
 
