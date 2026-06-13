@@ -1,12 +1,44 @@
-
+import React, { useState } from 'react';
 import { useModelStore } from '../../store/modelStore';
 import { computeStats, formatBytes, tensorByteSize } from '../../utils/tensorStats';
+import { ChevronDown } from 'lucide-react';
+
+interface AccordionProps {
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+function Accordion({ title, isOpen, onToggle, children }: AccordionProps) {
+  return (
+    <div className="inspector-section">
+      <h3 
+        className={`accordion-header ${isOpen ? 'accordion-open' : ''}`} 
+        onClick={onToggle}
+      >
+        {title}
+        <ChevronDown size={14} className="accordion-icon" />
+      </h3>
+      {isOpen && <div className="accordion-content">{children}</div>}
+    </div>
+  );
+}
 
 export default function NodeInspector() {
   const selectedNode     = useModelStore((s) => s.selectedNode);
   const inferenceOutputs = useModelStore((s) => s.inferenceOutputs);
   const inferenceStats   = useModelStore((s) => s.inferenceStats);
-  const modelMeta        = useModelStore((s) => s.modelMeta);
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    attributes: true,
+    inputs: true,
+    outputs: true,
+  });
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   if (!selectedNode) {
     return (
@@ -19,114 +51,103 @@ export default function NodeInspector() {
     );
   }
 
-  const { name, opType, inputs, outputs } = selectedNode;
+  const { name, opType, inputs, outputs, attributes } = selectedNode;
 
-  // Find any inference output data for this node's outputs
-  const availableOutputs = outputs.filter((o) => o in inferenceOutputs);
+  const renderInferenceData = (tensorKey: string) => {
+    const tensor = inferenceOutputs[tensorKey];
+    if (!tensor) {
+      return (
+        <div key={tensorKey} className="io-item" style={{ padding: '0', opacity: 0.6 }}>
+          <span className="io-name">{tensorKey}</span>
+          <span className="empty-section">No data</span>
+        </div>
+      );
+    }
 
-  // Helper: render a tensor name with shape if available
-  const renderTensorRow = (tensorName: string) => {
-    const result = inferenceOutputs[tensorName];
-    const shapeStr = result
-      ? `[${result.shape.join(', ')}]`
-      : modelMeta?.outputNames.includes(tensorName)
-      ? ''
-      : '';
+    const stats = inferenceStats[tensorKey] || computeStats(tensor);
+    const bytes = tensorByteSize(tensor.shape, tensor.type);
 
     return (
-      <div className="io-item" key={tensorName}>
-        <span className="io-name">{tensorName}</span>
-        {result && <span className="io-shape">{shapeStr}</span>}
-        {result && <span className="io-dtype">{result.type}</span>}
+      <div className="tensor-data-block" key={tensorKey} style={{ marginBottom: '8px' }}>
+        <div className="io-item" style={{ padding: '0 0 6px 0', borderBottom: '1px dashed rgba(255,255,255,0.08)' }}>
+          <span className="io-name" style={{ color: 'var(--accent-color)' }}>{tensorKey}</span>
+          <span className="io-shape">[{tensor.shape.join(', ')}]</span>
+          <span className="io-dtype">{tensor.type}</span>
+        </div>
+        
+        <table className="property-table" style={{ marginTop: '4px' }}>
+          <tbody>
+            <tr><td className="prop-key">Size</td><td className="prop-value">{formatBytes(bytes)}</td></tr>
+            <tr><td className="prop-key">Min</td><td className="prop-value">{stats.min.toPrecision(5)}</td></tr>
+            <tr><td className="prop-key">Max</td><td className="prop-value">{stats.max.toPrecision(5)}</td></tr>
+            <tr><td className="prop-key">Mean</td><td className="prop-value">{stats.mean.toPrecision(5)}</td></tr>
+            <tr><td className="prop-key">Std</td><td className="prop-value">{stats.std.toPrecision(5)}</td></tr>
+            {(stats.hasNaN || stats.hasInf) && (
+              <tr>
+                <td className="prop-key stat-warning">⚠ Integrity</td>
+                <td className="prop-value stat-warning">
+                  {stats.hasNaN ? 'Contains NaN ' : ''}
+                  {stats.hasInf ? 'Contains Inf' : ''}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     );
   };
 
   return (
     <div className="node-inspector">
-      {/* Header */}
       <div className="inspector-header">
         <div className="inspector-title">{name || 'Unnamed Node'}</div>
         <div className="inspector-subtitle">{opType}</div>
       </div>
 
-      {/* Inputs */}
-      <div className="inspector-section">
-        <h3>Inputs</h3>
+      <Accordion 
+        title="Node Attributes" 
+        isOpen={openSections.attributes} 
+        onToggle={() => toggleSection('attributes')}
+      >
+        {attributes && Object.keys(attributes).length > 0 ? (
+          <table className="property-table" style={{ marginTop: 0 }}>
+            <tbody>
+              {Object.entries(attributes).map(([k, v]) => (
+                <tr key={k}>
+                  <td className="prop-key">{k}</td>
+                  <td className="prop-value">{Array.isArray(v) ? `[${v.join(', ')}]` : String(v)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty-section">No attributes available</div>
+        )}
+      </Accordion>
+
+      <Accordion 
+        title="Input Inference Data" 
+        isOpen={openSections.inputs} 
+        onToggle={() => toggleSection('inputs')}
+      >
         {inputs.length > 0 ? (
-          <div className="io-list">{inputs.map(renderTensorRow)}</div>
+          inputs.map(renderInferenceData)
         ) : (
           <div className="empty-section">No inputs</div>
         )}
-      </div>
+      </Accordion>
 
-      {/* Outputs */}
-      <div className="inspector-section">
-        <h3>Outputs</h3>
+      <Accordion 
+        title="Output Inference Data" 
+        isOpen={openSections.outputs} 
+        onToggle={() => toggleSection('outputs')}
+      >
         {outputs.length > 0 ? (
-          <div className="io-list">{outputs.map(renderTensorRow)}</div>
+          outputs.map(renderInferenceData)
         ) : (
           <div className="empty-section">No outputs</div>
         )}
-      </div>
-
-      {/* Tensor Statistics — shown when inference data is available */}
-      {availableOutputs.map((tensorKey) => {
-        const tensor = inferenceOutputs[tensorKey];
-        const stats  = inferenceStats[tensorKey] || computeStats(tensor); // fallback if not precomputed
-        const bytes  = tensorByteSize(tensor.shape, tensor.type);
-
-        return (
-          <div className="inspector-section" key={tensorKey}>
-            <h3>
-              Stats · <span className="inspector-tensor-name">{tensorKey}</span>
-            </h3>
-
-            <div className="stat-meta-row">
-              <span className="stat-meta-label">Shape</span>
-              <span className="stat-meta-value">[{tensor.shape.join(', ')}]</span>
-            </div>
-            <div className="stat-meta-row">
-              <span className="stat-meta-label">Dtype</span>
-              <span className="stat-meta-value">{tensor.type}</span>
-            </div>
-            <div className="stat-meta-row">
-              <span className="stat-meta-label">Size</span>
-              <span className="stat-meta-value">{formatBytes(bytes)}</span>
-            </div>
-
-            <table className="property-table">
-              <tbody>
-                <tr>
-                  <td className="prop-key">Min</td>
-                  <td className="prop-value">{stats.min.toPrecision(5)}</td>
-                </tr>
-                <tr>
-                  <td className="prop-key">Max</td>
-                  <td className="prop-value">{stats.max.toPrecision(5)}</td>
-                </tr>
-                <tr>
-                  <td className="prop-key">Mean</td>
-                  <td className="prop-value">{stats.mean.toPrecision(5)}</td>
-                </tr>
-                <tr>
-                  <td className="prop-key">Std</td>
-                  <td className="prop-value">{stats.std.toPrecision(5)}</td>
-                </tr>
-                {(stats.hasNaN || stats.hasInf) && (
-                  <tr>
-                    <td className="prop-key stat-warning">⚠ Integrity</td>
-                    <td className="prop-value stat-warning">
-                      {stats.hasNaN ? 'Contains NaN ' : ''}
-                      {stats.hasInf ? 'Contains Inf' : ''}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
+      </Accordion>
     </div>
   );
 }

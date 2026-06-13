@@ -5,6 +5,7 @@ export interface OnnxNode {
   opType: string;
   inputs: string[];
   outputs: string[];
+  attributes?: Record<string, any>;
 }
 
 export interface ModelInput {

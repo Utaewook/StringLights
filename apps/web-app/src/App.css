@@ -543,6 +543,31 @@ body {
   letter-spacing: 0.1em;
   color: var(--text-muted);
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inspector-section h3.accordion-header {
+  cursor: pointer;
+  padding: 4px 0;
+  margin: 0;
+  transition: color 0.15s;
+}
+.inspector-section h3.accordion-header:hover {
+  color: var(--text-primary);
+}
+.accordion-icon {
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+}
+.accordion-open .accordion-icon {
+  transform: rotate(180deg);
+}
+.accordion-content {
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .inspector-tensor-name {
   font-family: 'JetBrains Mono', monospace;

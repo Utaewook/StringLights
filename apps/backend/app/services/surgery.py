@@ -114,11 +114,30 @@ def extract_graph_meta(
     nodes = []
     for idx, node in enumerate(graph.node):
         name = node.name or f"{node.op_type}_{idx}"
+        
+        attributes = {}
+        for attr in node.attribute:
+            if attr.type == onnx.AttributeProto.FLOAT:
+                attributes[attr.name] = attr.f
+            elif attr.type == onnx.AttributeProto.INT:
+                attributes[attr.name] = attr.i
+            elif attr.type == onnx.AttributeProto.STRING:
+                attributes[attr.name] = attr.s.decode('utf-8', 'ignore')
+            elif attr.type == onnx.AttributeProto.INTS:
+                attributes[attr.name] = list(attr.ints)
+            elif attr.type == onnx.AttributeProto.FLOATS:
+                attributes[attr.name] = list(attr.floats)
+            elif attr.type == onnx.AttributeProto.STRINGS:
+                attributes[attr.name] = [s.decode('utf-8', 'ignore') for s in attr.strings]
+            else:
+                attributes[attr.name] = "<unsupported type>"
+
         nodes.append({
-            "name":    name,
-            "opType":  node.op_type,
-            "inputs":  [i for i in node.input  if i],
-            "outputs": [o for o in node.output if o],
+            "name":       name,
+            "opType":     node.op_type,
+            "inputs":     [i for i in node.input  if i],
+            "outputs":    [o for o in node.output if o],
+            "attributes": attributes,
         })
 
     return {
