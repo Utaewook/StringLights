@@ -152,6 +152,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
 
     useUIStore.getState().setInferenceRunning(true);
     useUIStore.getState().setErrorMsg(null);
+    useUIStore.getState().addToast('Inference started', 'info');
 
     const inputs: Record<string, { data: any; shape: number[]; type: string }> = {};
 
