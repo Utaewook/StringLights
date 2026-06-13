@@ -93,11 +93,20 @@ async def perform_surgery(
             # 3. Perform Graph Surgery (or copy) and get metadata
             if perform_surgery:
                 try:
-                    graph_meta = run_graph_surgery(input_onnx_path, output_onnx_path)
+                    graph_meta = run_graph_surgery(
+                        input_onnx_path,
+                        output_onnx_path,
+                        data_dir=extract_dir,
+                    )
+                except ValueError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=str(e),
+                    )
                 except Exception as e:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Graph surgery or shape inference failed: {str(e)}",
+                        detail=f"Graph surgery failed: {str(e)}",
                     )
             else:
                 shutil.copy2(input_onnx_path, output_onnx_path)

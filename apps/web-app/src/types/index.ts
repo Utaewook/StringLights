@@ -20,6 +20,8 @@ export interface ModelMeta {
   originalOutputNames: string[];
   intermediateOutputNames: string[];
   nodes: OnnxNode[];
+  hadExternalData: boolean;
+  opsetVersion: number;
 }
 
 // ─── Inference Types ─────────────────────────────────────────────────────────

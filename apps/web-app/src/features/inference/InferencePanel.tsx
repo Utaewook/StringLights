@@ -1,45 +1,114 @@
-import React, { useRef, useState } from 'react';
-import { Upload, Play, Loader2, AlertCircle } from 'lucide-react';
+import React, { useRef, useState, useCallback } from 'react';
+import {
+  Upload, Play, Loader2, AlertCircle,
+  FileText, Database, X, CheckCircle2,
+} from 'lucide-react';
 import { useWorker }     from '../../contexts/WorkerContext';
 import { useModelStore } from '../../store/modelStore';
 import { useUIStore }    from '../../store/uiStore';
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
 type DataMode = 'zeros' | 'random';
+
+interface SelectedFile {
+  file: File;
+  role: 'model' | 'data';   // model = .onnx, data = everything else
+  sizeStr: string;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024)             return `${bytes} B`;
+  if (bytes < 1024 * 1024)     return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const MAX_BYTES = 50 * 1024 * 1024;
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function InferencePanel() {
   const { handleModelUpload, handleRunInference } = useWorker();
-  const modelMeta      = useModelStore((s) => s.modelMeta);
+  const modelMeta = useModelStore((s) => s.modelMeta);
   const { isModelLoading, isInferenceRunning, errorMsg, engineProvider } = useUIStore();
 
-  const fileInputRef   = useRef<HTMLInputElement>(null);
-  const [dataMode, setDataMode]     = useState<DataMode>('zeros');
-  const [batchSize, setBatchSize]   = useState(1);
-  const [dragOver, setDragOver]     = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  const [dragOver,   setDragOver]   = useState(false);
+  const [dataMode,   setDataMode]   = useState<DataMode>('zeros');
+  const [batchSize,  setBatchSize]  = useState(1);
+
+  // ── Derived state ──────────────────────────────────────────────────────────
+  const modelFiles  = selectedFiles.filter((f) => f.role === 'model');
+  const totalBytes  = selectedFiles.reduce((s, f) => s + f.file.size, 0);
+  const totalSizeStr = formatFileSize(totalBytes);
+
+  const validationError: string | null =
+    modelFiles.length > 1   ? 'Only one .onnx file can be uploaded at a time.' :
+    totalBytes > MAX_BYTES   ? `Total size ${totalSizeStr} exceeds the 50MB limit.` :
+    null;
+
+  const canUpload =
+    selectedFiles.length > 0 &&
+    modelFiles.length === 1 &&
+    !validationError;
+
+  const isLoading = isModelLoading || isInferenceRunning;
+
+  // ── File management ────────────────────────────────────────────────────────
+
+  const addFiles = useCallback((incoming: File[]) => {
+    setSelectedFiles((prev) => {
+      const next = [...prev];
+      for (const f of incoming) {
+        // Deduplicate by filename
+        if (!next.some((x) => x.file.name === f.name)) {
+          next.push({
+            file:    f,
+            role:    f.name.toLowerCase().endsWith('.onnx') ? 'model' : 'data',
+            sizeStr: formatFileSize(f.size),
+          });
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const removeFile = (name: string) =>
+    setSelectedFiles((prev) => prev.filter((f) => f.file.name !== name));
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleModelUpload(file);
-    e.target.value = '';   // allow re-upload of same file
+    addFiles(Array.from(e.target.files ?? []));
+    e.target.value = '';   // allow re-selection of same files
   };
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleModelUpload(file);
+    if (!isLoading) addFiles(Array.from(e.dataTransfer.files));
   };
 
-  const isLoading = isModelLoading || isInferenceRunning;
+  const onUpload = async () => {
+    if (!canUpload || isLoading) return;
+    await handleModelUpload(selectedFiles.map((sf) => sf.file));
+    setSelectedFiles([]);   // reset chip list after successful upload kick-off
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="inference-panel">
-      {/* ── Upload Zone ────────────────────────────────────────────── */}
+
+      {/* ── Upload Zone ──────────────────────────────────────────────────── */}
       <section className="panel-section">
         <div className="panel-section-title">Model Upload</div>
 
+        {/* Drop target — always visible */}
         <div
-          className={`upload-zone ${dragOver ? 'drag-over' : ''} ${isLoading ? 'upload-disabled' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          className={`upload-zone${dragOver ? ' drag-over' : ''}${isLoading ? ' upload-disabled' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); if (!isLoading) setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           onClick={() => !isLoading && fileInputRef.current?.click()}
@@ -47,27 +116,78 @@ export default function InferencePanel() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".onnx"
+            accept=".onnx,.data"
+            multiple
             onChange={onFileChange}
             className="hidden-file-input"
             disabled={isLoading}
           />
-          {isModelLoading ? (
-            <div className="upload-loading">
-              <Loader2 className="spin-icon" size={28} />
-              <span>Processing Surgery…</span>
-            </div>
-          ) : (
-            <>
-              <Upload className="upload-icon" size={28} />
-              <span className="upload-label-text">Upload ONNX File</span>
-              <span className="upload-hint">Click or drag · Max 50MB</span>
-            </>
-          )}
+          <Upload className="upload-icon" size={20} />
+          <span className="upload-label-text">
+            {selectedFiles.length > 0 ? 'Click or drag to add more files' : 'Click or drag files here'}
+          </span>
+          <span className="upload-hint">.onnx + .onnx.data (optional) · Max 50MB</span>
         </div>
+
+        {/* File chips */}
+        {selectedFiles.length > 0 && (
+          <div className="chip-list">
+            {selectedFiles.map((sf) => (
+              <div key={sf.file.name} className={`file-chip file-chip-${sf.role}`}>
+                {sf.role === 'model'
+                  ? <FileText size={13} className="chip-icon" />
+                  : <Database size={13} className="chip-icon" />
+                }
+                <span className="chip-name">{sf.file.name}</span>
+                <span className="chip-size">{sf.sizeStr}</span>
+                <button
+                  className="chip-remove"
+                  onClick={(e) => { e.stopPropagation(); removeFile(sf.file.name); }}
+                  title="Remove"
+                  disabled={isLoading}
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+
+            {/* Summary + validation */}
+            <div className="chip-footer">
+              <span className={`chip-total${totalBytes > MAX_BYTES ? ' chip-total-error' : ''}`}>
+                Total: {totalSizeStr} / 50MB
+              </span>
+              {validationError && (
+                <span className="chip-validation-error">
+                  <AlertCircle size={11} />
+                  {validationError}
+                </span>
+              )}
+            </div>
+
+            {/* Upload button — only visible when chips are present */}
+            <button
+              id="upload-analyze-btn"
+              className="btn btn-primary upload-action-btn"
+              onClick={onUpload}
+              disabled={!canUpload || isLoading}
+            >
+              {isModelLoading ? (
+                <>
+                  <Loader2 className="spin-icon" size={14} />
+                  <span>Processing Surgery…</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={14} />
+                  <span>Upload &amp; Analyze</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </section>
 
-      {/* ── Error Banner ──────────────────────────────────────────── */}
+      {/* ── Error Banner ──────────────────────────────────────────────────── */}
       {errorMsg && (
         <div className="error-banner">
           <AlertCircle size={16} />
@@ -75,7 +195,7 @@ export default function InferencePanel() {
         </div>
       )}
 
-      {/* ── Model Status ──────────────────────────────────────────── */}
+      {/* ── Model Info ────────────────────────────────────────────────────── */}
       {modelMeta && (
         <section className="panel-section">
           <div className="panel-section-title">Model Info</div>
@@ -86,6 +206,19 @@ export default function InferencePanel() {
                 {engineProvider ? engineProvider.toUpperCase() : 'Loading…'}
               </span>
             </div>
+            <div className="status-row">
+              <span className="status-label">Opset</span>
+              <span className="status-value loaded">{modelMeta.opsetVersion}</span>
+            </div>
+            {modelMeta.hadExternalData && (
+              <div className="status-row">
+                <span className="status-label">Ext. Data</span>
+                <span className="status-value status-inlined">
+                  <CheckCircle2 size={11} />
+                  Inlined
+                </span>
+              </div>
+            )}
             <div className="status-row">
               <span className="status-label">Nodes</span>
               <span className="status-value loaded">{modelMeta.nodes.length}</span>
@@ -102,7 +235,7 @@ export default function InferencePanel() {
         </section>
       )}
 
-      {/* ── Input Configuration ───────────────────────────────────── */}
+      {/* ── Input Configuration ───────────────────────────────────────────── */}
       {modelMeta && modelMeta.inputs.length > 0 && (
         <section className="panel-section">
           <div className="panel-section-title">Model Inputs</div>
@@ -120,12 +253,11 @@ export default function InferencePanel() {
             ))}
           </div>
 
-          {/* Data mode tabs */}
           <div className="data-mode-tabs">
             {(['zeros', 'random'] as DataMode[]).map((m) => (
               <button
                 key={m}
-                className={`data-mode-btn ${dataMode === m ? 'active' : ''}`}
+                className={`data-mode-btn${dataMode === m ? ' active' : ''}`}
                 onClick={() => setDataMode(m)}
               >
                 {m === 'zeros' ? 'Zero Tensors' : 'Random Tensors'}
@@ -133,7 +265,6 @@ export default function InferencePanel() {
             ))}
           </div>
 
-          {/* Batch size (only show if any dynamic dim exists) */}
           {modelMeta.inputs.some((inp) => inp.shape.includes(-1)) && (
             <div className="batch-size-row">
               <label className="batch-size-label">Batch Size (N)</label>
@@ -150,7 +281,7 @@ export default function InferencePanel() {
         </section>
       )}
 
-      {/* ── Run Button ────────────────────────────────────────────── */}
+      {/* ── Run Inference ─────────────────────────────────────────────────── */}
       {modelMeta && (
         <section className="panel-section">
           <button

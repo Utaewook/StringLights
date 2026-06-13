@@ -1,5 +1,11 @@
+import os
 import onnx
 from onnx import helper
+from onnx.external_data_helper import load_external_data_for_model
+
+# ─── Constants ────────────────────────────────────────────────────────────────
+
+SUPPORTED_OPSET_RANGE = (7, 21)
 
 # ─── ONNX elem_type → dtype string ───────────────────────────────────────────
 
@@ -19,6 +25,8 @@ ELEM_TYPE_TO_STR: dict[int, str] = {
     13: "uint64",
 }
 
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_tensor_meta(value_info) -> dict:
     """Extract dtype and shape from a ValueInfoProto."""
@@ -40,7 +48,49 @@ def _get_tensor_meta(value_info) -> dict:
     return {"dtype": "float32", "shape": [-1]}
 
 
-def extract_graph_meta(model: onnx.ModelProto, original_output_names: list[str]) -> dict:
+def get_opset_version(model: onnx.ModelProto) -> int:
+    """Returns the default ONNX domain opset version. Falls back to 1."""
+    for opset in model.opset_import:
+        if opset.domain in ("", "ai.onnx"):
+            return opset.version
+    return 1
+
+
+def check_opset_version(model: onnx.ModelProto) -> int:
+    """
+    Validates that the model opset is within the supported range.
+    Raises ValueError with a clear message if out of range.
+    Returns the opset version integer.
+    """
+    version = get_opset_version(model)
+    lo, hi = SUPPORTED_OPSET_RANGE
+    if not (lo <= version <= hi):
+        raise ValueError(
+            f"Unsupported ONNX opset version: {version}. "
+            f"Supported range is opset {lo}–{hi}."
+        )
+    return version
+
+
+def has_external_data_references(model: onnx.ModelProto) -> bool:
+    """
+    Returns True if any initializer tensor is stored as external data.
+    This is the case for models exported with save_as_external_data=True.
+    """
+    for initializer in model.graph.initializer:
+        if initializer.data_location == onnx.TensorProto.EXTERNAL:
+            return True
+    return False
+
+
+# ─── Metadata extraction ──────────────────────────────────────────────────────
+
+def extract_graph_meta(
+    model: onnx.ModelProto,
+    original_output_names: list[str],
+    had_external_data: bool = False,
+    opset_version: int = 0,
+) -> dict:
     """
     Extracts graph metadata (inputs, outputs, nodes) for the frontend visualizer.
     Returns a dict suitable for JSON serialisation.
@@ -65,8 +115,8 @@ def extract_graph_meta(model: onnx.ModelProto, original_output_names: list[str])
     for idx, node in enumerate(graph.node):
         name = node.name or f"{node.op_type}_{idx}"
         nodes.append({
-            "name": name,
-            "opType": node.op_type,
+            "name":    name,
+            "opType":  node.op_type,
             "inputs":  [i for i in node.input  if i],
             "outputs": [o for o in node.output if o],
         })
@@ -78,33 +128,73 @@ def extract_graph_meta(model: onnx.ModelProto, original_output_names: list[str])
         "originalOutputNames":      list(original_output_names),
         "intermediateOutputNames":  intermediate_output_names,
         "nodes":                    nodes,
+        "hadExternalData":          had_external_data,
+        "opsetVersion":             opset_version,
     }
 
 
-def run_graph_surgery(model_path: str, output_path: str) -> dict:
-    """
-    Loads an ONNX model, runs shape inference, and appends all intermediate
-    node outputs as graph outputs so the client can inspect every activation.
+# ─── Main surgery entrypoint ──────────────────────────────────────────────────
 
-    Returns a metadata dict for the frontend visualizer.
+def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
     """
-    model = onnx.load(model_path)
+    Loads an ONNX model, validates opset + external data requirements,
+    runs shape inference, appends all intermediate node outputs as graph
+    outputs so the client can inspect every activation, and saves the result
+    as a single inlined .onnx file (no external data dependencies).
 
-    # Capture original output names before surgery
+    Args:
+        model_path:  Absolute path to the input .onnx file.
+        output_path: Absolute path where the modified .onnx will be written.
+        data_dir:    Directory containing any companion .onnx.data files.
+
+    Returns:
+        A metadata dict for the frontend visualizer (JSON-serialisable).
+
+    Raises:
+        ValueError: for opset violations or missing external data files.
+    """
+    # ── Step 1: Load graph structure only (fast, no data) for early checks ──
+    model_stub = onnx.load(model_path, load_external_data=False)
+
+    # ── Step 2: Opset version gate ──────────────────────────────────────────
+    opset_version = check_opset_version(model_stub)   # raises ValueError if out of range
+
+    # ── Step 3: External data detection and loading ─────────────────────────
+    had_external_data = has_external_data_references(model_stub)
+
+    if had_external_data:
+        # Confirm companion data file(s) are present in data_dir
+        data_files = [
+            f for f in os.listdir(data_dir)
+            if not f.lower().endswith(".onnx")
+        ]
+        if not data_files:
+            raise ValueError(
+                "This model requires an external data file (.onnx.data). "
+                "Please re-upload both the .onnx and .onnx.data files together."
+            )
+        # Load tensor weights from disk into in-memory TensorProto objects
+        # (changes data_location from EXTERNAL → DEFAULT and fills raw_data)
+        load_external_data_for_model(model_stub, os.path.dirname(model_path))
+        model = model_stub
+    else:
+        # Re-load cleanly (separates stub read from full load path)
+        model = onnx.load(model_path, load_external_data=False)
+
+    # ── Step 4: Capture original output names before surgery ─────────────────
     original_output_names = [out.name for out in model.graph.output if out.name]
 
-    # Shape inference (best-effort; fall back to original model on failure)
+    # ── Step 5: Shape inference (best-effort) ────────────────────────────────
     try:
         inferred_model = onnx.shape_inference.infer_shapes(model)
     except Exception as e:
-        print(f"Warning: ONNX shape inference failed, falling back: {e}")
+        print(f"Warning: ONNX shape inference failed, falling back to original graph: {e}")
         inferred_model = model
 
-    # Build a lookup from tensor name → inferred ValueInfo
+    # ── Step 6: Append intermediate node outputs ──────────────────────────────
     existing_outputs = {out.name for out in inferred_model.graph.output}
     value_info_map   = {v.name: v for v in inferred_model.graph.value_info}
 
-    # Append every intermediate node output that isn't already exported
     for node in inferred_model.graph.node:
         for out_name in node.output:
             if not out_name or out_name in existing_outputs:
@@ -123,6 +213,16 @@ def run_graph_surgery(model_path: str, output_path: str) -> dict:
                 )
             existing_outputs.add(out_name)
 
+    # ── Step 7: Save as single inlined .onnx (no external data) ──────────────
+    # When had_external_data=True, load_external_data_for_model already moved
+    # all tensor data into memory (data_location=DEFAULT), so onnx.save writes
+    # everything into one file by default.
     onnx.save(inferred_model, output_path)
 
-    return extract_graph_meta(inferred_model, original_output_names)
+    # ── Step 8: Return metadata for frontend ──────────────────────────────────
+    return extract_graph_meta(
+        inferred_model,
+        original_output_names,
+        had_external_data=had_external_data,
+        opset_version=opset_version,
+    )

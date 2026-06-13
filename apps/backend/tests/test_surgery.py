@@ -35,12 +35,16 @@ class TestSurgery(unittest.TestCase):
             [W]
         )
         
-        model = helper.make_model(graph, producer_name='toy_producer')
+        model = helper.make_model(
+            graph,
+            producer_name='toy_producer',
+            opset_imports=[helper.make_opsetid('', 17)]
+        )
         onnx.save(model, self.model_path)
         
     def test_graph_surgery_adds_intermediates(self):
         # Run graph surgery
-        run_graph_surgery(self.model_path, self.output_path)
+        run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
         
         # Load resulting ONNX model
         modified_model = onnx.load(self.output_path)

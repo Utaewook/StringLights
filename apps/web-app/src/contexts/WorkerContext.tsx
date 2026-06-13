@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
-import { useModelStore } from '../store/modelStore';
-import { useUIStore }    from '../store/uiStore';
+import { useModelStore }   from '../store/modelStore';
+import { useUIStore }      from '../store/uiStore';
 import { usePlaybackStore } from '../store/playbackStore';
-import type { ModelMeta } from '../types';
+import type { ModelMeta }  from '../types';
 
 // ─── Context API ─────────────────────────────────────────────────────────────
 
 interface WorkerContextType {
-  handleModelUpload: (file: File) => Promise<void>;
+  handleModelUpload:  (files: File[]) => Promise<void>;
   handleRunInference: (mode: 'zeros' | 'random', batchSize: number) => void;
 }
 
@@ -35,8 +35,8 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       const { type, provider, outputs, detail } = e.data;
 
       // Access stores directly (Zustand .getState() is safe outside React)
-      const ui      = useUIStore.getState();
-      const model   = useModelStore.getState();
+      const ui       = useUIStore.getState();
+      const model    = useModelStore.getState();
       const playback = usePlaybackStore.getState();
 
       switch (type) {
@@ -50,7 +50,6 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
           model.setInferenceOutputs(outputs);
           ui.setInferenceRunning(false);
           ui.setErrorMsg(null);
-          // Trigger step-based playback from inference outputs
           if (model.modelMeta) {
             playback.setTraceData(Object.keys(outputs), model.modelMeta.nodes);
           }
@@ -70,17 +69,26 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // ─── Upload handler ─────────────────────────────────────────────────────
+  // ─── Upload handler (multi-file) ─────────────────────────────────────────
 
-  const handleModelUpload = async (file: File) => {
-    if (!file.name.endsWith('.onnx')) {
-      useUIStore.getState().setErrorMsg('Please upload a valid .onnx file.');
-      return;
-    }
-
+  const handleModelUpload = async (files: File[]) => {
     const ui      = useUIStore.getState();
     const model   = useModelStore.getState();
     const playback = usePlaybackStore.getState();
+
+    // Basic guard: must have exactly one .onnx file
+    const onnxFiles = files.filter(f => f.name.toLowerCase().endsWith('.onnx'));
+    if (onnxFiles.length === 0) {
+      ui.setErrorMsg('No .onnx file found in the selection.');
+      return;
+    }
+
+    // Combined size guard (50MB)
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > 50 * 1024 * 1024) {
+      ui.setErrorMsg('Total file size exceeds the 50MB limit.');
+      return;
+    }
 
     ui.setModelLoading(true);
     ui.setErrorMsg(null);
@@ -88,9 +96,9 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     playback.closePlayback();
 
     try {
-      // A: Zip the ONNX file (reduces bandwidth, consistent with backend expectation)
+      // A: Package all selected files into a single ZIP
       const zip = new JSZip();
-      zip.file(file.name, file);
+      files.forEach(f => zip.file(f.name, f));
       const zippedBlob = await zip.generateAsync({ type: 'blob' });
 
       // B: Send to surgery endpoint
@@ -112,12 +120,12 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       // Parse meta.json if present
       const metaEntry = responseZip.files['meta.json'];
       if (metaEntry) {
-        const metaStr = await metaEntry.async('string');
+        const metaStr  = await metaEntry.async('string');
         const meta: ModelMeta = JSON.parse(metaStr);
         model.setModelMeta(meta);
       }
 
-      // Find modified .onnx
+      // Find modified .onnx in response
       const onnxEntry = Object.values(responseZip.files).find(
         (f) => !f.dir && f.name.toLowerCase().endsWith('.onnx')
       );
@@ -147,7 +155,6 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     const inputs: Record<string, { data: any; shape: number[]; type: string }> = {};
 
     for (const inp of meta.inputs) {
-      // Replace dynamic dims (-1) with the user-specified batchSize
       const shape = inp.shape.map((d) => (d === -1 ? batchSize : d));
       const size  = shape.reduce((a, b) => a * b, 1);
 
@@ -169,7 +176,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
           if (mode === 'random') for (let i = 0; i < size; i++) data[i] = Math.random();
           break;
         }
-        default: {  // float32
+        default: {   // float32
           data = new Float32Array(size);
           if (mode === 'random') for (let i = 0; i < size; i++) data[i] = Math.random();
         }

@@ -28,7 +28,7 @@ class TestAPI(unittest.TestCase):
             [X],
             [Y]
         )
-        model = helper.make_model(graph)
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)])
         
         # Save ONNX models to temp files
         onnx_paths = []
@@ -68,8 +68,16 @@ class TestAPI(unittest.TestCase):
             
         with zipfile.ZipFile(resp_zip_path, "r") as z:
             namelist = z.namelist()
-            self.assertEqual(len(namelist), 1)
-            self.assertEqual(namelist[0], "model.onnx")
+            self.assertIn("model.onnx", namelist)
+            self.assertIn("meta.json", namelist)
+
+            # Verify meta.json has required fields
+            import json
+            meta = json.loads(z.read("meta.json"))
+            self.assertIn("hadExternalData", meta)
+            self.assertIn("opsetVersion", meta)
+            self.assertFalse(meta["hadExternalData"])  # toy model has no external data
+            self.assertGreater(meta["opsetVersion"], 0)
             
     def test_surgery_invalid_zip(self):
         bad_zip_path = os.path.join(self.temp_dir, "bad.zip")
