@@ -26,7 +26,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   isActive: false,
   isPlaying: false,
   traceData: [],
-  currentStep: 0,
+  currentStep: -1,
   totalSteps: 0,
   playbackSpeed: 1,
   activeNodeNames: new Set(),
@@ -46,9 +46,9 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       isActive: true,
       isPlaying: false,
       traceData: trace,
-      currentStep: 0,
+      currentStep: -1,
       totalSteps: trace.length,
-      activeNodeNames: trace.length > 0 ? new Set([trace[0].nodeName]) : new Set(),
+      activeNodeNames: new Set(),
       stepNonce: 0,
     });
   },
@@ -59,11 +59,12 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     if (_timerId) clearTimeout(_timerId);
 
     // Restart from beginning if at end
+    let startStep = currentStep;
     if (currentStep >= totalSteps - 1) {
-      const trace = get().traceData;
+      startStep = -1;
       set({
-        currentStep: 0,
-        activeNodeNames: trace.length > 0 ? new Set([trace[0].nodeName]) : new Set(),
+        currentStep: -1,
+        activeNodeNames: new Set(),
         stepNonce: 0
       });
     }
@@ -101,9 +102,14 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       set({ _timerId: tid });
     };
 
-    const delay = 500 / get().playbackSpeed;
-    const tid = setTimeout(tick, delay);
-    set({ _timerId: tid });
+    // If starting from -1, tick immediately to show node 0. Else, wait delay before next.
+    if (startStep === -1) {
+      tick();
+    } else {
+      const delay = 500 / get().playbackSpeed;
+      const tid = setTimeout(tick, delay);
+      set({ _timerId: tid });
+    }
   },
 
   pausePlayback: () => {
@@ -113,12 +119,12 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   },
 
   stopPlayback: () => {
-    const { _timerId, traceData } = get();
+    const { _timerId } = get();
     if (_timerId) clearTimeout(_timerId);
     set({
       isPlaying: false,
-      currentStep: 0,
-      activeNodeNames: traceData.length > 0 ? new Set([traceData[0].nodeName]) : new Set(),
+      currentStep: -1,
+      activeNodeNames: new Set(),
       stepNonce: 0,
       _timerId: null,
     });
@@ -128,7 +134,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     const { _timerId, currentStep, totalSteps, traceData, stepNonce } = get();
     if (_timerId) clearTimeout(_timerId);
 
-    const nextStep = Math.max(0, Math.min(totalSteps - 1, currentStep + direction));
+    const nextStep = Math.max(-1, Math.min(totalSteps - 1, currentStep + direction));
     const trace = traceData[nextStep];
 
     set({
@@ -144,7 +150,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     const { _timerId, traceData, stepNonce, totalSteps } = get();
     if (_timerId) clearTimeout(_timerId);
 
-    const clamped = Math.max(0, Math.min(totalSteps - 1, step));
+    const clamped = Math.max(-1, Math.min(totalSteps - 1, step));
     const trace = traceData[clamped];
 
     set({
@@ -165,7 +171,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       isActive: false,
       isPlaying: false,
       traceData: [],
-      currentStep: 0,
+      currentStep: -1,
       totalSteps: 0,
       activeNodeNames: new Set(),
       stepNonce: 0,
