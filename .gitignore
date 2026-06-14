@@ -41,3 +41,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.swp
+
+# ONNX Runtime Web auto-copied files
+apps/web-app/public/ort*.mjs
