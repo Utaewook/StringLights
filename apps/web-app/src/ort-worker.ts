@@ -7,14 +7,7 @@ ort.env.wasm.wasmPaths = import.meta.env.DEV
 
 let currentSession: ort.InferenceSession | null = null;
 
-type TypedArray =
-  | Float32Array
-  | Int32Array
-  | Uint8Array
-  | BigInt64Array
-  | Float64Array
-  | Int16Array
-  | Int8Array;
+type TypedArray = Exclude<ort.Tensor.DataType, string[]>;
 
 function calculateStats(data: TypedArray): TensorStats {
   let min = Infinity;
@@ -115,6 +108,11 @@ self.onmessage = async (e: MessageEvent) => {
 
         for (const key of Object.keys(rawOutputs)) {
           const tensor = rawOutputs[key];
+
+          if (Array.isArray(tensor.data)) {
+            throw new Error(`String tensors are not supported for visualization: ${key}`);
+          }
+
           serializableOutputs[key] = {
             data:  tensor.data,
             shape: [...tensor.dims],

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useUIStore } from '../../store/uiStore';
 import { CheckCircle2, Info, XCircle, X } from 'lucide-react';
 
