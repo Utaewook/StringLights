@@ -51,30 +51,36 @@ self.onmessage = async (e: MessageEvent) => {
     // ─── LOAD ─────────────────────────────────────────────────────────────
     case 'LOAD': {
       const { modelBytes } = payload as { modelBytes: Uint8Array };
+      console.log("Worker Thread: received LOAD request. Bytes size =", modelBytes.length);
       try {
         // Release existing session to prevent memory leaks
         if (currentSession) {
+          console.log("Worker Thread: releasing previous session...");
           await currentSession.release();
           currentSession = null;
         }
 
         // Attempt WebGPU first
+        console.log("Worker Thread: attempting WebGPU session creation...");
         try {
           currentSession = await ort.InferenceSession.create(modelBytes, {
             executionProviders: ['webgpu'],
           });
+          console.log("Worker Thread: WebGPU session created successfully!");
           self.postMessage({ type: 'LOAD_SUCCESS', provider: 'webgpu' });
         } catch (gpuError) {
-          console.warn('WebGPU failed in worker, falling back to WASM:', gpuError);
+          console.warn('Worker Thread: WebGPU failed, falling back to WASM:', gpuError);
 
+          console.log("Worker Thread: attempting WASM session creation...");
           currentSession = await ort.InferenceSession.create(modelBytes, {
             executionProviders: ['wasm'],
           });
+          console.log("Worker Thread: WASM session created successfully!");
           self.postMessage({ type: 'LOAD_SUCCESS', provider: 'wasm' });
         }
       } catch (error) {
         const err = error as Error;
-        console.error('Session load failed:', err);
+        console.error('Worker Thread: Session load failed:', err);
         self.postMessage({ type: 'ERROR', detail: `Model load failed: ${err.message ?? String(err)}` });
       }
       break;

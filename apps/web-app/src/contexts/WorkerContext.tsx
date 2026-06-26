@@ -146,7 +146,13 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       model.setLoadedModelBytes(modelBytes);
 
       // D: Load in Web Worker
-      workerRef.current?.postMessage({ type: 'LOAD', payload: { modelBytes } });
+      console.log("Main Thread: Model bytes loaded, size =", modelBytes.length);
+      if (!workerRef.current) {
+        console.error("Main Thread: workerRef.current is NULL!");
+      } else {
+        console.log("Main Thread: Posting LOAD message to worker...");
+        workerRef.current.postMessage({ type: 'LOAD', payload: { modelBytes } });
+      }
 
     } catch (err) {
       const error = err as Error;
