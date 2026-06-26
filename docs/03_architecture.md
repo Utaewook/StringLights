@@ -60,7 +60,7 @@ sequenceDiagram
 ---
 
 ## 4. Next Documents
-*   [RULE.md (Required Session Rules)](file:///Users/twyou/Projects/string_lights/RULE.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
 *   [Project Overview (01_project_overview.md)](file:///Users/twyou/Projects/string_lights/docs/01_project_overview.md)
 *   [Terminology & Concepts (02_terminology.md)](file:///Users/twyou/Projects/string_lights/docs/02_terminology.md)
 *   [AI Coding Rules (04_convention.md)](file:///Users/twyou/Projects/string_lights/docs/04_convention.md)

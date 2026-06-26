@@ -75,6 +75,7 @@ Follow these steps in order when starting a work session.
 
 - **Thinking Language:** Perform all reasoning/thinking in **English**.
 - **Response Language:** Reply to the user **only in Korean** using a polite and structured tone.
+- **Documentation Language:** All markdown documentation (.md files) in the repository must be written and maintained strictly in **English** to conserve context tokens.
 - **Strict No-Preemptive-Action Principle (Zero Proactive Edits):**
   **Do NOT proactively modify any source code, configuration files, or documents, and do NOT execute builds or commands unless the user has explicitly requested it.** You must not attempt to fix, refactor, or adjust anything preemptively on your own.
 - **Collaborative Co-working Mindset:**

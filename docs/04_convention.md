@@ -172,7 +172,7 @@ All commits must strictly adhere to the Conventional Commits specification.
 ---
 
 ## 4. Next Documents
-*   [RULE.md (Required Session Rules)](file:///Users/twyou/Projects/string_lights/RULE.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
 *   [Project Overview (01_project_overview.md)](file:///Users/twyou/Projects/string_lights/docs/01_project_overview.md)
 *   [Terminology & Concepts (02_terminology.md)](file:///Users/twyou/Projects/string_lights/docs/02_terminology.md)
 *   [Architecture & Data Flow (03_architecture.md)](file:///Users/twyou/Projects/string_lights/docs/03_architecture.md)

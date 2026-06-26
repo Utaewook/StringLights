@@ -17,7 +17,7 @@ This document defines the core terms and concepts used in this project. Develope
 ---
 
 ## Next Documents
-*   [RULE.md (Required Session Rules)](file:///Users/twyou/Projects/string_lights/RULE.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
 *   [Project Overview (01_project_overview.md)](file:///Users/twyou/Projects/string_lights/docs/01_project_overview.md)
 *   [Architecture & Data Flow (03_architecture.md)](file:///Users/twyou/Projects/string_lights/docs/03_architecture.md)
 *   [AI Coding Rules (04_convention.md)](file:///Users/twyou/Projects/string_lights/docs/04_convention.md)
