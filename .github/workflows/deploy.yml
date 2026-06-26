@@ -112,10 +112,10 @@ jobs:
             # If the package is private, we need: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull latest images
-            docker-compose pull
+            docker compose pull
             
             # Start containers with no-build to prevent memory spike
-            docker-compose up -d --no-build
+            docker compose up -d --no-build
             
             # Clean up old unused images to save disk and memory space
             docker image prune -af
