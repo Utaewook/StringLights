@@ -46,6 +46,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set Lowercase Image Names for Docker
+        run: |
+          OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "BACKEND_IMAGE_NAME=ghcr.io/${OWNER_LC}/string_lights_backend" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE_NAME=ghcr.io/${OWNER_LC}/string_lights_frontend" >> $GITHUB_ENV
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -100,7 +106,7 @@ jobs:
             cd ~/string_lights/build
             
             # Export environment variable for docker-compose to pick up GHCR image
-            export DOCKER_REGISTRY=ghcr.io/${{ github.repository_owner }}
+            export DOCKER_REGISTRY=ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
             
             # Login to GHCR (Assumes a PAT or token is set in server environment or we can pass it, but for public packages it's not needed. Let's ensure it's a public package in github settings)
             # If the package is private, we need: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
