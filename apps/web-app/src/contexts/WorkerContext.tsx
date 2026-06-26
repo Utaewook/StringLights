@@ -5,6 +5,15 @@ import { useUIStore }      from '../store/uiStore';
 import { usePlaybackStore } from '../store/playbackStore';
 import type { ModelMeta }  from '../types';
 
+type TypedArray =
+  | Float32Array
+  | Int32Array
+  | Uint8Array
+  | BigInt64Array
+  | Float64Array
+  | Int16Array
+  | Int8Array;
+
 // ─── Context API ─────────────────────────────────────────────────────────────
 
 interface WorkerContextType {
@@ -17,6 +26,7 @@ const WorkerContext = createContext<WorkerContextType>({
   handleRunInference:  () => {},
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWorker = () => useContext(WorkerContext);
 
 // ─── Provider ────────────────────────────────────────────────────────────────
@@ -138,8 +148,9 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       // D: Load in Web Worker
       workerRef.current?.postMessage({ type: 'LOAD', payload: { modelBytes } });
 
-    } catch (err: any) {
-      useUIStore.getState().setErrorMsg(err.message ?? 'An error occurred during upload.');
+    } catch (err) {
+      const error = err as Error;
+      useUIStore.getState().setErrorMsg(error.message ?? 'An error occurred during upload.');
       useUIStore.getState().setModelLoading(false);
     }
   };
@@ -154,13 +165,13 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     useUIStore.getState().setErrorMsg(null);
     useUIStore.getState().addToast('Inference started', 'info');
 
-    const inputs: Record<string, { data: any; shape: number[]; type: string }> = {};
+    const inputs: Record<string, { data: TypedArray; shape: number[]; type: string }> = {};
 
     for (const inp of meta.inputs) {
       const shape = inp.shape.map((d) => (d === -1 ? batchSize : d));
       const size  = shape.reduce((a, b) => a * b, 1);
 
-      let data: any;
+      let data: TypedArray;
       switch (inp.dtype) {
         case 'int64':
           data = new BigInt64Array(size);

@@ -5,7 +5,7 @@ export interface OnnxNode {
   opType: string;
   inputs: string[];
   outputs: string[];
-  attributes?: Record<string, any>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface ModelInput {
@@ -64,7 +64,7 @@ export interface WorkerIncomingMessage {
   type: WorkerMessageType;
   payload?: {
     modelBytes?: Uint8Array;
-    inputs?: Record<string, { data: any; shape: number[]; type: string }>;
+    inputs?: Record<string, { data: unknown; shape: number[]; type: string }>;
   };
 }
 

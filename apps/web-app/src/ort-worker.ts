@@ -7,7 +7,16 @@ ort.env.wasm.wasmPaths = import.meta.env.DEV
 
 let currentSession: ort.InferenceSession | null = null;
 
-function calculateStats(data: any): TensorStats {
+type TypedArray =
+  | Float32Array
+  | Int32Array
+  | Uint8Array
+  | BigInt64Array
+  | Float64Array
+  | Int16Array
+  | Int8Array;
+
+function calculateStats(data: TypedArray): TensorStats {
   let min = Infinity;
   let max = -Infinity;
   let sum = 0;
@@ -70,9 +79,10 @@ self.onmessage = async (e: MessageEvent) => {
           });
           self.postMessage({ type: 'LOAD_SUCCESS', provider: 'wasm' });
         }
-      } catch (error: any) {
-        console.error('Session load failed:', error);
-        self.postMessage({ type: 'ERROR', detail: `Model load failed: ${error.message ?? error}` });
+      } catch (error) {
+        const err = error as Error;
+        console.error('Session load failed:', err);
+        self.postMessage({ type: 'ERROR', detail: `Model load failed: ${err.message ?? String(err)}` });
       }
       break;
     }
@@ -85,7 +95,7 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       const { inputs } = payload as {
-        inputs: Record<string, { data: any; shape: number[]; type: string }>;
+        inputs: Record<string, { data: TypedArray; shape: number[]; type: string }>;
       };
 
       try {
@@ -100,7 +110,7 @@ self.onmessage = async (e: MessageEvent) => {
         const rawOutputs = await currentSession.run(ortInputs);
 
         // Serialize outputs and compute stats
-        const serializableOutputs: Record<string, { data: any; shape: number[]; type: string }> = {};
+        const serializableOutputs: Record<string, { data: TypedArray; shape: number[]; type: string }> = {};
         const stats: Record<string, TensorStats> = {};
 
         for (const key of Object.keys(rawOutputs)) {
@@ -111,20 +121,23 @@ self.onmessage = async (e: MessageEvent) => {
             type:  tensor.type,
           };
           stats[key] = calculateStats(tensor.data);
-          
-          if (typeof (tensor as any).dispose === 'function') (tensor as any).dispose();
+          if (tensor && typeof (tensor as { dispose?: () => void }).dispose === 'function') {
+            (tensor as { dispose: () => void }).dispose();
+          }
         }
 
-        // Clean up input tensors
         for (const key of Object.keys(ortInputs)) {
           const t = ortInputs[key];
-          if (typeof (t as any).dispose === 'function') (t as any).dispose();
+          if (t && typeof (t as { dispose?: () => void }).dispose === 'function') {
+            (t as { dispose: () => void }).dispose();
+          }
         }
 
         self.postMessage({ type: 'RUN_SUCCESS', outputs: serializableOutputs, stats });
-      } catch (error: any) {
-        console.error('Inference run failed:', error);
-        self.postMessage({ type: 'ERROR', detail: `Inference failed: ${error.message ?? error}` });
+      } catch (error) {
+        const err = error as Error;
+        console.error('Inference run failed:', err);
+        self.postMessage({ type: 'ERROR', detail: `Inference failed: ${err.message ?? String(err)}` });
       }
       break;
     }
