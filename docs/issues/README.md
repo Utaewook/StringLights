@@ -29,6 +29,10 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [002](./002-tensor-std-always-zero.md) | Per-node standard deviation is always reported as 0 | Open | High |
 | [003](./003-diagnostic-console-logs.md) | Diagnostic `console.*` calls left in shipped code | Open | Medium |
 | [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Open | Medium |
+| [005](./005-input-tensor-dtype-mismatch.md) | Model inputs are built with TypedArrays that do not match their dtype | Open | High |
+| [006](./006-opset-ceiling-rejects-runnable-models.md) | Opset ceiling of 21 rejects models the client could run | Open | Medium |
+| [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Open | Medium |
+| [008](./008-ci-runs-no-tests.md) | CI runs no tests | Open | Medium |
 
 ## Template
 
