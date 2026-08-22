@@ -1,0 +1,207 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   Legacy bridge — TEMPORARY
+   ══════════════════════════════════════════════════════════════════════════════
+
+   `App.css` declares its own token block and 164 one-off class rules. Rather than
+   rewrite all of it at once, this file re-points those legacy variables at design
+   system tokens, so every existing rule renders in the new palette untouched.
+
+   ── This file must load LAST ──────────────────────────────────────────────────
+   `App.css` defines the same variable names on `:root`. Later declaration wins, so
+   the import in `main.tsx` sits after `App.tsx`. Do not reorder it.
+
+   ── This file is meant to shrink ──────────────────────────────────────────────
+   As each surface is converted (Phase 2), delete the entries it needed. When this
+   file is empty, the migration is done. See docs/design/direction.md.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces */
+  --bg-primary: var(--background);
+  --bg-secondary: var(--card);
+  --bg-tertiary: var(--muted);
+  --bg-card: var(--card);
+  --bg-input: var(--background);
+
+  /* Lines */
+  --border-color: var(--border);
+  --border-focus: var(--ring);
+
+  /* Text */
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+
+  /* Accent — hover is an opacity change in the design system, so both resolve
+     to the same colour and the opacity is applied by the rules below. */
+  --accent-color: var(--primary);
+  --accent-hover: var(--primary);
+  --accent-subtle: color-mix(in oklch, var(--primary) 8%, transparent);
+  --accent-glow: transparent; /* the system has no glows */
+
+  /* Semantic — see ds/extensions.css for why success/warning carry a `--ds-` prefix */
+  --success: var(--ds-success);
+  --success-bg: var(--ds-success-tint);
+  --warning: var(--ds-warning);
+  --warning-bg: var(--ds-warning-tint);
+  --danger: var(--destructive);
+  --danger-bg: var(--ds-destructive-tint);
+
+  /* Graph nodes — derived from the Card tokens (ADR 0003) */
+  --node-bg: var(--card);
+  --node-border: var(--border);
+  --node-border-active: var(--ring);
+  --node-text: var(--card-foreground);
+  --node-text-sec: var(--muted-foreground);
+  --node-handle: var(--primary);
+
+  /* Radius — App.css hardcodes 6/10/16px; the system derives everything from one knob */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────────
+   App.css sets Outfit on `body` and 'JetBrains Mono' on fourteen selectors. */
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm); /* 14px is the product default */
+  background-color: var(--background);
+  color: var(--foreground);
+  background-image: none; /* flat colour only — no radial washes */
+}
+
+.header-model-name,
+.node-name,
+.step-display,
+.inspector-title,
+.inspector-tensor-name,
+.io-name,
+.stat-meta-value,
+.prop-value,
+.chip-name,
+.chip-size,
+.chip-total,
+.status-value,
+.input-config-name,
+.batch-size-input {
+  font-family: var(--font-mono);
+}
+
+/* ── Decoration the system does not permit ───────────────────────────────────
+   Gradients, glows and the icon pulse. Removed here so the rules in App.css can
+   stay untouched until their surface is converted. */
+
+.brand-title {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  color: var(--foreground);
+  letter-spacing: var(--tracking-tight);
+}
+
+.brand-icon {
+  animation: none;
+}
+
+.watermark-glow {
+  background: none;
+}
+
+.upload-zone.drag-over,
+.status-badge,
+.btn-primary,
+.btn-primary:hover,
+.run-btn {
+  box-shadow: none;
+}
+
+/* ── States ──────────────────────────────────────────────────────────────────
+   Hover reduces opacity rather than darkening; press nudges 1px down. */
+
+.btn-primary:hover:not(:disabled),
+.run-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.btn:active:not(:disabled),
+.run-btn:active:not(:disabled),
+.icon-btn:active,
+.playback-btn:active:not(:disabled) {
+  transform: translateY(var(--press-translate));
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--ring);
+}
+
+/* ── Surfaces hardcoded outside the token block ──────────────────────────────
+   App.css paints several surfaces with literal navy rgba() values rather than a
+   variable, so re-pointing the tokens alone leaves them behind. These map onto the
+   system's surface roles; each line goes away with its surface in Phase 2. */
+
+.app-header {
+  /* The one transparency effect the system permits: background/80 + blur */
+  background: color-mix(in oklch, var(--background) 80%, transparent);
+}
+
+.sidebar {
+  background: var(--sidebar);
+}
+
+.sidebar-header,
+.inspector-header {
+  background: transparent;
+}
+
+.playback-bar-container {
+  /* A floating surface: hairline ring plus shadow-lg, per the system */
+  background: var(--popover);
+  box-shadow: var(--ring-hairline), var(--shadow-lg);
+}
+
+.model-status-panel,
+.input-config-item,
+.data-mode-tabs,
+.io-shape,
+.io-dtype {
+  background: var(--muted);
+}
+
+.workspace-title {
+  /* Was a gradient fill clipped to the text */
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  /* A watermark: readable as a shape, never as content. `--muted` is too close to
+     the background in light mode, so tint the foreground instead — this reads the
+     same in both modes. */
+  color: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+/* ── Borders that only existed against a dark background ─────────────────────
+   Translucent white hairlines disappear in light mode. `--border` already carries
+   the right value for both modes. */
+
+.upload-zone {
+  border-color: var(--border);
+}
+
+.playback-bar-container,
+.model-status-panel,
+.input-config-item {
+  border-color: var(--border);
+}
+
+.playback-controls {
+  border-right-color: var(--border);
+}
+
+.property-table tr {
+  border-bottom-color: var(--border);
+}
+
+/* NodeInspector.tsx sets this one inline, so it cannot be reached from here —
+   it is converted with the inspector in Phase 2:
+   `borderBottom: '1px dashed rgba(255,255,255,0.08)'` */

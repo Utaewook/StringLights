@@ -1,0 +1,31 @@
+/* Local extensions to the design system.
+   The system ships exactly one chromatic token (`--destructive`); this product also has
+   to express "the engine is accelerated" and "this tensor is not numerically sound".
+
+   Both follow the system's own destructive pattern: a 10% tint background with
+   full-strength text, never a solid slab. Colour is never the only signal — pair these
+   with a lucide icon and a label. Recorded as an intentional addition in ADR 0003.
+
+   The `--ds-` prefix avoids a name collision: `App.css` already defines `--success` and
+   `--warning` with its own hex values. `../bridge.css` maps the legacy names onto these.
+   Once App.css's token block is deleted (Phase 3) the prefix can be dropped. */
+
+:root {
+  --ds-success: oklch(0.596 0.145 163.225);
+  --ds-success-foreground: oklch(0.985 0.008 163.225);
+  --ds-warning: oklch(0.666 0.179 58.318);
+  --ds-warning-foreground: oklch(0.987 0.022 95.277);
+}
+
+.dark {
+  --ds-success: oklch(0.765 0.177 163.223);
+  --ds-success-foreground: oklch(0.262 0.051 172.552);
+  --ds-warning: oklch(0.828 0.189 84.429);
+  --ds-warning-foreground: oklch(0.279 0.077 45.635);
+}
+
+:root {
+  --ds-success-tint: color-mix(in oklch, var(--ds-success) 10%, transparent);
+  --ds-warning-tint: color-mix(in oklch, var(--ds-warning) 10%, transparent);
+  --ds-destructive-tint: color-mix(in oklch, var(--destructive) 10%, transparent);
+}

@@ -1,0 +1,29 @@
+/* Accent theme. Applied as a class on <html> alongside the optional `.dark`.
+   Themes re-point the ACCENT channel only — neutrals, borders and surfaces never move.
+
+   Only `theme-indigo` is vendored: it is the one this product uses (ADR 0003), and it is
+   the same hue family as the outgoing `--accent-color: #6366f1`. The design system ships
+   fourteen more; pull another with DesignSync if the accent is ever revisited. */
+
+.theme-indigo {
+  --primary: oklch(0.511 0.262 276.966);
+  --primary-foreground: oklch(0.985 0.008 276.966);
+  --ring: oklch(0.511 0.262 276.966);
+  --sidebar-primary: oklch(0.511 0.262 276.966);
+  --sidebar-primary-foreground: oklch(0.985 0.008 276.966);
+  --sidebar-ring: oklch(0.511 0.262 276.966);
+  --chart-1: oklch(0.785 0.115 274.713);
+  --chart-2: oklch(0.673 0.182 276.935);
+  --chart-3: oklch(0.585 0.233 277.117);
+  --chart-4: oklch(0.511 0.262 276.966);
+  --chart-5: oklch(0.457 0.24 277.023);
+}
+
+.dark.theme-indigo {
+  --primary: oklch(0.673 0.182 276.935);
+  --primary-foreground: oklch(0.257 0.09 281.288);
+  --ring: oklch(0.585 0.233 277.117);
+  --sidebar-primary: oklch(0.673 0.182 276.935);
+  --sidebar-primary-foreground: oklch(0.257 0.09 281.288);
+  --sidebar-ring: oklch(0.585 0.233 277.117);
+}

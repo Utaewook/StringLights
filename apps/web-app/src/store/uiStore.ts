@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { applyTheme, resolveInitialTheme, type Theme } from '../utils/theme';
 
 export interface ToastMessage {
   id: string;
@@ -7,6 +8,7 @@ export interface ToastMessage {
 }
 
 interface UIState {
+  theme: Theme;
   leftPanelOpen: boolean;
   rightPanelOpen: boolean;
   engineProvider: 'webgpu' | 'wasm' | null;
@@ -15,6 +17,8 @@ interface UIState {
   errorMsg: string | null;
   toasts: ToastMessage[];
 
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   setLeftPanelOpen: (open: boolean) => void;
@@ -28,6 +32,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
+  theme: resolveInitialTheme(),
   leftPanelOpen: true,
   rightPanelOpen: false,
   engineProvider: null,
@@ -36,6 +41,16 @@ export const useUIStore = create<UIState>((set) => ({
   errorMsg: null,
   toasts: [],
 
+  setTheme: (theme) => {
+    applyTheme(theme);
+    set({ theme });
+  },
+  toggleTheme: () =>
+    set((s) => {
+      const next: Theme = s.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      return { theme: next };
+    }),
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   setLeftPanelOpen: (open) => set({ leftPanelOpen: open }),

@@ -1,10 +1,10 @@
 
-import { Sparkles, PanelLeft, PanelRight, Cpu, ShieldAlert } from 'lucide-react';
+import { Sparkles, PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon } from 'lucide-react';
 import { useUIStore }  from '../../store/uiStore';
 import { useModelStore } from '../../store/modelStore';
 
 export default function Header() {
-  const { toggleLeftPanel, toggleRightPanel, engineProvider } = useUIStore();
+  const { toggleLeftPanel, toggleRightPanel, engineProvider, theme, toggleTheme } = useUIStore();
   const modelMeta = useModelStore((s) => s.modelMeta);
 
   return (
@@ -45,6 +45,14 @@ export default function Header() {
             <span>WebGPU Accelerated</span>
           </div>
         )}
+        <button
+          className="icon-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         <button className="icon-btn" onClick={toggleRightPanel} title="Toggle Inspector">
           <PanelRight size={18} />
         </button>
