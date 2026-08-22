@@ -6,6 +6,11 @@ import {
 import { useWorker }     from '../../contexts/WorkerContext';
 import { useModelStore } from '../../store/modelStore';
 import { useUIStore }    from '../../store/uiStore';
+import { Button } from '../../components/ui/Button';
+import { Input }  from '../../components/ui/Input';
+import { Label }  from '../../components/ui/Label';
+import { Alert }  from '../../components/ui/Alert';
+import { Tabs }   from '../../components/ui/Tabs';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +108,7 @@ export default function InferencePanel() {
 
       {/* ── Upload Zone ──────────────────────────────────────────────────── */}
       <section className="panel-section">
-        <div className="panel-section-title">Model Upload</div>
+        <div className="panel-section-title">Model upload</div>
 
         {/* Drop target — always visible */}
         <div
@@ -140,14 +145,16 @@ export default function InferencePanel() {
                 }
                 <span className="chip-name">{sf.file.name}</span>
                 <span className="chip-size">{sf.sizeStr}</span>
-                <button
-                  className="chip-remove"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={(e) => { e.stopPropagation(); removeFile(sf.file.name); }}
-                  title="Remove"
+                  title="Remove file"
+                  aria-label={`Remove ${sf.file.name}`}
                   disabled={isLoading}
                 >
-                  <X size={11} />
-                </button>
+                  <X />
+                </Button>
               </div>
             ))}
 
@@ -165,40 +172,39 @@ export default function InferencePanel() {
             </div>
 
             {/* Upload button — only visible when chips are present */}
-            <button
+            <Button
               id="upload-analyze-btn"
-              className="btn btn-primary upload-action-btn"
+              className="ds-btn-block"
               onClick={onUpload}
               disabled={!canUpload || isLoading}
             >
               {isModelLoading ? (
                 <>
-                  <Loader2 className="spin-icon" size={14} />
-                  <span>Processing Surgery…</span>
+                  <Loader2 className="spin-icon" />
+                  <span>Running graph surgery…</span>
                 </>
               ) : (
                 <>
-                  <Upload size={14} />
-                  <span>Upload &amp; Analyze</span>
+                  <Upload />
+                  <span>Upload and analyze</span>
                 </>
               )}
-            </button>
+            </Button>
           </div>
         )}
       </section>
 
       {/* ── Error Banner ──────────────────────────────────────────────────── */}
       {errorMsg && (
-        <div className="error-banner">
-          <AlertCircle size={16} />
-          <span>{errorMsg}</span>
-        </div>
+        <Alert variant="destructive" icon={<AlertCircle />}>
+          {errorMsg}
+        </Alert>
       )}
 
       {/* ── Model Info ────────────────────────────────────────────────────── */}
       {modelMeta && (
         <section className="panel-section">
-          <div className="panel-section-title">Model Info</div>
+          <div className="panel-section-title">Model info</div>
           <div className="model-status-panel">
             <div className="status-row">
               <span className="status-label">Engine</span>
@@ -238,7 +244,7 @@ export default function InferencePanel() {
       {/* ── Input Configuration ───────────────────────────────────────────── */}
       {modelMeta && modelMeta.inputs.length > 0 && (
         <section className="panel-section">
-          <div className="panel-section-title">Model Inputs</div>
+          <div className="panel-section-title">Model inputs</div>
           <div className="input-config-list">
             {modelMeta.inputs.map((inp) => (
               <div className="input-config-item" key={inp.name}>
@@ -253,24 +259,21 @@ export default function InferencePanel() {
             ))}
           </div>
 
-          <div className="data-mode-tabs">
-            {(['zeros', 'random'] as DataMode[]).map((m) => (
-              <button
-                key={m}
-                className={`data-mode-btn${dataMode === m ? ' active' : ''}`}
-                onClick={() => setDataMode(m)}
-              >
-                {m === 'zeros' ? 'Zero Tensors' : 'Random Tensors'}
-              </button>
-            ))}
-          </div>
+          <Tabs<DataMode>
+            tabs={[
+              { value: 'zeros',  label: 'Zero tensors' },
+              { value: 'random', label: 'Random tensors' },
+            ]}
+            value={dataMode}
+            onValueChange={setDataMode}
+          />
 
           {modelMeta.inputs.some((inp) => inp.shape.includes(-1)) && (
-            <div className="batch-size-row">
-              <label className="batch-size-label">Batch Size (N)</label>
-              <input
+            <div className="ds-field">
+              <Label htmlFor="batch-size">Batch size (N)</Label>
+              <Input
+                id="batch-size"
                 type="number"
-                className="batch-size-input"
                 min={1}
                 max={512}
                 value={batchSize}
@@ -284,24 +287,24 @@ export default function InferencePanel() {
       {/* ── Run Inference ─────────────────────────────────────────────────── */}
       {modelMeta && (
         <section className="panel-section">
-          <button
+          <Button
             id="run-inference-btn"
-            className="btn btn-primary run-btn"
+            className="ds-btn-block"
             onClick={() => handleRunInference(dataMode, batchSize)}
             disabled={isLoading || !engineProvider}
           >
             {isInferenceRunning ? (
               <>
-                <Loader2 className="spin-icon" size={16} />
-                <span>Running Inference…</span>
+                <Loader2 className="spin-icon" />
+                <span>Running inference…</span>
               </>
             ) : (
               <>
-                <Play size={16} />
-                <span>Run Inference</span>
+                <Play />
+                <span>Run inference</span>
               </>
             )}
-          </button>
+          </Button>
         </section>
       )}
     </div>

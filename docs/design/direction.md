@@ -76,17 +76,25 @@ existing patterns rather than inventing new ones.
 
 ## Surface map
 
-| Surface | File | Design system component |
-| --- | --- | --- |
-| Header + engine badge | `components/layout/Header.tsx` | `Badge` / `Alert` |
-| Sidebar (explorer) | `components/layout/Sidebar.tsx` | sidebar tokens |
-| Upload + run controls | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Badge` |
-| Data mode switch | `features/inference/InferencePanel.tsx` | `Tabs` |
-| Graph canvas | `components/common/GraphCanvas.tsx` | derived from `Card` |
-| Node inspector sections | `features/inspector/NodeInspector.tsx` | `Accordion` |
-| Tensor statistics | `features/inspector/NodeInspector.tsx` | `Table` |
-| Playback transport | `components/layout/PlaybackBar.tsx` | `Button`, `ToggleGroup`, `Slider` |
-| Toasts | `components/common/ToastContainer.tsx` | `Toast` + `Toaster` |
+| Surface | File | Design system component | Status |
+| --- | --- | --- | --- |
+| Header + engine badge | `components/layout/Header.tsx` | `Button`, `Badge` | Done |
+| Upload + run controls | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
+| Data mode switch | `features/inference/InferencePanel.tsx` | `Tabs` | Done |
+| File chips | `features/inference/InferencePanel.tsx` | `Badge` | Not started |
+| Sidebar (explorer) | `components/layout/Sidebar.tsx` | sidebar tokens | Not started |
+| Graph canvas | `components/common/GraphCanvas.tsx` | derived from `Card` | Not started |
+| Node inspector sections | `features/inspector/NodeInspector.tsx` | `Accordion` | Not started |
+| Tensor statistics | `features/inspector/NodeInspector.tsx` | `Table` | Not started |
+| Playback transport | `components/layout/PlaybackBar.tsx` | `Button`, `ToggleGroup`, `Slider` | Not started |
+| Toasts | `components/common/ToastContainer.tsx` | `Toast` + `Toaster` | Not started |
+
+Components are ported from `.jsx` to `.tsx` into `components/ui/` **as each is first
+used** — see its README for why bulk-copying does not work here.
+
+**Everything still "Not started" is blocked on the same thing:** those surfaces only render
+once a model is loaded, and there is no test model in the project. Converting them would
+mean shipping unverified UI. Get a small ONNX fixture first.
 
 ## Migration
 
@@ -98,7 +106,7 @@ surfaces move one at a time. **The bridge shrinking to nothing is the definition
 | --- | --- | --- |
 | 0 | Decide direction, record ADR, rewrite this file | Done |
 | 1 | Vendor tokens into `src/styles/ds/`, add bridge file, wire the light/dark toggle | Done |
-| 2 | Convert surfaces per the map above, porting each component to `.tsx` as it is used | Not started |
+| 2 | Convert surfaces per the map above, porting each component to `.tsx` as it is used | In progress — header and inference panel done |
 | 3 | Delete migrated rules from `App.css`, split the remainder into feature-local CSS | Not started |
 | 4 | Visual QA in both modes, contrast check, failure-state review (WASM badge, NaN, oversized model) | Not started |
 

@@ -84,8 +84,7 @@ body {
 .chip-size,
 .chip-total,
 .status-value,
-.input-config-name,
-.batch-size-input {
+.input-config-name {
   font-family: var(--font-mono);
 }
 
@@ -108,25 +107,14 @@ body {
   background: none;
 }
 
-.upload-zone.drag-over,
-.status-badge,
-.btn-primary,
-.btn-primary:hover,
-.run-btn {
+.upload-zone.drag-over {
   box-shadow: none;
 }
 
 /* ── States ──────────────────────────────────────────────────────────────────
-   Hover reduces opacity rather than darkening; press nudges 1px down. */
+   Hover reduces opacity rather than darkening; press nudges 1px down.
+   Buttons that have moved to the design system carry these rules themselves. */
 
-.btn-primary:hover:not(:disabled),
-.run-btn:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.btn:active:not(:disabled),
-.run-btn:active:not(:disabled),
-.icon-btn:active,
 .playback-btn:active:not(:disabled) {
   transform: translateY(var(--press-translate));
 }
@@ -164,7 +152,6 @@ body {
 
 .model-status-panel,
 .input-config-item,
-.data-mode-tabs,
 .io-shape,
 .io-dtype {
   background: var(--muted);

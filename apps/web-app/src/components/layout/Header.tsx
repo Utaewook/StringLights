@@ -1,21 +1,30 @@
-
 import { Sparkles, PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon } from 'lucide-react';
 import { useUIStore }  from '../../store/uiStore';
 import { useModelStore } from '../../store/modelStore';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 
 export default function Header() {
   const { toggleLeftPanel, toggleRightPanel, engineProvider, theme, toggleTheme } = useUIStore();
   const modelMeta = useModelStore((s) => s.modelMeta);
 
+  const themeLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+
   return (
     <header className="app-header">
       {/* Left — brand */}
       <div className="header-left">
-        <button className="icon-btn" onClick={toggleLeftPanel} title="Toggle Explorer">
-          <PanelLeft size={18} />
-        </button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggleLeftPanel}
+          title="Toggle explorer"
+          aria-label="Toggle explorer"
+        >
+          <PanelLeft />
+        </Button>
         <div className="brand-section">
-          <Sparkles className="brand-icon" size={22} />
+          <Sparkles className="brand-icon" size={18} />
           <span className="brand-title">StringLights</span>
         </div>
         <span className="header-badge">Web Inference Hub</span>
@@ -31,31 +40,40 @@ export default function Header() {
         )}
       </div>
 
-      {/* Right — engine badge + inspector toggle */}
+      {/* Right — engine badge + toggles */}
       <div className="header-right">
         {engineProvider === 'wasm' && (
-          <div className="status-badge status-warning">
-            <ShieldAlert size={14} />
-            <span>WASM Mode — Performance May Be Degraded</span>
-          </div>
+          <Badge variant="warning">
+            <ShieldAlert />
+            {/* Copy fixed by CLAUDE.md §3 — kept verbatim despite the system's
+                sentence-case rule. */}
+            WASM Mode — Performance May Be Degraded
+          </Badge>
         )}
         {engineProvider === 'webgpu' && (
-          <div className="status-badge status-success">
-            <Cpu size={14} />
-            <span>WebGPU Accelerated</span>
-          </div>
+          <Badge variant="success">
+            <Cpu />
+            WebGPU accelerated
+          </Badge>
         )}
-        <button
-          className="icon-btn"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={themeLabel}
+          aria-label={themeLabel}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-        <button className="icon-btn" onClick={toggleRightPanel} title="Toggle Inspector">
-          <PanelRight size={18} />
-        </button>
+          {theme === 'dark' ? <Sun /> : <Moon />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={toggleRightPanel}
+          title="Toggle inspector"
+          aria-label="Toggle inspector"
+        >
+          <PanelRight />
+        </Button>
       </div>
     </header>
   );
