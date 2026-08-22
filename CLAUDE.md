@@ -98,7 +98,9 @@ Follow these steps in order when starting a work session.
   Act as a collaborative partner. Thoroughly analyze user requirements, problems, and root causes first, and propose alternative solutions/plans before taking action.
 - **Active Grilling (Resolve Ambiguity First):**
   Even for minor, trivial, or simple decisions, do not act preemptively. Proactively propose and utilize the `/grill-me` process to align with the user and verify designs before writing any code.
-- **Style Reference:** Always check and reference the UI/UX style of the `legacy-v1` branch before generating UI components to maintain consistency.
+- **Style Reference:**
+  Visual language — colour, type, spacing, elevation, motion — is defined by the design system (`docs/design/direction.md`, and [ADR 0003](docs/decisions/0003-adopt-shadcn-design-system.md)). Do **not** inherit `legacy-v1`'s palette or typography.
+  Still check the `legacy-v1` branch before generating UI components, but for **interaction and structure**: which components existed, what state they carried, and which failure states were already handled. It is the record of what this product has already learned, not a style guide.
 - **No Unauthorized Installs:** Do not install any external libraries, packages, or frameworks unless during initial setup or explicitly approved by the user.
 - **Atomic Commits:** Commit code in small, functional, and self-contained units. Do not bundle multiple features or bug fixes into a single commit.
 - **Git History Honesty:** If you make a mistake (e.g., bundled commits, syntax errors), do not hide it using force-push (`git push -f`) or git resets. Disclose it transparently to the user and obtain permission before correcting it.

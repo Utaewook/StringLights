@@ -126,11 +126,29 @@ open question about demo models).
 4. **Failure states are normal here.** WASM fallback, NaN detection and oversized models are
    routine outcomes and get designed treatment, not an afterthought.
 
+## What `legacy-v1` is for
+
+`CLAUDE.md` §5 points at the `legacy-v1` branch before any UI component is generated. Since
+ADR 0003, that reference is about **interaction and structure only** — never palette or type.
+
+Its visual language is a VSCode pastiche (`#1e1e1e` / `#252526` surfaces, `#007fd4` accent,
+Inter) that v2 had already left behind before the design system was adopted. Do not bring it
+back.
+
+What is worth reading there:
+
+| | |
+| --- | --- |
+| `frontend/src/index.css` | 879 lines — where the styling actually lived. `App.css` is empty |
+| `frontend/src/store/uiStore.js` | Already had `theme` + `toggleTheme`, and a `.light-theme` palette |
+| `frontend/src/components/layout/` | Same four surfaces as v2, one generation earlier |
+
+The theme toggle is the cautionary example: Phase 1 rebuilt it here without checking
+`legacy-v1`, which already had one — same store shape, same position in the header. Nothing
+was lost, but nothing was learned from it either. That is the failure §5 exists to prevent.
+
 ## Open
 
-- `CLAUDE.md` §5 requires checking `legacy-v1`'s visual language before generating UI
-  components. ADR 0003 supersedes that for visual language, but §5 has not been amended —
-  the two currently disagree.
 - Is the canvas legible in light mode? Edges, minimap and selection highlight were tuned
   against a near-black background.
 
