@@ -29,3 +29,33 @@
   --ds-warning-tint: color-mix(in oklch, var(--ds-warning) 10%, transparent);
   --ds-destructive-tint: color-mix(in oklch, var(--destructive) 10%, transparent);
 }
+
+/* ── Component variants for the tokens above ─────────────────────────────────
+   Same shape as the system's own `destructive` variants: a 10% tint background
+   with full-strength text. Kept here rather than in styles/components.css so a
+   re-sync of the vendored file never has to merge them. */
+
+.ds-badge[data-variant="success"] {
+  background: var(--ds-success-tint);
+  color: var(--ds-success);
+}
+
+.ds-badge[data-variant="warning"] {
+  background: var(--ds-warning-tint);
+  color: var(--ds-warning);
+}
+
+.ds-alert[data-variant="warning"] {
+  color: var(--ds-warning);
+}
+
+.ds-alert[data-variant="warning"] .ds-alert-description {
+  color: color-mix(in oklch, var(--ds-warning) 90%, transparent);
+}
+
+/* ── Layout utility ──────────────────────────────────────────────────────────
+   Controls are inline-flex by default. Sidebar actions run the full width. */
+
+.ds-btn-block {
+  width: 100%;
+}

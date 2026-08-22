@@ -19,12 +19,14 @@ deliberate act through `DesignSync`, not `npm update`.
 
 - `tokens/themes.css` carries **only `theme-indigo`**. The source ships fifteen accent
   themes; this product uses one. Pull another with `DesignSync` if the accent is revisited.
-- `styles/base.css` and `styles/components.css` are **not** vendored yet. They arrive in
-  Phase 2, when components start being converted. Importing the resets early would fight
-  the existing `index.css` and `App.css` for no benefit.
+`styles/base.css` and `styles/components.css` are vendored verbatim. `components.css` is
+the plain-CSS port of every component in the system, including ones this app does not use
+— keeping it whole is what makes a re-sync a copy rather than a merge.
 
-`extensions.css` is **ours**, not the source's — the `--success` and `--warning` tokens the
-design system does not define. Keep it separate so a re-sync never has to merge it.
+`extensions.css` is **ours**, not the source's: the `--ds-success` / `--ds-warning` tokens
+the design system does not define, the badge and alert variants built on them, and one
+layout utility. Keep it separate so a re-sync never has to merge it. It is imported last
+so its component variants land after the styles they extend.
 
 ## What is not here
 

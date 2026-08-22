@@ -1,5 +1,8 @@
 /* Design system entry point. Import this before any application stylesheet.
-   Vendored — see ./README.md for the source and how to re-sync. */
+   Vendored — see ./README.md for the source and how to re-sync.
+
+   `extensions.css` is imported last so its component variants land after the
+   component styles they extend. */
 @import url("./tokens/typography.css");
 @import url("./tokens/colors.css");
 @import url("./tokens/themes.css");
@@ -7,4 +10,6 @@
 @import url("./tokens/spacing.css");
 @import url("./tokens/elevation.css");
 @import url("./tokens/motion.css");
+@import url("./styles/base.css");
+@import url("./styles/components.css");
 @import url("./extensions.css");
