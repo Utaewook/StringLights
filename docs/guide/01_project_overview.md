@@ -24,7 +24,7 @@ The backend hosting server runs on an entry-level AWS Lightsail instance, which 
 ---
 
 ## 5. Next Documents
-*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
-*   [Terminology & Concepts (02_terminology.md)](file:///Users/twyou/Projects/string_lights/docs/02_terminology.md)
-*   [Architecture & Data Flow (03_architecture.md)](file:///Users/twyou/Projects/string_lights/docs/03_architecture.md)
-*   [AI Coding Rules (04_convention.md)](file:///Users/twyou/Projects/string_lights/docs/04_convention.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
+*   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
+*   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
+*   [AI Coding Rules (04_convention.md)](./04_convention.md)

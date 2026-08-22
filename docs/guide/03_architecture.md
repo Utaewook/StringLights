@@ -16,7 +16,7 @@ The core architectural principle of this project is **"Server protection via str
 *   **Optimization:** To prevent the browser UI thread from freezing during inference operations, implement a Web Worker environment to execute inference in the background.
 *   **Inference Engine Monitoring:**
     *   Explicitly check WebGPU support at session initialization.
-    *   Fallback automatically to the WASM backend if WebGPU is unsupported or fails, and display the status badge "WASM 모드 동작 중 - 성능 저하 가능" prominently in the UI.
+    *   Fallback automatically to the WASM backend if WebGPU is unsupported or fails, and display the status badge "WASM Mode — Performance May Be Degraded" prominently in the UI.
 
 ---
 
@@ -48,7 +48,7 @@ sequenceDiagram
     Note over Client: Check WebGPU support status
     alt WebGPU unsupported
         Note over Client: Load Ort Session with WASM fallback
-        Client->>User: Render "WASM 모드 동작 중 - 성능 저하 가능" badge
+        Client->>User: Render "WASM Mode — Performance May Be Degraded" badge
     else WebGPU supported
         Note over Client: Load Ort Session with WebGPU acceleration
     end
@@ -60,7 +60,7 @@ sequenceDiagram
 ---
 
 ## 4. Next Documents
-*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
-*   [Project Overview (01_project_overview.md)](file:///Users/twyou/Projects/string_lights/docs/01_project_overview.md)
-*   [Terminology & Concepts (02_terminology.md)](file:///Users/twyou/Projects/string_lights/docs/02_terminology.md)
-*   [AI Coding Rules (04_convention.md)](file:///Users/twyou/Projects/string_lights/docs/04_convention.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
+*   [Project Overview (01_project_overview.md)](./01_project_overview.md)
+*   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
+*   [AI Coding Rules (04_convention.md)](./04_convention.md)

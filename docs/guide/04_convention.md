@@ -16,8 +16,11 @@ Developers and AI assistants must strictly adhere to the following implementatio
 ### Rule 3: Early File Size Rejection (50MB Limit)
 *   Inspect the size of the uploaded file before writing it to disk. Immediately reject payloads exceeding **50MB** with an HTTP `400 Bad Request` error.
 
-### Rule 4: Guaranteed Resource Destruction via Try-Finally
-*   To prevent temp files from polluting the server disk or memory, encapsulate file saves and Graph Surgery in `try-finally` blocks. Ensure cleanup is executed even if errors are raised.
+### Rule 4: Guaranteed Resource Destruction (Two Paths, Not `finally`)
+*   Every request owns a temp directory that must always be destroyed, but the timing differs by path:
+    *   **Error path:** clean up immediately inside `except`, before raising.
+    *   **Success path:** register cleanup with `BackgroundTasks` so it runs *after* the response is sent.
+*   **Do not wrap the response in a bare `finally`.** The endpoint returns a `FileResponse` that streams from the temp directory; a `finally` block deletes the payload before the client can read it.
 
 ### Rule 5: Enforced Shape Inference
 *   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
@@ -25,17 +28,23 @@ Developers and AI assistants must strictly adhere to the following implementatio
 #### Recommended Backend Skeleton:
 ```python
 import os
-import shutil
+import uuid
 import asyncio
-from fastapi import FastAPI, UploadFile, File, HTTPException, status
-import onnx
+from fastapi import (
+    FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks,
+)
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 surgery_semaphore = asyncio.Semaphore(1)
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+TEMP_ROOT = os.path.join(os.path.dirname(__file__), "temp")
 
 @app.post("/api/surgery")
-async def perform_graph_surgery(file: UploadFile = File(...)):
+async def perform_graph_surgery(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+):
     # 1. Early validation of file size
     file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()
@@ -47,39 +56,31 @@ async def perform_graph_surgery(file: UploadFile = File(...)):
             detail=f"File size exceeds the 50MB limit (Uploaded: {file_size / (1024*1024):.2f}MB)"
         )
     
-    temp_in_path = f"temp_in_{file.filename}"
-    temp_out_path = f"temp_out_{file.filename}"
-    
+    # Each request owns an isolated temp directory keyed by a UUID.
+    temp_dir = os.path.join(TEMP_ROOT, str(uuid.uuid4()))
+    os.makedirs(temp_dir, exist_ok=True)
+
     async with surgery_semaphore:
         try:
-            with open(temp_in_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            
-            try:
-                model = onnx.load(temp_in_path)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail=f"Invalid ONNX model file: {str(e)}"
-                )
-            
-            # [Execute Graph Surgery Logic here...]
-            
-            try:
-                inferred_model = onnx.shape_inference.infer_shapes(model)
-                onnx.save(inferred_model, temp_out_path)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"ONNX Shape inference failed: {str(e)}"
-                )
-            
-        finally:
-            if os.path.exists(temp_in_path):
-                os.remove(temp_in_path)
-            if os.path.exists(temp_out_path):
-                os.remove(temp_out_path)
+            # [Persist upload, run Graph Surgery, build the response payload...]
+
+            # Success path: defer cleanup until AFTER the response is streamed.
+            background_tasks.add_task(cleanup_directory, temp_dir)
+            return FileResponse(output_path, media_type="application/zip")
+
+        except Exception as e:
+            # Error path: nothing is streamed, so destroy the directory now.
+            cleanup_directory(temp_dir)
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An unexpected error occurred: {str(e)}",
+            )
 ```
+
+> The endpoint signature therefore takes `background_tasks: BackgroundTasks` as its
+> first parameter. See `apps/backend/app/main.py` for the authoritative implementation.
 
 ---
 
@@ -93,7 +94,7 @@ async def perform_graph_surgery(file: UploadFile = File(...)):
 
 ### Rule 3: WebGPU Prioritization & WASM Fallback UI Badge
 *   Initialize `ort.InferenceSession.create` with `executionProviders` ordered as `['webgpu', 'wasm']`.
-*   If WebGPU setup fails or throws an exception, catch it, fall back to the WASM backend, and trigger a state update to render a warning status badge reading **"WASM 모드 동작 중 - 성능 저하 가능"** in the layout.
+*   If WebGPU setup fails or throws an exception, catch it, fall back to the WASM backend, and trigger a state update to render a warning status badge reading **"WASM Mode — Performance May Be Degraded"** in the layout.
 
 ### Rule 4: Offload Inference to Web Worker
 *   To prevent UI blocking (freezing), encapsulate all `session.run` and heavy preprocessing logic inside a dedicated Web Worker thread.
@@ -172,7 +173,7 @@ All commits must strictly adhere to the Conventional Commits specification.
 ---
 
 ## 4. Next Documents
-*   [CLAUDE.md (Required Session Rules & Trigger Routing)](file:///Users/twyou/Projects/string_lights/CLAUDE.md)
-*   [Project Overview (01_project_overview.md)](file:///Users/twyou/Projects/string_lights/docs/01_project_overview.md)
-*   [Terminology & Concepts (02_terminology.md)](file:///Users/twyou/Projects/string_lights/docs/02_terminology.md)
-*   [Architecture & Data Flow (03_architecture.md)](file:///Users/twyou/Projects/string_lights/docs/03_architecture.md)
+*   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
+*   [Project Overview (01_project_overview.md)](./01_project_overview.md)
+*   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
+*   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)

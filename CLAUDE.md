@@ -24,12 +24,28 @@ It is loaded automatically at the start of each session. Detailed architectural 
 
 | Target Path/File | Document to Read First | Notes / Core Constraints |
 | --- | --- | --- |
-| `apps/backend/app/services/**` (Graph manipulation) | `docs/03_architecture.md` | **Strictly NO ONNX inference on the server**. Apply `Semaphore(1)` for Graph Surgery. |
-| `apps/backend/app/main.py` (API Entry Point) | `docs/01_project_overview.md` | **Strict 50MB upload limit**. Instantly return `400 Bad Request` if exceeded. |
-| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/03_architecture.md` | Run `InferenceSession` inside Web Worker. Ensure explicit `release()` of session memory. |
-| `apps/web-app/src/**` (Frontend UI modification) | `docs/01_project_overview.md` | Fallback to WASM if WebGPU is unsupported, and show status badge: "WASM 모드 동작 중 - 성능 저하 가능". |
-| `build/**` (Docker & Nginx configuration) | `docs/03_architecture.md` | Nginx reverse proxy configuration and strict container memory limits. |
-| Git branches, tags, and commits | `docs/04_convention.md` | Adhere to Conventional Commits format and branch strategy. |
+| `apps/backend/app/services/**` (Graph manipulation) | `docs/guide/03_architecture.md` | **Strictly NO ONNX inference on the server**. Apply `Semaphore(1)` for Graph Surgery. |
+| `apps/backend/app/main.py` (API Entry Point) | `docs/guide/01_project_overview.md` | **Strict 50MB upload limit**. Instantly return `400 Bad Request` if exceeded. |
+| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | Run `InferenceSession` inside Web Worker. Ensure explicit `release()` of session memory. |
+| `apps/web-app/src/**` (Frontend UI modification) | `docs/design/direction.md` | Follow the agreed UI/UX direction. Fallback to WASM if WebGPU is unsupported, and show the status badge. |
+| `build/**` (Docker & Nginx configuration) | `docs/guide/03_architecture.md` | Nginx reverse proxy configuration and strict container memory limits. |
+| Git branches, tags, and commits | `docs/guide/04_convention.md` | Adhere to Conventional Commits format and branch strategy. |
+
+---
+
+## 2-1. Documentation Map
+
+> Every artifact has exactly one home. See `docs/README.md` for the full contract.
+
+| Directory | Holds | Write here when |
+| --- | --- | --- |
+| `docs/guide/` | Settled norms (overview, terminology, architecture, conventions) | A rule is confirmed and stable |
+| `docs/decisions/` | ADRs — a choice plus its trade-offs | Making a hard-to-reverse decision |
+| `docs/issues/` | Open problems, flat files with a `Status` field | A defect or gap is found |
+| `docs/history/` | Post-mortems of **resolved** problems | An issue is closed |
+| `docs/design/` | UI/UX direction, references, mockups | Shaping look and feel |
+
+**All `.md` files in this repository are English-only** (see §5). Discuss in Korean, commit in English.
 
 ---
 
@@ -57,9 +73,9 @@ Follow these steps in order when starting a work session.
 - [ ] **No Backend Inference:** Never import or execute `onnxruntime` in the backend. Only use `onnx` for graph manipulation.
 - [ ] **Strict Queueing:** Apply `asyncio.Semaphore(1)` to Graph Surgery API endpoints to limit concurrency.
 - [ ] **50MB Upload Limit:** Enforce strict 50MB file size limit on backend uploads.
-- [ ] **Resource Cleanup:** Delete all temporary files from memory/disk in a `finally` block on success or failure.
+- [ ] **Resource Cleanup:** Every request must destroy its temp directory. On the error path, clean up immediately; on the success path, defer cleanup to `BackgroundTasks` so `FileResponse` can finish streaming first. Never use a bare `finally` — it deletes the payload before the client receives it.
 - [ ] **Frontend Memory Management:** Call `release()` on the existing `InferenceSession` before loading a new model, and explicitly dispose/nullify unused tensors.
-- [ ] **WebGPU Fallback Badge:** Display the "WASM 모드 동작 중 - 성능 저하 가능" badge in the UI if WebGPU fails.
+- [ ] **WebGPU Fallback Badge:** Display the "WASM Mode — Performance May Be Degraded" badge in the UI if WebGPU fails.
 
 ---
 
@@ -67,7 +83,7 @@ Follow these steps in order when starting a work session.
 
 1. **Clean Workspace:** Ensure no temporary files (like `temp_in_*`, `temp_out_*`) remain in the repository.
 2. **Branch Check:** All commits must be made to the `develop` branch. Direct commits to `main` are strictly forbidden.
-3. **Commit Message:** Strictly adhere to the Conventional Commits specification (see details in `docs/04_convention.md`).
+3. **Commit Message:** Strictly adhere to the Conventional Commits specification (see details in `docs/guide/04_convention.md`).
 
 ---
 
