@@ -16,6 +16,7 @@ ADR and mark the old one `Superseded by NNNN`.
 | --- | --- | --- |
 | [0001](./0001-promote-all-intermediate-outputs.md) | Promote every intermediate node to a graph output | Accepted |
 | [0002](./0002-coep-require-corp.md) | Enable cross-origin isolation via COEP `require-corp` | Accepted |
+| [0003](./0003-adopt-shadcn-design-system.md) | Adopt the Shadcn design system wholesale for the web app | Accepted |
 
 ## Template
 
