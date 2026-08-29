@@ -11,6 +11,7 @@ import { Input }  from '../../components/ui/Input';
 import { Label }  from '../../components/ui/Label';
 import { Alert }  from '../../components/ui/Alert';
 import { Tabs }   from '../../components/ui/Tabs';
+import './InferencePanel.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -65,9 +65,6 @@ body {
 }
 
 .header-model-name,
-.chip-name,
-.chip-size,
-.chip-total,
 .status-value,
 .input-config-name {
   font-family: var(--font-mono);
@@ -114,14 +111,6 @@ body {
 .app-header {
   /* The one transparency effect the system permits: background/80 + blur */
   background: color-mix(in oklch, var(--background) 80%, transparent);
-}
-
-.sidebar {
-  background: var(--sidebar);
-}
-
-.sidebar-header {
-  background: transparent;
 }
 
 .model-status-panel,

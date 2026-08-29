@@ -1,0 +1,104 @@
+/* File chips — the staged-upload list.
+   Feature-local: these rules replace the chip block that used to live in App.css.
+
+   The surface map called for `Badge`, but a chip here is a list row carrying an
+   icon, a filename, a size and a remove control — not a label. It takes the Card
+   treatment instead, and only the role tint follows the Badge pattern: a 10%
+   tint, never a solid slab. Role is never signalled by colour alone; each role
+   has its own lucide icon. */
+
+.chip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  font-size: var(--text-xs);
+}
+
+.file-chip .chip-icon {
+  flex-shrink: 0;
+}
+
+.file-chip-model {
+  border-color: color-mix(in oklch, var(--primary) 35%, transparent);
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.file-chip-model .chip-icon {
+  color: var(--primary);
+}
+
+.file-chip-data {
+  border-color: color-mix(in oklch, var(--ds-warning) 35%, transparent);
+  background: var(--ds-warning-tint);
+}
+
+.file-chip-data .chip-icon {
+  color: var(--ds-warning);
+}
+
+.chip-name {
+  flex: 1;
+  font-family: var(--font-mono);
+  min-width: 0;
+  overflow: hidden;
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-size {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  color: var(--muted-foreground);
+}
+
+.chip-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.25rem;
+}
+
+.chip-total {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.chip-total-error {
+  color: var(--destructive);
+}
+
+.chip-validation-error {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--destructive);
+}
+
+.chip-validation-error svg {
+  flex-shrink: 0;
+}
+
+/* A caption, at the system's caption size. The old label was a 10px bold
+   uppercase micro-label, which the type scale does not have. Matches
+   .sidebar-title — see components/layout/Sidebar.css. */
+.panel-section-title {
+  margin-bottom: 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--muted-foreground);
+}

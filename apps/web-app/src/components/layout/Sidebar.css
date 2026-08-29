@@ -1,0 +1,64 @@
+/* Explorer and inspector panels — on the system's dedicated sidebar tokens.
+   Feature-local: these rules replace the block that used to live in App.css.
+
+   Flat colour. The old panel was a translucent navy over a 12px blur; the system
+   permits transparency only on the floating header and transport. */
+
+.sidebar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: var(--sidebar-width);
+  overflow: hidden;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  transition:
+    width var(--duration-slow) var(--ease-out),
+    opacity var(--duration-slow) var(--ease-out);
+}
+
+.sidebar-left  { border-right: 1px solid var(--sidebar-border); }
+.sidebar-right { border-left:  1px solid var(--sidebar-border); }
+
+.sidebar-closed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-open {
+  width: var(--sidebar-width);
+  opacity: 1;
+}
+
+.sidebar-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 40px;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+/* A caption, at the system's caption size. The old label was a 10px bold
+   uppercase micro-label, which the type scale does not have. */
+.sidebar-title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--muted-foreground);
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-body::-webkit-scrollbar { width: 4px; }
+.sidebar-body::-webkit-scrollbar-track { background: transparent; }
+.sidebar-body::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: var(--border);
+}

@@ -15,13 +15,13 @@ export default function Layout() {
     <div className="app-root">
       <Header />
       <div className="main-content">
-        <Sidebar title="EXPLORER" side="left" isOpen={leftPanelOpen}>
+        <Sidebar title="Explorer" side="left" isOpen={leftPanelOpen}>
           <InferencePanel />
         </Sidebar>
 
         <MainWorkspace />
 
-        <Sidebar title="INSPECTOR" side="right" isOpen={rightPanelOpen}>
+        <Sidebar title="Inspector" side="right" isOpen={rightPanelOpen}>
           <NodeInspector />
         </Sidebar>
       </div>
