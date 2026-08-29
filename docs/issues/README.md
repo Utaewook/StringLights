@@ -34,6 +34,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Open | High |
 | [008](./008-ci-runs-no-tests.md) | CI runs no tests | Open | Medium |
 | [009](./009-worker-failures-bypass-error-channel.md) | Worker failures outside the message channel are invisible to the UI | Open | High |
+| [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Open | Medium |
 
 ## Template
 
