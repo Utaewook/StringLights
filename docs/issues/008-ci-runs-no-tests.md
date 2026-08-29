@@ -4,6 +4,7 @@
 - **Severity:** Medium
 - **Track:** Chore
 - **Found:** 2026-08-22
+- **Related:** [014](./014-toolchain-versions-drift.md)
 
 ## Symptom
 
@@ -59,3 +60,28 @@ means a regression in graph surgery is discovered by a user, not by the pipeline
    `src/store/` is covered.
 3. Coverage is reported so the 80% target in the workspace rules becomes measurable
    rather than aspirational.
+
+## Confirmed while planning the fix, 2026-08-22
+
+**The existing tests are ready to use.** All six were executed locally and pass in 0.26s.
+They build their ONNX fixtures in memory with `onnx.helper`, so there are no committed
+`.onnx` files to manage and no environment dependencies. Wiring them into CI is purely a
+workflow change.
+
+**`pytest` is not declared anywhere.** It is absent from `requirements.txt`, so the tests
+run today only because a developer installed it by hand. Tracked in
+[014](./014-toolchain-versions-drift.md).
+
+**CI must run pytest from the right directory.** Neither `apps/backend/tests/` nor
+`apps/backend/app/` has an `__init__.py`, and there is no `pytest.ini` / `pyproject.toml`
+setting `pythonpath`. Under pytest's default `prepend` import mode, only `tests/` lands on
+`sys.path`, so `from app.main import app` fails with `ModuleNotFoundError`. The invocation
+must be `python -m pytest` with `apps/backend` as the working directory — `python -m` is
+what puts the current directory on `sys.path`. A bare `pytest` will not work.
+
+**Type checking does not run on `develop` either.** The workflow triggers on both `main`
+and `develop` (`deploy.yml:3-11`), but `tsc -b` only executes inside
+`build/frontend.Dockerfile:10`, which is reached from `build-and-push` — and that job is
+gated to `main`. So a TypeScript type error passes CI on `develop` and is first caught at
+the Docker build on merge. Adding `npm run build` to `test-and-lint` closes this; the
+script already chains `copy-wasm` before `tsc -b`, so no separate step is needed.
