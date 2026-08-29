@@ -103,13 +103,9 @@ body {
   box-shadow: none;
 }
 
-/* ── States ──────────────────────────────────────────────────────────────────
-   Hover reduces opacity rather than darkening; press nudges 1px down.
-   Buttons that have moved to the design system carry these rules themselves. */
-
-.playback-btn:active:not(:disabled) {
-  transform: translateY(var(--press-translate));
-}
+/* ── Focus ───────────────────────────────────────────────────────────────────
+   Focus is never removed. Controls that have moved to the design system carry
+   this themselves; this covers the ones that have not. */
 
 :focus-visible {
   outline: none;
@@ -134,12 +130,6 @@ body {
 .sidebar-header,
 .inspector-header {
   background: transparent;
-}
-
-.playback-bar-container {
-  /* A floating surface: hairline ring plus shadow-lg, per the system */
-  background: var(--popover);
-  box-shadow: var(--ring-hairline), var(--shadow-lg);
 }
 
 .model-status-panel,
@@ -167,14 +157,9 @@ body {
   border-color: var(--border);
 }
 
-.playback-bar-container,
 .model-status-panel,
 .input-config-item {
   border-color: var(--border);
-}
-
-.playback-controls {
-  border-right-color: var(--border);
 }
 
 .property-table tr {

@@ -1,0 +1,113 @@
+/* Playback transport — the signature interaction, so it stays a floating surface.
+   Feature-local: these rules replace the block that used to live in App.css.
+
+   A floating bar over the canvas is one of the two places the system permits
+   transparency, so it keeps a blur — but at the header's strength, not the old
+   20px saturated wash. */
+
+.playback-bar-container {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 520px;
+  height: 52px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklch, var(--card) 80%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-50%);
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+
+.playback-bar-container.hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(0.5rem);
+}
+
+.playback-controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  padding-right: 1rem;
+  border-right: 1px solid var(--border);
+}
+
+.playback-speed {
+  margin-left: 0.5rem;
+}
+
+.playback-progress-container {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.step-display {
+  flex-shrink: 0;
+  min-width: 4.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  text-align: center;
+}
+
+/* The scrubber stays a native range input — it already handles keyboard, drag and
+   touch. Only its skin is brought onto the system's slider tokens. */
+
+.progress-slider {
+  flex: 1;
+  height: 1rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+.progress-slider::-webkit-slider-runnable-track {
+  height: 0.25rem;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-slider::-moz-range-track {
+  height: 0.25rem;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: -0.25rem;
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  transition: box-shadow var(--duration) var(--ease-out);
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+}
+
+.progress-slider:hover::-webkit-slider-thumb,
+.progress-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--focus-ring);
+}

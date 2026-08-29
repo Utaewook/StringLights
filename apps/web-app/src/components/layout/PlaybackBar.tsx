@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import { SkipBack, SkipForward, Play, Pause, Square, X } from 'lucide-react';
 import { usePlaybackStore } from '../../store/playbackStore';
+import { Button } from '../ui/Button';
+import { ToggleGroup } from '../ui/ToggleGroup';
+import './PlaybackBar.css';
 
-const SPEEDS = [0.5, 1, 2, 5];
+const SPEEDS = [0.5, 1, 2, 5] as const;
+
+const SPEED_ITEMS = SPEEDS.map((s) => ({
+  value: s,
+  label: `${s}x`,
+  title: `Play at ${s}x speed`,
+}));
+
+/** How long the bar stays up after the pointer stops moving, when not playing. */
+const IDLE_HIDE_MS = 5000;
 
 export default function PlaybackBar() {
   const {
@@ -14,7 +27,7 @@ export default function PlaybackBar() {
   const [mouseOver, setMouseOver] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-hide after 5s idle when not playing
+  // Auto-hide after an idle spell when not playing
   useEffect(() => {
     if (!isActive) return;
 
@@ -22,7 +35,7 @@ export default function PlaybackBar() {
       setVisible(true);
       if (hideTimer.current) clearTimeout(hideTimer.current);
       if (!isPlaying && !mouseOver) {
-        hideTimer.current = setTimeout(() => setVisible(false), 5000);
+        hideTimer.current = setTimeout(() => setVisible(false), IDLE_HIDE_MS);
       }
     };
 
@@ -45,55 +58,66 @@ export default function PlaybackBar() {
       onMouseEnter={() => setMouseOver(true)}
       onMouseLeave={() => setMouseOver(false)}
     >
-      {/* Controls */}
+      {/* ── Transport ─────────────────────────────────────────────────────── */}
       <div className="playback-controls">
-        <button
-          className="playback-btn"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => seekStep(-1)}
-          title="Previous Step"
+          title="Previous step"
+          aria-label="Previous step"
           disabled={currentStep === 0}
         >
-          ⏮
-        </button>
+          <SkipBack />
+        </Button>
 
-        <button
-          className="playback-btn primary"
+        <Button
+          size="icon"
           onClick={isPlaying ? pausePlayback : startPlayback}
           title={isPlaying ? 'Pause' : 'Play'}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
         >
-          {isPlaying ? '⏸' : '▶'}
-        </button>
+          {isPlaying ? <Pause /> : <Play />}
+        </Button>
 
-        <button
-          className="playback-btn"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => seekStep(1)}
-          title="Next Step"
+          title="Next step"
+          aria-label="Next step"
           disabled={currentStep >= totalSteps - 1}
         >
-          ⏭
-        </button>
+          <SkipForward />
+        </Button>
 
-        <button className="playback-btn" onClick={stopPlayback} title="Stop">
-          ⏹
-        </button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={stopPlayback}
+          title="Stop"
+          aria-label="Stop"
+        >
+          <Square />
+        </Button>
 
-        {/* Speed selector */}
-        <div className="speed-selector">
-          {SPEEDS.map((s) => (
-            <button
-              key={s}
-              className={`speed-btn ${playbackSpeed === s ? 'active' : ''}`}
-              onClick={() => setPlaybackSpeed(s)}
-            >
-              {s}x
-            </button>
-          ))}
-        </div>
+        <ToggleGroup
+          className="playback-speed"
+          items={SPEED_ITEMS}
+          value={playbackSpeed}
+          onValueChange={setPlaybackSpeed}
+          size="sm"
+          aria-label="Playback speed"
+        />
       </div>
 
-      {/* Progress */}
+      {/* ── Progress ──────────────────────────────────────────────────────── */}
       <div className="playback-progress-container">
-        <span className="step-display">Step {currentStep + 1}</span>
+        {/* -1 is the store's "not started" sentinel; rendering it as "Step 0"
+            reads as a real step that does not exist. */}
+        <span className="step-display">
+          {currentStep < 0 ? 'Ready' : `Step ${currentStep + 1}`}
+        </span>
         <input
           type="range"
           className="progress-slider"
@@ -101,15 +125,21 @@ export default function PlaybackBar() {
           max={Math.max(0, totalSteps - 1)}
           step={1}
           value={currentStep}
+          aria-label="Playback position"
           onChange={(e) => setCurrentStep(Number(e.target.value))}
         />
-        <span className="step-display">{totalSteps} Steps</span>
+        <span className="step-display">{totalSteps} steps</span>
       </div>
 
-      {/* Close button */}
-      <button className="playback-btn close-btn" onClick={closePlayback} title="Close">
-        ✕
-      </button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={closePlayback}
+        title="Close playback"
+        aria-label="Close playback"
+      >
+        <X />
+      </Button>
     </div>
   );
 }
