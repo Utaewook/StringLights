@@ -36,6 +36,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [009](./009-worker-failures-bypass-error-channel.md) | Worker failures outside the message channel are invisible to the UI | Open | High |
 | [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Open | Medium |
 | [011](./011-surgery-blocks-the-event-loop.md) | Graph surgery blocks the event loop and has no time bound | Open | High |
+| [012](./012-upload-intake-is-unbounded.md) | Upload intake is unbounded before the size and concurrency limits apply | Open | High |
 
 ## Template
 
