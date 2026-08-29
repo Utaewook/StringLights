@@ -44,3 +44,7 @@ Thumbs.db
 
 # ONNX Runtime Web auto-copied files
 apps/web-app/public/ort*.mjs
+
+# Incoming asset drops. Whatever the project keeps is committed to its real home —
+# the icon pack's SVG sources live in apps/web-app/src/assets/icon/.
+handoffs/
