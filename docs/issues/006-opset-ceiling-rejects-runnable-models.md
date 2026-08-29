@@ -4,6 +4,7 @@
 - **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-22
+- **Related:** [014](./014-toolchain-versions-drift.md)
 
 ## Symptom
 
@@ -60,3 +61,22 @@ server is out of date.
    or an ADR if the trade-off is real).
 3. If shape inference is the actual limitation, failing shape inference degrades to the
    existing best-effort fallback (`surgery.py:207-211`) instead of rejecting the upload.
+
+## Measured, 2026-08-22
+
+The ceiling is not merely stricter than the client — it is stricter than the server's own
+library. Queried from the installed backend environment:
+
+```
+onnx version       : 1.21.0
+max opset (ai.onnx): 26
+```
+
+So `21` corresponds to neither component. It is below what `onnx` supports for graph
+manipulation *and* below what `onnxruntime-web` supports for execution.
+
+This makes the fix cheaper than the issue originally implied: no external version research
+is needed. Deriving the bound from `onnx.defs.onnx_opset_version()` replaces the
+unexplained literal with a value that is correct by construction and tracks the installed
+package. Note that this only holds once the package is pinned — see
+[014](./014-toolchain-versions-drift.md).
