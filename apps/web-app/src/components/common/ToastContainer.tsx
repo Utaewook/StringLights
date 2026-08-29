@@ -1,5 +1,13 @@
-import { useUIStore } from '../../store/uiStore';
 import { CheckCircle2, Info, XCircle, X } from 'lucide-react';
+import { useUIStore } from '../../store/uiStore';
+import { Button } from '../ui/Button';
+import './ToastContainer.css';
+
+const TOAST_ICONS = {
+  success: CheckCircle2,
+  error: XCircle,
+  info: Info,
+} as const;
 
 export default function ToastContainer() {
   const { toasts, removeToast, rightPanelOpen } = useUIStore();
@@ -7,23 +15,30 @@ export default function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div 
-      className="toast-container" 
+    <div
+      className="toast-container"
       style={{ right: rightPanelOpen ? 'calc(var(--sidebar-width) + 16px)' : '16px' }}
     >
-      {toasts.map((toast) => (
-        <div key={toast.id} className={`toast-item toast-${toast.type}`}>
-          <div className="toast-icon">
-            {toast.type === 'success' && <CheckCircle2 size={16} />}
-            {toast.type === 'error' && <XCircle size={16} />}
-            {toast.type === 'info' && <Info size={16} />}
+      {toasts.map((toast) => {
+        const Icon = TOAST_ICONS[toast.type] ?? Info;
+
+        return (
+          <div key={toast.id} className="ds-toast toast-item" data-kind={toast.type} role="status">
+            <Icon className="toast-icon" aria-hidden />
+            <span className="toast-message">{toast.message}</span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="toast-close"
+              onClick={() => removeToast(toast.id)}
+              title="Dismiss"
+              aria-label="Dismiss notification"
+            >
+              <X />
+            </Button>
           </div>
-          <span className="toast-message">{toast.message}</span>
-          <button className="toast-close" onClick={() => removeToast(toast.id)}>
-            <X size={14} />
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

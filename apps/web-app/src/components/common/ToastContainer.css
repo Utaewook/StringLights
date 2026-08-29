@@ -1,0 +1,51 @@
+/* Toasts — floating surfaces, so they carry shadow-lg on top of the hairline ring.
+   Feature-local: these rules replace the block that used to live in App.css. */
+
+.toast-container {
+  position: fixed;
+  top: 68px; /* clears the 52px header plus a 16px gutter */
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast-item {
+  animation: toast-slide-in var(--duration-slow) var(--ease-out);
+}
+
+/* The tinted left edge is how a toast says which kind it is. Colour is never the
+   only signal — each kind also carries its own lucide icon. */
+
+.toast-item[data-kind='success'] {
+  box-shadow: inset 3px 0 0 0 var(--ds-success), var(--shadow-lg), var(--ring-hairline);
+}
+
+.toast-item[data-kind='error'] {
+  box-shadow: inset 3px 0 0 0 var(--destructive), var(--shadow-lg), var(--ring-hairline);
+}
+
+.toast-item[data-kind='info'] {
+  box-shadow: inset 3px 0 0 0 var(--primary), var(--shadow-lg), var(--ring-hairline);
+}
+
+.toast-item[data-kind='success'] .toast-icon { color: var(--ds-success); }
+.toast-item[data-kind='error']   .toast-icon { color: var(--destructive); }
+.toast-item[data-kind='info']    .toast-icon { color: var(--primary); }
+
+.toast-message {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  margin: -0.125rem -0.125rem 0 0;
+}
+
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}

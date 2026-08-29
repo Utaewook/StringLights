@@ -63,7 +63,7 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
           if (model.modelMeta) {
             playback.setTraceData(Object.keys(outputs), model.modelMeta.nodes);
           }
-          ui.addToast('Inference completed successfully!', 'success');
+          ui.addToast('Inference complete', 'success');
           break;
 
         case 'ERROR':
