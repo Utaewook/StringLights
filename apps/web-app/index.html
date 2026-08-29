@@ -2,9 +2,20 @@
 <html lang="en" class="theme-indigo">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web-app</title>
+
+    <!-- Brand mark. The .ico carries 16/32/48, which are the mini variant — the full
+         three-bulb mark does not survive below 48px. See docs/design/direction.md. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <title>String Lights — Web Inference Hub</title>
+    <meta
+      name="description"
+      content="Replay an ONNX forward pass node by node, in your browser. Your model never leaves your machine."
+    />
     <script>
       // Applies the stored colour mode before first paint so the page does not flash.
       // Mirrors src/utils/theme.ts — keep the storage key in step.

@@ -96,8 +96,8 @@ body {
 }
 
 .brand-icon {
-  color: var(--accent-color);
-  animation: pulse-icon 2.5s ease-in-out infinite alternate;
+  display: block;
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -442,11 +442,6 @@ body {
 /* ═══════════════════════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════════════════════ */
-
-@keyframes pulse-icon {
-  0%   { filter: drop-shadow(0 0 2px rgba(99,102,241,0.3)); transform: scale(1); }
-  100% { filter: drop-shadow(0 0 10px rgba(99,102,241,0.7)); transform: scale(1.05); }
-}
 
 @keyframes slide-in-right {
   from { transform: translateX(12px); opacity: 0; }

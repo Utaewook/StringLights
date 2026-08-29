@@ -74,6 +74,46 @@ existing patterns rather than inventing new ones.
    canvas is the product, so chrome stays subordinate to it — but it is the same system,
    not an exception to it.
 
+## The brand mark
+
+Three bulbs on a wire, the last one dead. It arrived as a pack on 2026-08-29; the SVG
+sources are the originals and everything else is derived from them.
+
+| | |
+| --- | --- |
+| Sources | `apps/web-app/src/assets/icon/` — ten SVGs, drawn on one 64x64 grid |
+| Served | `apps/web-app/public/` — `favicon.ico`, `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` |
+
+**Two densities, one family.** The full mark has three elements and turns to mush below
+48px, so a one-bulb `-mini` variant exists for small sizes. This is a hard rule:
+
+- **48px and under**, or cropped to a circle (avatars) — `-mini`
+- **64px and over** — the full mark
+
+**Two tones.** `amber-night` is a deep navy plate; `amber-light` is a pale grey one
+(`#EEF0F4`). Each carries its own background, so the tone is chosen to **contrast with the
+surface behind it, not to match the theme** — the opposite of what the names suggest. On a
+pure white ground the pale plate has no visible edge, so those places take the `-bordered`
+variant instead.
+
+Applied accordingly:
+
+| Place | File | Why |
+| --- | --- | --- |
+| App header, dark | `amber-night-mini.svg` | 18px, so mini |
+| App header, light | `amber-light-mini-bordered.svg` | 18px on a near-white header, so mini and bordered |
+| README, GitHub light theme | `amber-night.svg` | navy plate against a white page |
+| README, GitHub dark theme | `amber-light.svg` | pale plate against a dark page |
+
+The `-square` variants exist because iOS and Android apply their own corner mask; feeding
+them an already-rounded mark clips the corners twice. They are what `apple-touch-icon.png`
+and the PWA icons were rendered from.
+
+`site.webmanifest` sets `theme_color` to `#0A0F1C`, the mark's own navy, so a PWA splash
+screen continues the icon. That is deliberately not the app's `--background`, and there is
+no `<meta name="theme-color">`: browser chrome tinted navy would clash with the neutral
+palette in both modes.
+
 ## Surface map
 
 | Surface | File | Design system component | Status |

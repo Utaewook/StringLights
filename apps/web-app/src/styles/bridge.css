@@ -81,10 +81,6 @@ body {
   letter-spacing: var(--tracking-tight);
 }
 
-.brand-icon {
-  animation: none;
-}
-
 .watermark-glow {
   background: none;
 }

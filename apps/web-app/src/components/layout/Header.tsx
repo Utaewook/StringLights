@@ -1,8 +1,16 @@
-import { Sparkles, PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon } from 'lucide-react';
+import { PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon } from 'lucide-react';
 import { useUIStore }  from '../../store/uiStore';
 import { useModelStore } from '../../store/modelStore';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+
+// The header mark renders at 18px, below the 48px floor where the full three-bulb
+// mark stops reading, so both tones use the mini variant. Light mode takes the
+// bordered one: the header sits on a near-white surface, and the plate colour
+// (#EEF0F4) would otherwise have no edge. Both files are ~1KB and inline as data
+// URIs, so switching themes costs no request. See docs/design/direction.md.
+import markDark  from '../../assets/icon/amber-night-mini.svg';
+import markLight from '../../assets/icon/amber-light-mini-bordered.svg';
 
 export default function Header() {
   const { toggleLeftPanel, toggleRightPanel, engineProvider, theme, toggleTheme } = useUIStore();
@@ -24,7 +32,13 @@ export default function Header() {
           <PanelLeft />
         </Button>
         <div className="brand-section">
-          <Sparkles className="brand-icon" size={18} />
+          <img
+            className="brand-icon"
+            src={theme === 'dark' ? markDark : markLight}
+            width={18}
+            height={18}
+            alt=""
+          />
           <span className="brand-title">StringLights</span>
         </div>
         <span className="header-badge">Web Inference Hub</span>

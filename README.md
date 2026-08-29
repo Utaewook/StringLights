@@ -1,3 +1,11 @@
+<!-- Each mark carries its own background plate, so the tone is picked to contrast with
+     the page, not to match it: the navy plate reads on GitHub's light theme, the pale
+     plate on its dark theme. That is the opposite of what the names suggest. -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="apps/web-app/src/assets/icon/amber-light.svg">
+  <img src="apps/web-app/src/assets/icon/amber-night.svg" alt="" width="88" height="88">
+</picture>
+
 # StringLights
 
 **Your ONNX model outputs garbage. Which node broke it?**
