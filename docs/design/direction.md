@@ -2,7 +2,7 @@
 
 - **Status:** Chosen — see [ADR 0003](../decisions/0003-adopt-shadcn-design-system.md)
 - **Owner:** @Utaewook
-- **Last updated:** 2026-08-22
+- **Last updated:** 2026-08-29
 
 ## The direction
 
@@ -81,20 +81,46 @@ existing patterns rather than inventing new ones.
 | Header + engine badge | `components/layout/Header.tsx` | `Button`, `Badge` | Done |
 | Upload + run controls | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
 | Data mode switch | `features/inference/InferencePanel.tsx` | `Tabs` | Done |
-| File chips | `features/inference/InferencePanel.tsx` | `Badge` | Not started |
-| Sidebar (explorer) | `components/layout/Sidebar.tsx` | sidebar tokens | Not started |
-| Graph canvas | `components/common/GraphCanvas.tsx` | derived from `Card` | Not started |
-| Node inspector sections | `features/inspector/NodeInspector.tsx` | `Accordion` | Not started |
-| Tensor statistics | `features/inspector/NodeInspector.tsx` | `Table` | Not started |
-| Playback transport | `components/layout/PlaybackBar.tsx` | `Button`, `ToggleGroup`, `Slider` | Not started |
-| Toasts | `components/common/ToastContainer.tsx` | `Toast` + `Toaster` | Not started |
+| File chips | `features/inference/InferencePanel.tsx` | Card treatment, Badge tint | Done |
+| Sidebar (explorer) | `components/layout/Sidebar.tsx` | sidebar tokens | Done |
+| Graph canvas | `components/common/GraphCanvas.tsx` | derived from `Card` | Done |
+| Node inspector sections | `features/inspector/NodeInspector.tsx` | `Accordion` | Done |
+| Tensor statistics | `features/inspector/NodeInspector.tsx` | `Table` | Done |
+| Playback transport | `components/layout/PlaybackBar.tsx` | `Button`, `ToggleGroup` | Done |
+| Toasts | `components/common/ToastContainer.tsx` | `Toast` surface | Done |
+
+Two entries did not survive contact with the code, and the reasons are worth keeping:
+
+- **File chips are not `Badge`.** A chip carries an icon, a filename, a size and a remove
+  control. That is a list row, not a label. It takes the Card treatment; only the role tint
+  follows the Badge pattern.
+- **The transport scrubber is not `Slider`.** The system's slider is three divs driven by a
+  drag handler. A native `range` input already handles keyboard, drag and touch, so only
+  its skin moved onto the slider tokens.
 
 Components are ported from `.jsx` to `.tsx` into `components/ui/` **as each is first
 used** — see its README for why bulk-copying does not work here.
 
-**Everything still "Not started" is blocked on the same thing:** those surfaces only render
-once a model is loaded, and there is no test model in the project. Converting them would
-mean shipping unverified UI. Get a small ONNX fixture first.
+## How to verify
+
+Six of these surfaces only render once a model is loaded, which blocked them until
+2026-08-29. Clearing it needs no new dependency: `onnx` is already in the backend's
+`requirements.txt` and installed in `apps/backend/venv`. Build a fixture with it, writing
+it **outside the repository** — a session must leave no temp files behind.
+
+A nine-node chain is enough to exercise every surface: `Conv -> Relu -> MaxPool -> Conv ->
+Relu -> MaxPool -> Flatten -> Gemm -> Softmax`, float32 `[1,1,8,8]` input, about 3.4 KB.
+The canvas lays out a real graph, playback has nine steps to walk, and the inspector gets
+tensors with shapes and statistics.
+
+Stay inside the constraints the backend enforces: **opset 7-21** (see
+[issue 006](../issues/006-opset-ceiling-rejects-runnable-models.md)) and a **float32** input, which
+sidesteps [issue 005](../issues/005-input-tensor-dtype-mismatch.md)'s dtype bug. The frontend zips
+files client-side before `POST /api/surgery`, so a direct `curl` needs a zip under the form
+field `file` — not the raw `.onnx`.
+
+One path stays unverified: the inspector's NaN/Inf integrity row cannot be produced by a
+zero-tensor or random-tensor run. Its styling was checked by rendering the row directly.
 
 ## Migration
 
@@ -106,9 +132,17 @@ surfaces move one at a time. **The bridge shrinking to nothing is the definition
 | --- | --- | --- |
 | 0 | Decide direction, record ADR, rewrite this file | Done |
 | 1 | Vendor tokens into `src/styles/ds/`, add bridge file, wire the light/dark toggle | Done |
-| 2 | Convert surfaces per the map above, porting each component to `.tsx` as it is used | In progress — header and inference panel done |
-| 3 | Delete migrated rules from `App.css`, split the remainder into feature-local CSS | Not started |
-| 4 | Visual QA in both modes, contrast check, failure-state review (WASM badge, NaN, oversized model) | Not started |
+| 2 | Convert surfaces per the map above, porting each component to `.tsx` as it is used | Done |
+| 3 | Delete migrated rules from `App.css`, split the remainder into feature-local CSS | In progress — 1033 -> 462 lines |
+| 4 | Visual QA in both modes, contrast check, failure-state review (WASM badge, NaN, oversized model) | Partly — both modes checked with a model loaded; contrast and failure states outstanding |
+
+Phase 3 ran alongside Phase 2 rather than after it. Splitting each surface's rules into a
+feature-local stylesheet as that surface was converted meant the rules moved once, with the
+component that owns them, instead of being edited in place and moved again later.
+
+What is left in `App.css` is the header, the workspace watermark, the upload zone, the
+model-info and model-input panels, and the shared token block. The bridge is down to 142
+lines and cannot empty until that token block goes.
 
 Geist loads from Google Fonts by `@import` and works under COEP `require-corp` — verified
 2026-08-22, both Google hosts send `cross-origin-resource-policy: cross-origin`. Self-hosting
@@ -119,11 +153,9 @@ defaulting to `prefers-color-scheme`. An inline script in `index.html` applies i
 first paint; it duplicates the logic in `utils/theme.ts`, so the storage key must stay in
 step across the two.
 
-**Phase 1 was verified with an empty workspace only.** Header, sidebar, upload zone and the
-empty states were checked in both modes. The graph canvas, node inspector, playback bar and
-toasts have not been seen with a model loaded — that is Phase 4's job, and it needs a test
-model the project does not have yet (see [ADR 0001](../decisions/0001-promote-all-intermediate-outputs.md)'s
-open question about demo models).
+Every surface has now been seen in both modes with a model loaded, using the fixture recipe
+under **How to verify**. What Phase 4 still owes: a measured contrast pass, and the failure
+states — WASM fallback, a NaN-bearing tensor, an oversized model.
 
 ## Constraints that still hold
 
@@ -157,8 +189,12 @@ was lost, but nothing was learned from it either. That is the failure §5 exists
 
 ## Open
 
-- Is the canvas legible in light mode? Edges, minimap and selection highlight were tuned
-  against a near-black background.
+- **Answered 2026-08-29: it was not, and it is fixed.** The canvas was illegible in light
+  mode because five colours were hardcoded in `GraphCanvas.tsx` where CSS could not reach
+  them — the minimap drew a near-black slab over a white page. They resolve from tokens now
+  and re-resolve when the theme changes.
+- Is the light-mode contrast measured rather than eyeballed? Nothing here has been through
+  a contrast checker.
 
 ## Assets
 
