@@ -34,13 +34,6 @@
   --danger:       #ef4444;
   --danger-bg:    rgba(239, 68, 68, 0.1);
 
-  /* Nodes */
-  --node-bg:            rgba(15, 26, 46, 0.95);
-  --node-border:        rgba(99, 102, 241, 0.35);
-  --node-border-active: #6366f1;
-  --node-text:          #e8edf5;
-  --node-text-sec:      #8b95a8;
-  --node-handle:        #6366f1;
 
   /* Sizing */
   --header-height: 52px;
@@ -286,75 +279,6 @@ body {
 .workspace-hint {
   font-size: 14px;
   color: var(--text-muted);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════════
-   GRAPH CANVAS
-   ═══════════════════════════════════════════════════════════════════════════════ */
-
-.graph-canvas-wrapper {
-  width: 100%;
-  height: 100%;
-}
-
-/* Custom ReactFlow node */
-.custom-node-body {
-  padding: 10px 14px;
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius-md);
-  background: var(--node-bg);
-  backdrop-filter: blur(8px);
-  min-width: 160px;
-  max-width: 200px;
-  font-family: 'Outfit', sans-serif;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-  position: relative;
-}
-.custom-node-body:hover {
-  border-color: rgba(99,102,241,0.6);
-  box-shadow: 0 0 16px rgba(99,102,241,0.15);
-}
-
-.node-op-type {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent-color);
-  margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.node-name {
-  font-size: 10px;
-  color: var(--node-text-sec);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* Node highlight animations (step-based playback) */
-.highlighted-node,
-.highlighted-node-alt {
-  animation: pulse-high-vis 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  z-index: 10;
-}
-
-@keyframes pulse-high-vis {
-  0%   { box-shadow: 0 0 0 0 rgba(245,158,11,0.9); border-color: #fbbf24; transform: scale(1);    filter: brightness(1.2); }
-  40%  { box-shadow: 0 0 24px 12px rgba(245,158,11,0); border-color: #fbbf24; transform: scale(1.06); filter: brightness(1.6); }
-  100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); transform: scale(1);    filter: brightness(1); }
-}
-
-/* ReactFlow overrides */
-.flow-controls { border: 1px solid var(--border-color) !important; background: var(--bg-card) !important; }
-.flow-controls button { background: transparent !important; color: var(--text-secondary) !important; border-color: var(--border-color) !important; }
-.flow-controls button:hover { background: rgba(255,255,255,0.06) !important; color: var(--text-primary) !important; }
-.react-flow__handle {
-  width: 8px;
-  height: 8px;
-  background: var(--node-handle) !important;
-  border: 2px solid var(--bg-secondary) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

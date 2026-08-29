@@ -47,14 +47,6 @@
   --danger: var(--destructive);
   --danger-bg: var(--ds-destructive-tint);
 
-  /* Graph nodes — derived from the Card tokens (ADR 0003) */
-  --node-bg: var(--card);
-  --node-border: var(--border);
-  --node-border-active: var(--ring);
-  --node-text: var(--card-foreground);
-  --node-text-sec: var(--muted-foreground);
-  --node-handle: var(--primary);
-
   /* Radius — App.css hardcodes 6/10/16px; the system derives everything from one knob */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

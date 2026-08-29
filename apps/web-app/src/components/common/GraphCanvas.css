@@ -1,0 +1,119 @@
+/* Graph canvas — derived from the design system's Card tokens.
+   Feature-local by design: these rules replace the block that used to live in
+   App.css, so the canvas no longer depends on the bridge file. */
+
+.graph-canvas-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Node ──────────────────────────────────────────────────────────────────
+   A node is a small Card: same surface, same border, one step down in radius.
+   Flat — no backdrop blur, no glow. */
+
+.custom-node-body {
+  min-width: 172px;
+  max-width: 220px;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  color: var(--card-foreground);
+  transition:
+    border-color var(--duration) var(--ease-out),
+    box-shadow var(--duration) var(--ease-out);
+}
+
+.custom-node-body:hover {
+  border-color: var(--ring);
+}
+
+.react-flow__node.selected .custom-node-body {
+  border-color: var(--ring);
+  box-shadow: var(--focus-ring);
+}
+
+.node-op-type {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  color: var(--card-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-name {
+  margin-top: 0.125rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Playback highlight ────────────────────────────────────────────────────
+   The active step reads as a warning-tinted card with a ring. Colour is not the
+   only signal — the node also gains a visible border weight. No scale, no
+   brightness filter: the system's motion rules say nothing bounces. */
+
+.highlighted-node,
+.highlighted-node-alt {
+  z-index: 10;
+  border-color: var(--ds-warning);
+  background: var(--ds-warning-tint);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ds-warning) 30%, transparent);
+}
+
+.highlighted-node .node-op-type,
+.highlighted-node-alt .node-op-type {
+  color: var(--ds-warning);
+}
+
+/* ── ReactFlow chrome ──────────────────────────────────────────────────────
+   Controls and minimap are chrome: they stay subordinate to the graph. */
+
+.flow-controls {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.flow-controls button {
+  background: var(--card) !important;
+  color: var(--muted-foreground) !important;
+  border-bottom: 1px solid var(--border) !important;
+  transition:
+    background var(--duration) var(--ease-out),
+    color var(--duration) var(--ease-out);
+}
+
+.flow-controls button:hover {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.flow-minimap {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--card) !important;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background: var(--primary) !important;
+  border: 2px solid var(--background) !important;
+}
+
+.react-flow__attribution {
+  background: transparent !important;
+}
+
+.react-flow__attribution a {
+  color: var(--muted-foreground) !important;
+}

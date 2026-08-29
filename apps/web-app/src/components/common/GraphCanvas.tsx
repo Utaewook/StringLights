@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -12,6 +12,7 @@ import ReactFlow, {
   type Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import './GraphCanvas.css';
 
 import { useModelStore }    from '../../store/modelStore';
 import { useUIStore }        from '../../store/uiStore';
@@ -47,13 +48,38 @@ function CustomNode({ data }: { data: CustomNodeData }) {
 
 const nodeTypes = { custom: CustomNode };
 
+// ─── Palette ─────────────────────────────────────────────────────────────────
+
+/**
+ * ReactFlow takes edge, grid and minimap colours as props, not as CSS — so these
+ * few values cannot live in the stylesheet with the rest of the canvas. Resolve
+ * them from the design-system tokens instead of hardcoding hex, and re-resolve
+ * whenever the theme changes; hardcoded colours here were what made the canvas
+ * illegible in light mode.
+ */
+function readCanvasPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  const token = (name: string) => cs.getPropertyValue(name).trim();
+
+  return {
+    grid:     token('--border'),
+    edge:     token('--muted-foreground'),
+    node:     token('--muted-foreground'),
+    nodeHot:  token('--ds-warning'),
+    mask:     `color-mix(in oklch, ${token('--background')} 75%, transparent)`,
+  };
+}
+
 // ─── GraphCanvas ─────────────────────────────────────────────────────────────
 
 export default function GraphCanvas() {
   const modelMeta    = useModelStore((s) => s.modelMeta);
   const setSelectedNode = useModelStore((s) => s.setSelectedNode);
   const setRightPanelOpen = useUIStore((s) => s.setRightPanelOpen);
+  const theme = useUIStore((s) => s.theme);
   const { activeNodeNames, stepNonce } = usePlaybackStore();
+
+  const palette = useMemo(readCanvasPalette, [theme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -92,8 +118,8 @@ export default function GraphCanvas() {
             source:   sourceId,
             target:   targetId,
             animated: true,
-            style:    { stroke: 'rgba(99,102,241,0.5)', strokeWidth: 1.5 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: 'rgba(99,102,241,0.6)' },
+            style:    { stroke: palette.edge, strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: palette.edge },
           });
         }
       });
@@ -102,7 +128,7 @@ export default function GraphCanvas() {
     const { nodes: ln, edges: le } = getLayoutedElements(rawNodes, rawEdges, 'LR');
     setNodes(ln);
     setEdges(le);
-  }, [modelMeta, setNodes, setEdges]);
+  }, [modelMeta, setNodes, setEdges, palette.edge]);
 
   // Update highlight state when playback advances
   useEffect(() => {
@@ -142,14 +168,14 @@ export default function GraphCanvas() {
         minZoom={0.05}
         attributionPosition="bottom-right"
       >
-        <Background color="rgba(99,102,241,0.15)" gap={20} size={1} />
-        <Controls className="flow-controls" />
+        <Background color={palette.grid} gap={20} size={1} />
+        <Controls className="flow-controls" showInteractive={false} />
         <MiniMap
-          nodeColor={(n) =>
-            n.data?.isHighlighted ? '#f59e0b' : 'rgba(99,102,241,0.5)'
-          }
-          maskColor="rgba(10,14,26,0.8)"
-          style={{ background: 'rgba(22,31,48,0.8)', border: '1px solid rgba(255,255,255,0.07)' }}
+          className="flow-minimap"
+          nodeColor={(n) => (n.data?.isHighlighted ? palette.nodeHot : palette.node)}
+          maskColor={palette.mask}
+          pannable
+          zoomable
         />
       </ReactFlow>
     </div>
