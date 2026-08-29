@@ -79,7 +79,12 @@ export default function GraphCanvas() {
   const theme = useUIStore((s) => s.theme);
   const { activeNodeNames, stepNonce } = usePlaybackStore();
 
-  const palette = useMemo(readCanvasPalette, [theme]);
+  // `theme` is the invalidation key, not an argument: readCanvasPalette reads resolved
+  // CSS custom properties, and those change when the theme class flips on <html>. The
+  // rule cannot see through the call, and the memo is worth keeping — getComputedStyle
+  // forces a style recalc, and this component re-renders on every playback step.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const palette = useMemo(() => readCanvasPalette(), [theme]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
