@@ -4,7 +4,7 @@
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
-- **Related:** [001](./001-model-load-hang.md)
+- **Related:** [001](./001-model-load-hang.md), [014](./014-toolchain-versions-drift.md)
 
 ## Symptom
 
@@ -79,3 +79,44 @@ were observed on the same load-then-run path and neither has a confirmed reprodu
    ones explicitly instead of defaulting to `float32`.
 3. A dtype that the frontend cannot synthesise produces an actionable UI error rather
    than a runtime throw from inside the worker.
+
+## Verified mapping (checked 2026-08-22)
+
+Read from the installed runtime, not inferred:
+`apps/web-app/node_modules/onnxruntime-common/lib/tensor-impl-type-mapping.ts` (1.26.0).
+
+| dtype | Array ORT requires | Currently allocated | |
+| --- | --- | --- | --- |
+| `float32` / `float64` / `int32` / `int64` / `uint8` | matching | matching | ok |
+| `int8` | `Int8Array` | `Int32Array` | wrong |
+| `int16` | `Int16Array` | `Int32Array` | wrong |
+| `bool` | `Uint8Array` | `Float32Array` (default) | wrong |
+| `uint16` | `Uint16Array` | `Float32Array` (default) | wrong |
+| `uint32` | `Uint32Array` | `Float32Array` (default) | wrong |
+| `uint64` | `BigUint64Array` | `Float32Array` (default) | wrong |
+| `float16` | `Float16Array`, else `Uint16Array` | `Float32Array` (default) | wrong |
+| `int4` / `uint4` | `Uint8Array` | `Float32Array` (default) | wrong |
+
+`float16`, `int64`, and `uint64` are **not** fixed entries. `checkTypedArray()` registers
+them lazily after probing `globalThis` for `Float16Array` / `BigInt64Array` /
+`BigUint64Array`, and falls back to `Uint16Array` for `float16` when the first is absent.
+Any fix must mirror that same runtime probe rather than hard-coding a choice, or it will
+break on browsers that differ from the development machine.
+
+## Additional cause: the backend table stops at elem_type 13
+
+`ELEM_TYPE_TO_STR` (`apps/backend/app/services/surgery.py:12-26`) covers elem_type 1-13.
+The real numbering, read from the installed `onnx` 1.21.0, continues:
+
+| elem_type | ONNX type | Reported as | Runnable in ORT 1.26 |
+| --- | --- | --- | --- |
+| 14 / 15 | `COMPLEX64` / `COMPLEX128` | `float32` | no |
+| 16 | `BFLOAT16` | `float32` | no |
+| 17-20 | `FLOAT8E*` | `float32` | no |
+| **21 / 22** | **`UINT4` / `INT4`** | **`float32`** | **yes** |
+| 23-26 | `FLOAT4E2M1`, `FLOAT8E8M0`, `UINT2`, `INT2` | `float32` | no |
+
+The last row matters most: 4-bit quantised models are exactly the kind of model a
+browser-side inference tool attracts, ONNX Runtime can execute them, and the backend
+mislabels them as `float32` — so the frontend allocates a `Float32Array` and the run
+fails for a reason the error text does not name.
