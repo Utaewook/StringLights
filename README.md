@@ -179,6 +179,4 @@ The design system this UI follows is documented in
 
 ## License
 
-Apache-2.0.
-
-<!-- TODO(legal): add the LICENSE file — the badge above and this line currently claim a licence the repository does not ship -->
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
