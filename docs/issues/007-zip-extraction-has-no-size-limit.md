@@ -1,9 +1,10 @@
 # ZIP extraction has no decompressed-size limit
 
 - **Status:** Open
-- **Severity:** Medium
+- **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
+- **Related:** [011](./011-surgery-blocks-the-event-loop.md), [012](./012-upload-intake-is-unbounded.md)
 
 ## Symptom
 
@@ -44,10 +45,11 @@ server will receive".
 
 ## Impact
 
-The host has 20GB of storage and 512MB of RAM with swap. Extraction happens inside the
-`Semaphore(1)` critical section (`main.py:60`), so a single request that fills the disk
-blocks every queued request behind it, and cleanup for the offending request only runs
-after the failure propagates.
+The backend container is limited to **350MB** (`build/docker-compose.yml:14`), not the
+512MB the rest of the documentation cites — the host's 512MB is shared with the frontend
+container (50MB) and the OS. Extraction happens inside the `Semaphore(1)` critical section
+(`main.py:60`), so a single request that fills the disk blocks every queued request behind
+it, and cleanup for the offending request only runs after the failure propagates.
 
 The 50MB cap that the documentation presents as the OOM defence does not constrain this
 path at all.
@@ -60,3 +62,37 @@ path at all.
    constant.
 3. The docs that describe the 50MB limit state which quantity it bounds, so the
    compressed/uncompressed distinction is not lost again.
+
+## Severity raised to High, 2026-08-22
+
+Originally filed as Medium on the reasoning that no symptom had been observed. Raised
+after two adjacent findings were confirmed:
+
+- [012](./012-upload-intake-is-unbounded.md) — the 50MB check and `Semaphore(1)` both run
+  *after* the body is fully received, so neither bounds intake.
+- [011](./011-surgery-blocks-the-event-loop.md) — the extraction and surgery calls are
+  synchronous on a single-worker event loop, so one request stalls every endpoint.
+
+Together these make an unauthenticated request able to take the service down, which meets
+this project's `Critical`/`High` bar ("breaks the core flow") rather than the `Medium` one
+("no direct user impact"). The three are kept as separate files because they have separate
+fixes; this one remains scoped to the decompression budget.
+
+## Design notes for the fix
+
+1. **Do not trust `ZipInfo.file_size`.** It is a value the archive's author wrote. CPython
+   verifies CRC only *after* a member has been fully decompressed, so a declared size can
+   understate reality by orders of magnitude and `extractall` offers no hook to intervene.
+   Read members through `ZipFile.open()` in fixed-size chunks and compare a running count
+   of *actual* bytes against the budget, aborting mid-stream. The declared size is useful
+   only as a cheap first-pass filter.
+2. **Reuse the 50MB constant rather than introducing a second one.** Resolution criterion
+   2 asks the budget to derive from the documented contract; re-applying the existing
+   number to the uncompressed total is the reading that satisfies it.
+3. **The member-count cap derives from the data model, not from the byte budget.** The
+   handler consumes exactly one `.onnx` plus an optional companion data file
+   (`main.py:76-87`, `surgery.py:75-83`), so a small fixed cap is justified on its own
+   terms and closes the many-tiny-files variant that a byte budget alone does not.
+4. **Cleanup already works.** Aborting with an exception lands in the existing
+   `except Exception` handler (`main.py:132-133`), which calls `cleanup_directory` inside
+   the semaphore. No new cleanup path is needed.
