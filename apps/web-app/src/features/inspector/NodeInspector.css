@@ -1,0 +1,160 @@
+/* Node inspector — data display, not a form. Numbers are the payload, so every
+   value is Geist Mono and every row is a Table row.
+   Feature-local: these rules replace the block that used to live in App.css. */
+
+.node-inspector {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.node-inspector.empty-inspector {
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.empty-inspector .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.empty-inspector .empty-state svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.inspector-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector-title {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: var(--font-medium);
+  letter-spacing: var(--tracking-tight);
+  color: var(--foreground);
+  word-break: break-all;
+}
+
+.inspector-subtitle {
+  margin-top: 0.125rem;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+
+.inspector-sections {
+  padding: 0 1rem;
+}
+
+/* ── Tensor blocks ───────────────────────────────────────────────────────── */
+
+.tensor-data-block + .tensor-data-block {
+  margin-top: 0.75rem;
+}
+
+.io-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px dashed var(--border);
+}
+
+.io-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.io-name-missing {
+  color: var(--muted-foreground);
+}
+
+.io-shape,
+.io-dtype {
+  flex-shrink: 0;
+  padding: 0.0625rem 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.io-dtype {
+  color: var(--primary);
+}
+
+/* ── Property tables ─────────────────────────────────────────────────────── */
+
+.property-table {
+  margin-top: 0.25rem;
+}
+
+.property-table td {
+  padding: 0.25rem 0;
+  font-size: var(--text-xs);
+}
+
+.property-table .prop-key {
+  width: 45%;
+  color: var(--muted-foreground);
+  vertical-align: top;
+  white-space: normal;
+}
+
+.property-table .prop-value {
+  font-family: var(--font-mono);
+  color: var(--foreground);
+  text-align: right;
+  white-space: normal;
+  word-break: break-all;
+}
+
+/* Integrity failures are routine here, so they get a designed treatment: a tint,
+   never a solid slab, and never colour on its own — the row carries an icon. */
+.property-table tr.stat-warning-row td {
+  color: var(--ds-warning);
+}
+
+.property-table tr.stat-warning-row {
+  background: var(--ds-warning-tint);
+}
+
+.stat-warning-key {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-warning-key svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.empty-section {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}

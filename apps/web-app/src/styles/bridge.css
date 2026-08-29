@@ -65,13 +65,6 @@ body {
 }
 
 .header-model-name,
-.node-name,
-.step-display,
-.inspector-title,
-.inspector-tensor-name,
-.io-name,
-.stat-meta-value,
-.prop-value,
 .chip-name,
 .chip-size,
 .chip-total,
@@ -127,15 +120,12 @@ body {
   background: var(--sidebar);
 }
 
-.sidebar-header,
-.inspector-header {
+.sidebar-header {
   background: transparent;
 }
 
 .model-status-panel,
-.input-config-item,
-.io-shape,
-.io-dtype {
+.input-config-item {
   background: var(--muted);
 }
 
@@ -161,11 +151,3 @@ body {
 .input-config-item {
   border-color: var(--border);
 }
-
-.property-table tr {
-  border-bottom-color: var(--border);
-}
-
-/* NodeInspector.tsx sets this one inline, so it cannot be reached from here —
-   it is converted with the inspector in Phase 2:
-   `borderBottom: '1px dashed rgba(255,255,255,0.08)'` */
