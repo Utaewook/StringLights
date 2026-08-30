@@ -46,14 +46,14 @@ test-and-lint  ──▶  build-and-push  ──▶  deploy
  (all triggers)     (push to main)      (push to main)
 ```
 
-**`test-and-lint`** — installs the frontend with `npm ci` and runs `npm run lint`.
-This is the only job that runs on `develop` and on pull requests.
+**`test-and-lint`** — installs the frontend with `npm ci`, runs ESLint, type-checks
+with `tsc -b`, then builds `build/test.Dockerfile` and runs the backend suite
+inside it under the production memory ceiling. This is the only job that runs on
+`develop` and on pull requests, and everything downstream gates on it.
 
 **`build-and-push`** — builds both images and pushes each under two tags:
 `:latest`, a moving convenience pointer, and `:sha-<short>`, an immutable handle
-on this exact release. The frontend image build runs `npm run build`, which is
-`copy-wasm && tsc -b && vite build`; a TypeScript error therefore fails *this*
-job, not the lint gate.
+on this exact release.
 
 **`deploy`** — copies `build/docker-compose.yml` to `~/string_lights/` over SCP,
 then over SSH pins `DOCKER_TAG` to the `sha-<short>` tag this run produced and

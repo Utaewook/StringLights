@@ -96,3 +96,25 @@ CI still does not invoke it. The `test-and-lint` job installs Node and runs
 ESLint; it sets up no Python and runs no backend test. Closing this issue is now
 a matter of adding a job that builds that image and runs it, which is the last
 step rather than the whole problem.
+
+## Progress (2026-08-30)
+
+**Criterion 1 is met.** `test-and-lint` now builds `build/test.Dockerfile` and
+runs the backend suite inside it, under the same 350m ceiling as production —
+surgery spawns child processes and is bounded by container memory, so a run on
+the bare runner would exercise neither. `build-and-push` and `deploy` both gate
+on this job, so a backend regression now blocks the deploy.
+
+The suite has grown from 6 tests to 23 while the surrounding work was done, and
+`tsc -b` moved into this job as well. It previously ran only inside the frontend
+image build, which is a `main`-only job, so a type error reached production
+before anything checked for it.
+
+**Criterion 2 is not met.** `apps/web-app` still declares no test runner, so the
+pure logic in `src/utils/` — `computeStats`, `modelInputs`, `graphLayout` — has
+no automated coverage. `modelInputs` was verified once by bundling it with
+esbuild and running it under Node, which proves the logic and protects nothing:
+the next change to it is unguarded.
+
+Installing a runner is a dependency decision and needs sign-off, which is why it
+is not done here. This issue stays Open until it is.

@@ -63,3 +63,14 @@ unpinned `onnx` is the dependency least suited to floating.
    both can be checked against.
 4. Local development either matches the image version or the mismatch is documented as
    accepted, with a note on what it does not prove.
+
+## Also drifting: the workflow's own actions (2026-08-30)
+
+Run 33303853559 annotated:
+
+> Node.js 20 is deprecated. The following actions target Node.js 20 but are being
+> forced to run on Node.js 24: `actions/checkout@v4`, `actions/setup-node@v4`.
+
+Nothing is broken — the runner substitutes a newer Node — but the workflow is no
+longer running what it declares, which is the same class of problem as the
+unpinned `requirements.txt` entries above. `@v5` of both actions removes it.
