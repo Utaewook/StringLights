@@ -1,6 +1,6 @@
 # Worker failures outside the message channel are invisible to the UI
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -67,3 +67,22 @@ so the only diagnostic available is the `console.*` tracing tracked in
    surfaced rather than silently dropped.
 4. Fixing this is a prerequisite for closing [001](./001-model-load-hang.md): once a
    failure produces text, that text is the evidence 001's resolution criteria require.
+
+## Resolution
+
+`WorkerContext.tsx` now registers `onerror` and `onmessageerror` alongside
+`onmessage`, both routed through one helper that clears `isModelLoading` and
+`isInferenceRunning` and puts a message on screen. `onerror` calls
+`preventDefault()` so the same failure is not additionally reported as an
+uncaught console error, which reads like a second, unrelated problem.
+
+Two more paths into the same stuck state are closed with it. A missing worker
+was logged and then ignored; it now raises into the existing catch. And the
+surgery request had no deadline at all — with surgery serialised behind
+`Semaphore(1)`, a queued request could hang the UI indefinitely. It now aborts
+at 150s, above the backend's own 90s bound and nginx's 120s, so the server's
+explanation wins whenever there is one.
+
+Verified by ESLint and `tsc -b` in the frontend builder image. The failure modes
+themselves are not covered by an automated test, because the frontend still has
+no test runner — see [008](./008-ci-runs-no-tests.md).

@@ -1,6 +1,6 @@
 # Model inputs are built with TypedArrays that do not match their dtype
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -120,3 +120,28 @@ The last row matters most: 4-bit quantised models are exactly the kind of model 
 browser-side inference tool attracts, ONNX Runtime can execute them, and the backend
 mislabels them as `float32` — so the frontend allocates a `Float32Array` and the run
 fails for a reason the error text does not name.
+
+## Resolution
+
+Construction moved to `apps/web-app/src/utils/modelInputs.ts`, which holds one
+entry per dtype the app can honestly build and refuses the rest by name.
+
+Supported: `float32`, `float64`, `int8`, `uint8`, `int16`, `uint16`, `int32`,
+`uint32`, `int64`, `uint64`, `bool`. `bool` is a `Uint8Array` on purpose — that
+is the representation onnxruntime expects, so the pairing is correct rather than
+a mismatch.
+
+Refused rather than approximated: `float16`, which would need hand-built
+half-precision bit patterns that random values cannot safely produce, and
+`string`, which is not a numeric tensor. An unknown dtype is refused the same
+way. The user gets the input name, the dtype, and the supported list.
+
+Verified in the frontend builder image by bundling the module with esbuild and
+exercising it under Node: every supported dtype produces the expected
+TypedArray, `int16` comes back two bytes wide rather than four, and four
+unsupported dtypes are each refused with the dtype named in the message.
+
+**Also fixed here:** dynamic axes. Every `-1` became the batch size, which
+silently fabricated a shape for sequence and spatial axes. Only the leading axis
+is treated as a batch axis now — see
+[017](./017-non-batch-dynamic-axes-are-guessed.md) for what that leaves open.
