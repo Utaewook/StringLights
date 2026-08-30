@@ -39,6 +39,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [012](./012-upload-intake-is-unbounded.md) | Upload intake is unbounded before the size and concurrency limits apply | Open | High |
 | [013](./013-error-responses-leak-internals.md) | Error responses return raw exception strings | Open | Low |
 | [014](./014-toolchain-versions-drift.md) | Toolchain versions drift between local, Docker, and CI | Open | Medium |
+| [015](./015-tls-renewal-has-no-working-path.md) | TLS certificate renewal has no working path | Open | Critical |
 
 ## Template
 
