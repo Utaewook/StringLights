@@ -39,6 +39,21 @@ jobs:
           npm ci
           npm run lint
 
+      # tsc otherwise runs only inside the frontend image build, which is a
+      # main-only job — a type error would reach production before anything
+      # checked for it.
+      - name: Type-check Frontend
+        working-directory: apps/web-app
+        run: npx tsc -b --force
+
+      # Run the backend suite in the same image and under the same memory
+      # ceiling as production. Surgery spawns child processes and is bounded by
+      # container memory; a run on the bare runner would not exercise either.
+      - name: Run Backend Tests
+        run: |
+          docker build -f build/test.Dockerfile -t string_lights_backend_test .
+          docker run --rm --memory=350m --memory-swap=350m string_lights_backend_test
+
   build-and-push:
     needs: test-and-lint
     runs-on: ubuntu-latest
