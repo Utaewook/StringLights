@@ -195,10 +195,13 @@ def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
         # Load tensor weights from disk into in-memory TensorProto objects
         # (changes data_location from EXTERNAL → DEFAULT and fills raw_data)
         load_external_data_for_model(model_stub, os.path.dirname(model_path))
-        model = model_stub
-    else:
-        # Re-load cleanly (separates stub read from full load path)
-        model = onnx.load(model_path, load_external_data=False)
+
+    # Both paths continue with the same object. The no-external-data branch used
+    # to re-read the file here, which bought nothing — onnx.load already returns
+    # a complete model when the weights are inline — and left two full copies of
+    # every tensor alive for the rest of the function.
+    model = model_stub
+    del model_stub
 
     # ── Step 4: Capture original output names before surgery ─────────────────
     original_output_names = [out.name for out in model.graph.output if out.name]
@@ -206,6 +209,11 @@ def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
     # ── Step 5: Shape inference (best-effort) ────────────────────────────────
     try:
         inferred_model = onnx.shape_inference.infer_shapes(model)
+        # infer_shapes returns a complete second copy of the graph. Release the
+        # original as soon as it exists rather than at function exit: on an 80MB
+        # model this is the difference between a 3x and a 2x peak, inside a
+        # container capped at 350M.
+        del model
     except Exception as e:
         print(f"Warning: ONNX shape inference failed, falling back to original graph: {e}")
         inferred_model = model

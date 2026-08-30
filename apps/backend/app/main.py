@@ -6,7 +6,13 @@ import zipfile
 import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
-from app.services.surgery import run_graph_surgery
+from app.services.archive import ArchiveRejected, extract_bounded
+from app.services.isolation import (
+    SurgeryFailed,
+    SurgeryRejected,
+    SurgeryTimeout,
+    run_surgery_isolated,
+)
 
 app = FastAPI(title="StringLights Backend", version="2.0.0")
 
@@ -14,6 +20,10 @@ app = FastAPI(title="StringLights Backend", version="2.0.0")
 surgery_semaphore = asyncio.Semaphore(1)
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
+# Kept below nginx's proxy_read_timeout of 120s so a slow model surfaces as this
+# service's 504 with a usable message, rather than nginx's generic gateway error.
+SURGERY_TIMEOUT_SECONDS = 90
 TEMP_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temp")
 
 
@@ -63,14 +73,19 @@ async def perform_surgery(
             with open(zip_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
 
-            # Extract ZIP file
+            # Extract the ZIP under fixed decompressed-size limits. The 50MB
+            # cap above bounds the upload, not what it expands into.
             try:
-                with zipfile.ZipFile(zip_path, "r") as zip_ref:
-                    zip_ref.extractall(extract_dir)
+                extract_bounded(zip_path, extract_dir)
             except zipfile.BadZipFile:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid ZIP archive file.",
+                )
+            except ArchiveRejected as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(e),
                 )
 
             # Find the single ONNX file
@@ -93,20 +108,26 @@ async def perform_surgery(
             # 3. Perform Graph Surgery (or copy) and get metadata
             if perform_surgery:
                 try:
-                    graph_meta = run_graph_surgery(
+                    graph_meta = await run_surgery_isolated(
                         input_onnx_path,
                         output_onnx_path,
-                        data_dir=extract_dir,
+                        extract_dir,
+                        timeout_seconds=SURGERY_TIMEOUT_SECONDS,
                     )
-                except ValueError as e:
+                except SurgeryRejected as e:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=str(e),
                     )
-                except Exception as e:
+                except SurgeryTimeout as e:
                     raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Graph surgery failed: {str(e)}",
+                        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                        detail=str(e),
+                    )
+                except SurgeryFailed as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=str(e),
                     )
             else:
                 shutil.copy2(input_onnx_path, output_onnx_path)
