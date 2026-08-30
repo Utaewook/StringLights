@@ -14,6 +14,12 @@ type TypedArray =
   | Int16Array
   | Int8Array;
 
+// A surgery request queues behind the backend's Semaphore(1) and is bounded
+// there at 90s, with nginx giving up at 120s. Waiting past that is waiting for
+// nothing, and without this the UI has no way back from a request that never
+// returns.
+const SURGERY_REQUEST_TIMEOUT_MS = 150_000;
+
 // ─── Context API ─────────────────────────────────────────────────────────────
 
 interface WorkerContextType {
@@ -40,6 +46,34 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       new URL('../ort-worker.ts', import.meta.url),
       { type: 'module' }
     );
+
+    // Every path out of a stuck state runs through here. Without it the two
+    // failures that do not arrive as a postMessage — the worker failing to load
+    // its module, and a structured-clone failure on the way back — leave the UI
+    // spinning forever with no error and no recovery short of a reload.
+    const failWorker = (detail: string) => {
+      const ui = useUIStore.getState();
+      ui.setErrorMsg(detail);
+      ui.setModelLoading(false);
+      ui.setInferenceRunning(false);
+    };
+
+    workerRef.current.onerror = (event: ErrorEvent) => {
+      // Without preventDefault the same failure is also reported to the console
+      // as an uncaught error, which reads like a second, unrelated problem.
+      event.preventDefault();
+      failWorker(
+        `The inference worker stopped: ${event.message || 'it failed to start'}. ` +
+          `Reload the page and try again.`,
+      );
+    };
+
+    workerRef.current.onmessageerror = () => {
+      failWorker(
+        'The inference worker returned data the page could not read. The model ' +
+          'may produce tensors this app cannot transfer.',
+      );
+    };
 
     workerRef.current.onmessage = (e: MessageEvent) => {
       const { type, provider, outputs, stats, detail } = e.data;
@@ -117,7 +151,32 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       formData.append('file', zippedBlob, 'model.zip');
       formData.append('perform_surgery', 'true');
 
-      const response = await fetch('/api/surgery', { method: 'POST', body: formData });
+      const deadline = new AbortController();
+      const deadlineTimer = setTimeout(
+        () => deadline.abort(),
+        SURGERY_REQUEST_TIMEOUT_MS,
+      );
+
+      let response: Response;
+      try {
+        response = await fetch('/api/surgery', {
+          method: 'POST',
+          body: formData,
+          signal: deadline.signal,
+        });
+      } catch (err) {
+        if (deadline.signal.aborted) {
+          throw new Error(
+            'The server did not answer within ' +
+              `${SURGERY_REQUEST_TIMEOUT_MS / 1000}s. It may be busy with another ` +
+              'model — try again in a moment.',
+            { cause: err },
+          );
+        }
+        throw err;
+      } finally {
+        clearTimeout(deadlineTimer);
+      }
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({ detail: 'Graph surgery failed' }));
@@ -145,14 +204,14 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
       const modelBytes = await onnxEntry.async('uint8array');
       model.setLoadedModelBytes(modelBytes);
 
-      // D: Load in Web Worker
-      console.log("Main Thread: Model bytes loaded, size =", modelBytes.length);
+      // D: Load in Web Worker. A missing worker used to be logged and then
+      // ignored, which left the UI loading forever with nothing on screen.
       if (!workerRef.current) {
-        console.error("Main Thread: workerRef.current is NULL!");
-      } else {
-        console.log("Main Thread: Posting LOAD message to worker...");
-        workerRef.current.postMessage({ type: 'LOAD', payload: { modelBytes } });
+        throw new Error(
+          'The inference worker is not available. Reload the page and try again.',
+        );
       }
+      workerRef.current.postMessage({ type: 'LOAD', payload: { modelBytes } });
 
     } catch (err) {
       const error = err as Error;
