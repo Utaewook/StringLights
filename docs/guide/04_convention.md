@@ -31,7 +31,16 @@ Developers and AI assistants must strictly adhere to the following implementatio
 *   **Do not import `onnx` in `app/main.py` or anything it imports.** The parent process must not carry the library's resident footprint for the life of the container; only the child needs it.
 *   A thread is not a substitute. Python threads cannot be interrupted, so a timed-out surgery would keep both its CPU and its memory.
 
-### Rule 7: Enforced Shape Inference
+### Rule 7: Verify Backend Changes in the Container
+*   Run the backend suite in `build/test.Dockerfile`, not on the host. The backend spawns child processes and is bounded by container memory; a developer machine reproduces neither.
+    ```bash
+    docker build -f build/test.Dockerfile -t string_lights_backend_test .
+    docker run --rm --memory=350m --memory-swap=350m string_lights_backend_test
+    ```
+*   Keep the memory flags. They mirror `build/docker-compose.yml`; without them the OOM path this code exists to prevent is never exercised.
+*   Test-only dependencies belong in `requirements-dev.txt`. The production image must never carry a test runner.
+
+### Rule 8: Enforced Shape Inference
 *   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
 
 #### Recommended Backend Skeleton:

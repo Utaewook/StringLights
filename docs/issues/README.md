@@ -31,11 +31,11 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Open | Medium |
 | [005](./005-input-tensor-dtype-mismatch.md) | Model inputs are built with TypedArrays that do not match their dtype | Open | High |
 | [006](./006-opset-ceiling-rejects-runnable-models.md) | Opset ceiling of 21 rejects models the client could run | Open | Medium |
-| [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Open | High |
+| [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Closed | High |
 | [008](./008-ci-runs-no-tests.md) | CI runs no tests | Open | Medium |
 | [009](./009-worker-failures-bypass-error-channel.md) | Worker failures outside the message channel are invisible to the UI | Open | High |
 | [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Open | Medium |
-| [011](./011-surgery-blocks-the-event-loop.md) | Graph surgery blocks the event loop and has no time bound | Open | High |
+| [011](./011-surgery-blocks-the-event-loop.md) | Graph surgery blocks the event loop and has no time bound | Closed | High |
 | [012](./012-upload-intake-is-unbounded.md) | Upload intake is unbounded before the size and concurrency limits apply | Open | Medium |
 | [013](./013-error-responses-leak-internals.md) | Error responses return raw exception strings | Open | Low |
 | [014](./014-toolchain-versions-drift.md) | Toolchain versions drift between local, Docker, and CI | Open | Medium |

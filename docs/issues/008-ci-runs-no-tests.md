@@ -85,3 +85,14 @@ and `develop` (`deploy.yml:3-11`), but `tsc -b` only executes inside
 gated to `main`. So a TypeScript type error passes CI on `develop` and is first caught at
 the Docker build on merge. Adding `npm run build` to `test-and-lint` closes this; the
 script already chains `copy-wasm` before `tsc -b`, so no separate step is needed.
+
+## Update (2026-08-30)
+
+The missing half of this issue was never the tests — it was somewhere to run
+them. `build/test.Dockerfile` now builds the backend suite against the
+production base image, and the suite has grown from 6 tests to 17.
+
+CI still does not invoke it. The `test-and-lint` job installs Node and runs
+ESLint; it sets up no Python and runs no backend test. Closing this issue is now
+a matter of adding a job that builds that image and runs it, which is the last
+step rather than the whole problem.

@@ -1,6 +1,6 @@
 # ZIP extraction has no decompressed-size limit
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -118,6 +118,9 @@ refused with nothing written to disk, a `../../` member is refused with nothing
 created outside the destination, and ordinary flat and nested archives extract
 byte-for-byte.
 
-**Remaining:** the end-to-end path has not been exercised against a running
-backend. The dependencies are not installed locally and CI runs no backend tests
-— see [008](./008-ci-runs-no-tests.md).
+**Verified** in `build/test.Dockerfile` under the production base image and the
+same 350m ceiling, by `apps/backend/tests/test_archive.py`. Five cases: flat
+archives come out byte-for-byte, nested paths survive, a traversal member is
+refused with nothing created outside the destination, a 200MB-from-under-1MB
+bomb is refused before a byte is written, and a model over the per-file ceiling
+is refused.

@@ -1,6 +1,6 @@
 # Graph surgery blocks the event loop and has no time bound
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -100,5 +100,8 @@ Verified directly against the module: a child that would run for 60s is stopped
 at the 2.0s timeout, and a child that dies without sending a result is reported
 as a failure rather than hanging.
 
-**Remaining:** the end-to-end path has not been exercised against a running
-backend — see [008](./008-ci-runs-no-tests.md).
+**Verified** in `build/test.Dockerfile` under the production base image and the
+same 350m ceiling, by `apps/backend/tests/test_isolation.py`. The event-loop
+test was mutation-checked: with surgery restored to an inline call the loop's
+tick count during a run is **zero**, which is this issue's symptom reproduced as
+a failing assertion.
