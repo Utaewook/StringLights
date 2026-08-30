@@ -25,7 +25,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 
 | ID | Title | Status | Severity |
 | --- | --- | --- | --- |
-| [001](./001-model-load-hang.md) | Model load hangs after graph surgery | Investigating | Critical |
+| [001](./001-model-load-hang.md) | Model load hangs after graph surgery | Open | Critical |
 | [002](./002-tensor-std-always-zero.md) | Per-node standard deviation is always reported as 0 | Open | High |
 | [003](./003-diagnostic-console-logs.md) | Diagnostic `console.*` calls left in shipped code | Open | Medium |
 | [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Open | Medium |
@@ -34,7 +34,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Closed | High |
 | [008](./008-ci-runs-no-tests.md) | CI runs no tests | Open | Medium |
 | [009](./009-worker-failures-bypass-error-channel.md) | Worker failures outside the message channel are invisible to the UI | Closed | High |
-| [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Open | Medium |
+| [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Closed | Medium |
 | [011](./011-surgery-blocks-the-event-loop.md) | Graph surgery blocks the event loop and has no time bound | Closed | High |
 | [012](./012-upload-intake-is-unbounded.md) | Upload intake is unbounded before the size and concurrency limits apply | Open | Medium |
 | [013](./013-error-responses-leak-internals.md) | Error responses return raw exception strings | Open | Low |

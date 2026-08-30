@@ -1,6 +1,6 @@
 # Model load hangs after graph surgery
 
-- **Status:** Investigating
+- **Status:** Open
 - **Severity:** Critical
 - **Track:** Bug
 - **Found:** 2026-07 (diagnostics added in commit `870c4ec`)
@@ -47,3 +47,42 @@ product that may never finish loading a model.
 2. Graph surgery either produces well-typed outputs or rejects the tensor explicitly.
 3. A failed load surfaces an actionable error in the UI instead of hanging.
 4. Diagnostic logging removed — tracked separately as [003](./003-diagnostic-console-logs.md).
+
+## Root cause (2026-08-30)
+
+Established, with evidence outside the browser.
+
+Surgery promoted every intermediate tensor to a graph output. When shape
+inference could not type one, it promoted it anyway as
+`TensorProto.UNDEFINED` with no shape. That graph is not valid ONNX:
+
+```
+UNDEFINED promotion: checker REJECTED -> Field 'shape' of 'type' is required but missing.
+typed promotion    : checker ACCEPTED
+```
+
+The client had no way to report this. `InferenceSession.create` receives a
+structurally invalid graph and the failure surfaces as a stall rather than an
+exception — which matches the symptom exactly: the UI stays in its loading state
+and no error ever arrives.
+
+## Fix
+
+Two changes, both in `apps/backend/app/services/surgery.py`:
+
+- Tensors shape inference cannot type are no longer promoted. They are reported
+  as `unpromotableOutputNames` so the client can say the activation exists but
+  cannot be inspected.
+- `onnx.checker.check_model` runs before the model is saved, so a graph that
+  would fail in the browser fails here as a 400 with a reason attached.
+
+Issue [009](./009-worker-failures-bypass-error-channel.md) covers the other half
+of the symptom: the UI is no longer able to sit in a loading state forever
+regardless of what causes it.
+
+## Why this stays Open
+
+The cause is established and the trigger is removed, but the original hang was
+never reproduced against a specific model, so the fix is not confirmed against
+one either. Closing requires loading the model that first showed the symptom and
+seeing it either load or fail with a message.

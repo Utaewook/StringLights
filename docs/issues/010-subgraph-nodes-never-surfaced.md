@@ -1,6 +1,6 @@
 # Nodes inside If/Loop/Scan subgraphs are never surfaced
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -56,3 +56,36 @@ Either:
 Option (b) is the smaller change and removes the silent-incompleteness problem, which is
 the part that matters. Option (a) is the full fix and should be recorded in an ADR if the
 naming/scoping trade-off turns out to be real.
+
+## Resolution
+
+`collect_nodes` in `surgery.py` walks node attributes recursively, so operators
+inside `then_branch`, `else_branch` and `body` now reach the client. Each
+carries the path that reached it and `inspectable: false`, and the metadata
+reports `subgraphNodeCount`.
+
+The client says so in both places it matters: a toast on load reports how many
+nodes are affected, and the inspector shows a persistent warning naming the
+subgraph when one is selected.
+
+Subgraph tensor names are prefixed with the same path. ONNX permits a subgraph
+to shadow an outer name, and the client builds its edges from a flat map of
+tensor name to producing node — an unprefixed collision would have silently
+rewired the top-level graph, which is a worse failure than the one being fixed.
+The cost is that a reference from a subgraph out to an enclosing tensor no
+longer resolves, so that edge is not drawn.
+
+Verified in `build/test.Dockerfile` by `TestSubgraphSurfacing`: an If model's
+branch operators appear under their paths, are marked uninspectable while
+top-level nodes are not, their tensor names are scoped, and the saved model
+still passes `onnx.checker`.
+
+## What is deliberately not fixed
+
+Activations inside a subgraph still cannot be inspected, and that is a property
+of ONNX rather than a defect here — a subgraph executes conditionally and its
+tensors do not exist in the enclosing scope, so they cannot be promoted to graph
+outputs. Real inspection would mean extracting each subgraph as its own model
+and running it separately, which is a feature, not a fix. The issue closes
+because the nodes are no longer invisible and the limitation is no longer
+silent.

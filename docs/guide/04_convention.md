@@ -40,8 +40,10 @@ Developers and AI assistants must strictly adhere to the following implementatio
 *   Keep the memory flags. They mirror `build/docker-compose.yml`; without them the OOM path this code exists to prevent is never exercised.
 *   Test-only dependencies belong in `requirements-dev.txt`. The production image must never carry a test runner.
 
-### Rule 8: Enforced Shape Inference
+### Rule 8: Enforced Shape Inference and Validation
 *   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
+*   **Never promote a tensor shape inference could not type.** A `TensorProto.UNDEFINED` output with no shape produces a graph `onnx.checker` rejects, and onnxruntime stalls on it rather than raising — the browser cannot report a malformed graph. Leave it out and list it in `unpromotableOutputNames`.
+*   Always run `onnx.checker.check_model()` before saving. A model that would fail in the browser must fail here, as a `400` with a reason attached.
 
 #### Recommended Backend Skeleton:
 ```python
