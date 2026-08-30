@@ -4,15 +4,7 @@ import { useModelStore }   from '../store/modelStore';
 import { useUIStore }      from '../store/uiStore';
 import { usePlaybackStore } from '../store/playbackStore';
 import type { ModelMeta }  from '../types';
-
-type TypedArray =
-  | Float32Array
-  | Int32Array
-  | Uint8Array
-  | BigInt64Array
-  | Float64Array
-  | Int16Array
-  | Int8Array;
+import { UnsupportedInputError, buildModelInputs } from '../utils/modelInputs';
 
 // A surgery request queues behind the backend's Semaphore(1) and is bounded
 // there at 90s, with nginx giving up at 120s. Waiting past that is waiting for
@@ -228,41 +220,25 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
 
     useUIStore.getState().setInferenceRunning(true);
     useUIStore.getState().setErrorMsg(null);
-    useUIStore.getState().addToast('Inference started', 'info');
 
-    const inputs: Record<string, { data: TypedArray; shape: number[]; type: string }> = {};
-
-    for (const inp of meta.inputs) {
-      const shape = inp.shape.map((d) => (d === -1 ? batchSize : d));
-      const size  = shape.reduce((a, b) => a * b, 1);
-
-      let data: TypedArray;
-      switch (inp.dtype) {
-        case 'int64':
-          data = new BigInt64Array(size);
-          break;
-        case 'int32':
-        case 'int16':
-        case 'int8':
-          data = new Int32Array(size);
-          break;
-        case 'uint8':
-          data = new Uint8Array(size);
-          break;
-        case 'float64': {
-          data = new Float64Array(size);
-          if (mode === 'random') for (let i = 0; i < size; i++) data[i] = Math.random();
-          break;
-        }
-        default: {   // float32
-          data = new Float32Array(size);
-          if (mode === 'random') for (let i = 0; i < size; i++) data[i] = Math.random();
-        }
-      }
-
-      inputs[inp.name] = { data, shape, type: inp.dtype };
+    // Built here rather than inline so an unsupported model is refused with an
+    // explanation, instead of reaching onnxruntime as a buffer whose element
+    // type contradicts the dtype string travelling beside it.
+    let inputs;
+    try {
+      inputs = buildModelInputs(meta.inputs, mode, batchSize);
+    } catch (err) {
+      const detail =
+        err instanceof UnsupportedInputError
+          ? err.message
+          : 'Could not build inputs for this model.';
+      useUIStore.getState().setErrorMsg(detail);
+      useUIStore.getState().setInferenceRunning(false);
+      useUIStore.getState().addToast('Inference could not start', 'error');
+      return;
     }
 
+    useUIStore.getState().addToast('Inference started', 'info');
     workerRef.current.postMessage({ type: 'RUN', payload: { inputs } });
   };
 
