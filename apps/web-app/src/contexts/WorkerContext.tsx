@@ -185,6 +185,16 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
         const metaStr  = await metaEntry.async('string');
         const meta: ModelMeta = JSON.parse(metaStr);
         model.setModelMeta(meta);
+
+        // These nodes are drawn but cannot be inspected. Saying it once here is
+        // what keeps the graph from quietly implying otherwise.
+        if (meta.subgraphNodeCount) {
+          ui.addToast(
+            `${meta.subgraphNodeCount} node${meta.subgraphNodeCount === 1 ? '' : 's'} ` +
+              `inside control flow cannot be inspected`,
+            'info',
+          );
+        }
       }
 
       // Find modified .onnx in response

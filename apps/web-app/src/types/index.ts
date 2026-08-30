@@ -6,6 +6,10 @@ export interface OnnxNode {
   inputs: string[];
   outputs: string[];
   attributes?: Record<string, unknown>;
+  /** Path of the If/Loop/Scan subgraph this node lives in. Absent at top level. */
+  subgraph?: string;
+  /** False for subgraph nodes: their activations cannot be promoted to outputs. */
+  inspectable?: boolean;
 }
 
 export interface ModelInput {
@@ -21,6 +25,10 @@ export interface ModelMeta {
   originalOutputNames: string[];
   intermediateOutputNames: string[];
   nodes: OnnxNode[];
+  /** How many of `nodes` live inside a control-flow subgraph. */
+  subgraphNodeCount?: number;
+  /** Tensors shape inference could not type, so they were left un-promoted. */
+  unpromotableOutputNames?: string[];
   hadExternalData: boolean;
   opsetVersion: number;
 }

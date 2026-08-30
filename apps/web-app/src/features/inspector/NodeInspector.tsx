@@ -3,6 +3,7 @@ import { MousePointerClick, TriangleAlert } from 'lucide-react';
 import { useModelStore } from '../../store/modelStore';
 import { computeStats, formatBytes, tensorByteSize } from '../../utils/tensorStats';
 import { AccordionItem } from '../../components/ui/Accordion';
+import { Alert } from '../../components/ui/Alert';
 import './NodeInspector.css';
 
 /** Significant digits for tensor statistics. */
@@ -93,6 +94,18 @@ export default function NodeInspector() {
         <div className="inspector-title">{name || 'Unnamed node'}</div>
         <div className="inspector-subtitle">{opType}</div>
       </div>
+
+      {selectedNode.subgraph && (
+        <Alert
+          variant="warning"
+          icon={<TriangleAlert aria-hidden />}
+          title="Inside control flow"
+        >
+          This node runs inside <code>{selectedNode.subgraph}</code>. Its
+          activations cannot be captured — a subgraph executes conditionally, so
+          its tensors do not exist in the enclosing graph.
+        </Alert>
+      )}
 
       <div className="inspector-sections">
         <AccordionItem
