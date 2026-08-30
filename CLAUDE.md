@@ -28,7 +28,7 @@ It is loaded automatically at the start of each session. Detailed architectural 
 | `apps/backend/app/main.py` (API Entry Point) | `docs/guide/01_project_overview.md` | **Strict 50MB upload limit**. Instantly return `400 Bad Request` if exceeded. |
 | `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | Run `InferenceSession` inside Web Worker. Ensure explicit `release()` of session memory. |
 | `apps/web-app/src/**` (Frontend UI modification) | `docs/design/direction.md` | Follow the agreed UI/UX direction. Fallback to WASM if WebGPU is unsupported, and show the status badge. |
-| `build/**` (Docker & Nginx configuration) | `docs/guide/03_architecture.md` | Nginx reverse proxy configuration and strict container memory limits. |
+| `build/**` (Docker & Nginx configuration) | `docs/guide/05_deployment.md` | Runtime topology, pipeline, and certificate lifecycle. **Never redirect `/.well-known/acme-challenge/`** — it breaks TLS renewal silently. |
 | Git branches, tags, and commits | `docs/guide/04_convention.md` | Adhere to Conventional Commits format and branch strategy. |
 
 ---
@@ -39,7 +39,7 @@ It is loaded automatically at the start of each session. Detailed architectural 
 
 | Directory | Holds | Write here when |
 | --- | --- | --- |
-| `docs/guide/` | Settled norms (overview, terminology, architecture, conventions) | A rule is confirmed and stable |
+| `docs/guide/` | Settled norms (overview, terminology, architecture, conventions, deployment) | A rule is confirmed and stable |
 | `docs/decisions/` | ADRs — a choice plus its trade-offs | Making a hard-to-reverse decision |
 | `docs/issues/` | Open problems, flat files with a `Status` field | A defect or gap is found |
 | `docs/history/` | Post-mortems of **resolved** problems | An issue is closed |

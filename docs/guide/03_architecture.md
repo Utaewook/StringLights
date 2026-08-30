@@ -64,3 +64,4 @@ sequenceDiagram
 *   [Project Overview (01_project_overview.md)](./01_project_overview.md)
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
 *   [AI Coding Rules (04_convention.md)](./04_convention.md)
+*   [Deployment & Certificate Lifecycle (05_deployment.md)](./05_deployment.md)

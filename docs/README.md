@@ -5,7 +5,7 @@ not by what it is about.
 
 | Directory | Holds | Lifecycle |
 | --- | --- | --- |
-| [`guide/`](./guide/) | Settled norms: overview, terminology, architecture, conventions | Stable. Changes only when a decision supersedes it. |
+| [`guide/`](./guide/) | Settled norms: overview, terminology, architecture, conventions, deployment | Stable. Changes only when a decision supersedes it. |
 | [`decisions/`](./decisions/) | ADRs — a choice together with the trade-off it accepted | Written once at decision time, then immutable |
 | [`issues/`](./issues/) | Open problems, one file each | `Status` field is updated in place |
 | [`history/`](./history/) | Post-mortems of **resolved** problems | Append-only, never edited |

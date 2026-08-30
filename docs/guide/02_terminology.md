@@ -21,3 +21,4 @@ This document defines the core terms and concepts used in this project. Develope
 *   [Project Overview (01_project_overview.md)](./01_project_overview.md)
 *   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
 *   [AI Coding Rules (04_convention.md)](./04_convention.md)
+*   [Deployment & Certificate Lifecycle (05_deployment.md)](./05_deployment.md)

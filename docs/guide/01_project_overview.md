@@ -28,3 +28,4 @@ The backend hosting server runs on an entry-level AWS Lightsail instance, which 
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
 *   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
 *   [AI Coding Rules (04_convention.md)](./04_convention.md)
+*   [Deployment & Certificate Lifecycle (05_deployment.md)](./05_deployment.md)
