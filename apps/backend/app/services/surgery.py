@@ -85,6 +85,82 @@ def has_external_data_references(model: onnx.ModelProto) -> bool:
 
 # ─── Metadata extraction ──────────────────────────────────────────────────────
 
+def _decode_attributes(node) -> dict:
+    """Decode a node's scalar and list attributes into JSON-safe values."""
+    attributes = {}
+    for attr in node.attribute:
+        if attr.type == onnx.AttributeProto.FLOAT:
+            attributes[attr.name] = attr.f
+        elif attr.type == onnx.AttributeProto.INT:
+            attributes[attr.name] = attr.i
+        elif attr.type == onnx.AttributeProto.STRING:
+            attributes[attr.name] = attr.s.decode("utf-8", "ignore")
+        elif attr.type == onnx.AttributeProto.INTS:
+            attributes[attr.name] = list(attr.ints)
+        elif attr.type == onnx.AttributeProto.FLOATS:
+            attributes[attr.name] = list(attr.floats)
+        elif attr.type == onnx.AttributeProto.STRINGS:
+            attributes[attr.name] = [s.decode("utf-8", "ignore") for s in attr.strings]
+        elif attr.type == onnx.AttributeProto.GRAPH:
+            attributes[attr.name] = "<subgraph>"
+        elif attr.type == onnx.AttributeProto.GRAPHS:
+            attributes[attr.name] = f"<{len(attr.graphs)} subgraphs>"
+        else:
+            attributes[attr.name] = "<unsupported type>"
+    return attributes
+
+
+def _iter_subgraphs(node):
+    """Yield (attribute label, GraphProto) for every subgraph attached to a node.
+
+    If carries `then_branch` and `else_branch`; Loop and Scan carry `body`. All
+    of them arrive as attributes, which is why a flat pass over `graph.node`
+    never sees the operators inside them.
+    """
+    for attr in node.attribute:
+        if attr.type == onnx.AttributeProto.GRAPH:
+            yield attr.name, attr.g
+        elif attr.type == onnx.AttributeProto.GRAPHS:
+            for index, subgraph in enumerate(attr.graphs):
+                yield f"{attr.name}[{index}]", subgraph
+
+
+def collect_nodes(graph, path: str = "") -> list[dict]:
+    """Flatten a graph and every subgraph beneath it into one node list.
+
+    Nodes inside a subgraph carry a `subgraph` field naming the path that
+    reached them, and `inspectable: False` — their activations cannot be
+    promoted to graph outputs, because a subgraph runs conditionally and its
+    tensors do not exist in the enclosing scope.
+
+    Tensor names inside a subgraph are prefixed with that same path. ONNX lets a
+    subgraph shadow an outer name, and the client builds its edges from a flat
+    map of tensor name to producing node — an unprefixed collision would silently
+    rewire the top-level graph. The cost is that a reference from a subgraph out
+    to an enclosing tensor no longer resolves, so that edge is simply not drawn.
+    """
+    collected: list[dict] = []
+
+    for idx, node in enumerate(graph.node):
+        local_name = node.name or f"{node.op_type}_{idx}"
+        entry = {
+            "name": f"{path}{local_name}" if path else local_name,
+            "opType": node.op_type,
+            "inputs": [f"{path}{i}" if path else i for i in node.input if i],
+            "outputs": [f"{path}{o}" if path else o for o in node.output if o],
+            "attributes": _decode_attributes(node),
+        }
+        if path:
+            entry["subgraph"] = path.rstrip("/")
+            entry["inspectable"] = False
+        collected.append(entry)
+
+        for label, subgraph in _iter_subgraphs(node):
+            collected.extend(collect_nodes(subgraph, f"{path}{local_name}/{label}/"))
+
+    return collected
+
+
 def extract_graph_meta(
     model: onnx.ModelProto,
     original_output_names: list[str],
@@ -112,34 +188,8 @@ def extract_graph_meta(
     original_output_set = set(original_output_names)
     intermediate_output_names = [n for n in output_names if n not in original_output_set]
 
-    nodes = []
-    for idx, node in enumerate(graph.node):
-        name = node.name or f"{node.op_type}_{idx}"
-        
-        attributes = {}
-        for attr in node.attribute:
-            if attr.type == onnx.AttributeProto.FLOAT:
-                attributes[attr.name] = attr.f
-            elif attr.type == onnx.AttributeProto.INT:
-                attributes[attr.name] = attr.i
-            elif attr.type == onnx.AttributeProto.STRING:
-                attributes[attr.name] = attr.s.decode('utf-8', 'ignore')
-            elif attr.type == onnx.AttributeProto.INTS:
-                attributes[attr.name] = list(attr.ints)
-            elif attr.type == onnx.AttributeProto.FLOATS:
-                attributes[attr.name] = list(attr.floats)
-            elif attr.type == onnx.AttributeProto.STRINGS:
-                attributes[attr.name] = [s.decode('utf-8', 'ignore') for s in attr.strings]
-            else:
-                attributes[attr.name] = "<unsupported type>"
-
-        nodes.append({
-            "name":       name,
-            "opType":     node.op_type,
-            "inputs":     [i for i in node.input  if i],
-            "outputs":    [o for o in node.output if o],
-            "attributes": attributes,
-        })
+    nodes = collect_nodes(graph)
+    subgraph_node_count = sum(1 for node in nodes if node.get("subgraph"))
 
     return {
         "inputs":                   inputs,
@@ -148,6 +198,7 @@ def extract_graph_meta(
         "originalOutputNames":      list(original_output_names),
         "intermediateOutputNames":  intermediate_output_names,
         "nodes":                    nodes,
+        "subgraphNodeCount":        subgraph_node_count,
         "unpromotableOutputNames":  list(unpromotable_output_names or []),
         "hadExternalData":          had_external_data,
         "opsetVersion":             opset_version,
