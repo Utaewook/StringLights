@@ -25,6 +25,8 @@ services:
       - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot's HTTP-01 webroot. nginx only reads it; certbot writes on the host.
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
     deploy:
