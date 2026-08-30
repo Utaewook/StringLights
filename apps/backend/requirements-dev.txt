@@ -1,0 +1,8 @@
+# Test-only dependencies. Kept out of requirements.txt so the production image
+# never carries a test runner.
+-r requirements.txt
+
+# Upper-bounded on purpose. The runtime pins are still open-ended, which is
+# tracked as docs/issues/014-toolchain-versions-drift.md; a new file should not
+# add to that.
+pytest>=8,<9
