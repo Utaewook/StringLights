@@ -10,6 +10,12 @@ on:
       - main
       - develop
 
+# One deploy at a time per branch. Two pushes in quick succession would
+# otherwise race each other onto the same host.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   DOCKER_REGISTRY: ghcr.io
   BACKEND_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/string_lights_backend
@@ -51,6 +57,7 @@ jobs:
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "BACKEND_IMAGE_NAME=ghcr.io/${OWNER_LC}/string_lights_backend" >> $GITHUB_ENV
           echo "FRONTEND_IMAGE_NAME=ghcr.io/${OWNER_LC}/string_lights_frontend" >> $GITHUB_ENV
+          echo "IMAGE_TAG=sha-$(echo "${{ github.sha }}" | cut -c1-7)" >> $GITHUB_ENV
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -68,7 +75,9 @@ jobs:
           context: .
           file: ./build/backend.Dockerfile
           push: true
-          tags: ${{ env.BACKEND_IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.BACKEND_IMAGE_NAME }}:latest
+            ${{ env.BACKEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v5
@@ -76,7 +85,9 @@ jobs:
           context: .
           file: ./build/frontend.Dockerfile
           push: true
-          tags: ${{ env.FRONTEND_IMAGE_NAME }}:latest
+          tags: |
+            ${{ env.FRONTEND_IMAGE_NAME }}:latest
+            ${{ env.FRONTEND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   deploy:
     needs: build-and-push
@@ -103,19 +114,45 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd ~/string_lights/build
-            
-            # Export environment variable for docker-compose to pick up GHCR image
+
             export DOCKER_REGISTRY=ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            
-            # Login to GHCR (Assumes a PAT or token is set in server environment or we can pass it, but for public packages it's not needed. Let's ensure it's a public package in github settings)
-            # If the package is private, we need: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pull latest images
+
+            # Pin the deploy to the exact image this run built. Resolving
+            # :latest on the host would let two deploys race onto different
+            # images while both believing they shipped their own build.
+            export DOCKER_TAG=sha-$(echo "${{ github.sha }}" | cut -c1-7)
+            echo "deploying ${DOCKER_TAG}"
+
+            # GHCR packages are public; no docker login is performed here. If a
+            # package is ever made private, this pull is what will start failing.
             docker compose pull
-            
-            # Start containers with no-build to prevent memory spike
+
+            # --no-build: building on a 512MB host would exhaust it.
             docker compose up -d --no-build
-            
-            # Clean up old unused images to save disk and memory space
-            docker image prune -af
+
+            # Dangling layers only. -a would delete the previous release, which
+            # is exactly what a rollback needs to still exist.
+            docker image prune -f
+
+            # Verify the real production path: TLS vhost -> nginx -> backend.
+            # Probing http://localhost would be worthless: port 80 answers 301
+            # for everything but the ACME path, and curl -f treats a 301 as
+            # success, so that check would pass with the backend dead.
+            i=1
+            while [ $i -le 30 ]; do
+              if curl -fsS -o /dev/null --max-time 5 \
+                   --resolve string-lights.dev:443:127.0.0.1 \
+                   https://string-lights.dev/api/health; then
+                echo "healthy after $((i * 2))s"
+                exit 0
+              fi
+              sleep 2
+              i=$((i + 1))
+            done
+
+            echo "deploy is unhealthy 60s after start"
+            docker compose ps
+            docker compose logs --tail=50
+            exit 1

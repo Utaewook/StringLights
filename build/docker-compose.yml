@@ -3,7 +3,7 @@ services:
     build:
       context: ../
       dockerfile: build/backend.Dockerfile
-    image: ${DOCKER_REGISTRY:-ghcr.io/utaewook}/string_lights_backend:latest
+    image: ${DOCKER_REGISTRY:-ghcr.io/utaewook}/string_lights_backend:${DOCKER_TAG:-latest}
     container_name: string_lights_backend
     restart: always
     expose:
@@ -17,7 +17,7 @@ services:
     build:
       context: ../
       dockerfile: build/frontend.Dockerfile
-    image: ${DOCKER_REGISTRY:-ghcr.io/utaewook}/string_lights_frontend:latest
+    image: ${DOCKER_REGISTRY:-ghcr.io/utaewook}/string_lights_frontend:${DOCKER_TAG:-latest}
     container_name: string_lights_nginx
     restart: always
     ports:
