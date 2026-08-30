@@ -1,6 +1,6 @@
 import os
 import onnx
-from onnx import helper
+from onnx import checker
 from onnx.external_data_helper import load_external_data_for_model
 
 # ─── Constants ────────────────────────────────────────────────────────────────
@@ -90,6 +90,7 @@ def extract_graph_meta(
     original_output_names: list[str],
     had_external_data: bool = False,
     opset_version: int = 0,
+    unpromotable_output_names: list[str] | None = None,
 ) -> dict:
     """
     Extracts graph metadata (inputs, outputs, nodes) for the frontend visualizer.
@@ -147,6 +148,7 @@ def extract_graph_meta(
         "originalOutputNames":      list(original_output_names),
         "intermediateOutputNames":  intermediate_output_names,
         "nodes":                    nodes,
+        "unpromotableOutputNames":  list(unpromotable_output_names or []),
         "hadExternalData":          had_external_data,
         "opsetVersion":             opset_version,
     }
@@ -222,34 +224,50 @@ def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
     existing_outputs = {out.name for out in inferred_model.graph.output}
     value_info_map   = {v.name: v for v in inferred_model.graph.value_info}
 
+    unpromotable_output_names: list[str] = []
+
     for node in inferred_model.graph.node:
         for out_name in node.output:
             if not out_name or out_name in existing_outputs:
                 continue
 
-            if out_name in value_info_map:
-                inferred_model.graph.output.append(value_info_map[out_name])
-            else:
-                # Fallback: expose with undefined type/shape
-                inferred_model.graph.output.append(
-                    helper.make_tensor_value_info(
-                        out_name,
-                        onnx.TensorProto.UNDEFINED,
-                        None,
-                    )
-                )
+            value_info = value_info_map.get(out_name)
+            if value_info is None:
+                # Shape inference could not type this tensor. This used to be
+                # promoted anyway, as TensorProto.UNDEFINED with no shape, which
+                # produces a graph onnx.checker rejects and onnxruntime can stall
+                # on while creating a session — the leading suspect for the
+                # model-load hang in issue 001. Leave it out of the outputs and
+                # tell the client it exists but cannot be inspected.
+                unpromotable_output_names.append(out_name)
+                continue
+
+            inferred_model.graph.output.append(value_info)
             existing_outputs.add(out_name)
 
-    # ── Step 7: Save as single inlined .onnx (no external data) ──────────────
+    # ── Step 7: Validate before handing the model to the browser ─────────────
+    # The client has no way to report a malformed graph — a bad model surfaces
+    # there as a hang or an opaque WASM abort. Failing here instead turns that
+    # into a 400 with a reason attached.
+    try:
+        checker.check_model(inferred_model)
+    except checker.ValidationError as e:
+        raise ValueError(
+            f"The modified model failed ONNX validation and would not load in "
+            f"the browser: {e}"
+        )
+
+    # ── Step 8: Save as single inlined .onnx (no external data) ──────────────
     # When had_external_data=True, load_external_data_for_model already moved
     # all tensor data into memory (data_location=DEFAULT), so onnx.save writes
     # everything into one file by default.
     onnx.save(inferred_model, output_path)
 
-    # ── Step 8: Return metadata for frontend ──────────────────────────────────
+    # ── Step 9: Return metadata for frontend ──────────────────────────────────
     return extract_graph_meta(
         inferred_model,
         original_output_names,
         had_external_data=had_external_data,
         opset_version=opset_version,
+        unpromotable_output_names=unpromotable_output_names,
     )

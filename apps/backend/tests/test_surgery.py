@@ -61,5 +61,42 @@ class TestSurgery(unittest.TestCase):
         dims = [dim.dim_value for dim in z_out.type.tensor_type.shape.dim]
         self.assertEqual(dims, [1, 2])
 
+class TestOutputPromotionSafety(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.model_path = os.path.join(self.temp_dir, "toy.onnx")
+        self.output_path = os.path.join(self.temp_dir, "modified.onnx")
+
+        X = helper.make_tensor_value_info('X', TensorProto.FLOAT, [1, 2])
+        W = helper.make_tensor_value_info('W', TensorProto.FLOAT, [1, 2])
+        graph = helper.make_graph(
+            [helper.make_node('Relu', ['X'], ['W'], name='relu')], 'toy', [X], [W]
+        )
+        onnx.save(
+            helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)]),
+            self.model_path,
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_no_output_is_promoted_with_an_undefined_type(self):
+        """UNDEFINED outputs are what onnxruntime stalls on — see issue 001."""
+        run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+
+        model = onnx.load(self.output_path)
+        for out in model.graph.output:
+            self.assertNotEqual(
+                out.type.tensor_type.elem_type,
+                TensorProto.UNDEFINED,
+                f'output {out.name} was promoted without a type',
+            )
+
+    def test_metadata_reports_what_could_not_be_promoted(self):
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+        self.assertIn('unpromotableOutputNames', meta)
+        self.assertIsInstance(meta['unpromotableOutputNames'], list)
+
+
 if __name__ == '__main__':
     unittest.main()
