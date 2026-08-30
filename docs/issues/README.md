@@ -40,6 +40,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [013](./013-error-responses-leak-internals.md) | Error responses return raw exception strings | Open | Low |
 | [014](./014-toolchain-versions-drift.md) | Toolchain versions drift between local, Docker, and CI | Open | Medium |
 | [015](./015-tls-renewal-has-no-working-path.md) | TLS certificate renewal has no working path | Open | Critical |
+| [016](./016-deploys-cannot-be-rolled-back.md) | Deploys cannot be rolled back | Open | High |
 
 ## Template
 
