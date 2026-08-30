@@ -49,14 +49,28 @@ test-and-lint  ──▶  build-and-push  ──▶  deploy
 **`test-and-lint`** — installs the frontend with `npm ci` and runs `npm run lint`.
 This is the only job that runs on `develop` and on pull requests.
 
-**`build-and-push`** — builds both images and pushes them to GHCR as `:latest`.
-The frontend image build runs `npm run build`, which is `copy-wasm && tsc -b &&
-vite build`; a TypeScript error therefore fails *this* job, not the lint gate.
+**`build-and-push`** — builds both images and pushes each under two tags:
+`:latest`, a moving convenience pointer, and `:sha-<short>`, an immutable handle
+on this exact release. The frontend image build runs `npm run build`, which is
+`copy-wasm && tsc -b && vite build`; a TypeScript error therefore fails *this*
+job, not the lint gate.
 
 **`deploy`** — copies `build/docker-compose.yml` to `~/string_lights/` over SCP,
-then over SSH runs `docker compose pull` and `docker compose up -d --no-build`
-from `~/string_lights/build`. `--no-build` is deliberate: building on a 512MB host
-would exhaust it.
+then over SSH pins `DOCKER_TAG` to the `sha-<short>` tag this run produced and
+runs `docker compose pull` and `docker compose up -d --no-build`. Pinning matters:
+resolving `:latest` on the host would let two deploys land on different images
+while both believed they had shipped their own build. `--no-build` is deliberate
+too — building on a 512MB host would exhaust it.
+
+The job then polls `/api/health` for up to 60 seconds and fails if the site never
+answers, so a green `deploy` means the application responded, not merely that the
+containers were created. The probe goes through the real TLS vhost with
+`curl --resolve string-lights.dev:443:127.0.0.1`. Probing `http://localhost`
+instead would be worthless: port 80 answers `301` for everything but the ACME
+path (§3), and `curl -f` treats a redirect as success, so that check would pass
+with the backend dead.
+
+A `concurrency` group serializes deploys per branch.
 
 Required repository secrets: `HOST`, `USERNAME`, `SSH_PRIVATE_KEY`. The GHCR
 packages must be **public** — the deploy script does not authenticate to the
@@ -116,7 +130,37 @@ the entire site down at once.
 
 ---
 
-## 4. Next Documents
+## 4. Rollback
+
+Every release stays addressable in GHCR under its `sha-<short>` tag. Rolling back
+is one variable:
+
+```sh
+cd ~/string_lights/build
+export DOCKER_REGISTRY=ghcr.io/utaewook
+export DOCKER_TAG=sha-<short sha of the last good commit>
+
+docker compose pull
+docker compose up -d --no-build
+```
+
+`git log --oneline` on `main` gives the candidate commits; the tag is the first
+seven characters of the SHA.
+
+**The artefact lives in GHCR, not on the host.** The deploy runs
+`docker image prune -f`, which reclaims dangling layers but leaves tagged images
+alone; the instance still keeps only what it needs to run, and a rollback pulls
+the old image back down. This is a deliberate trade — 512MB of RAM and a small
+disk are scarcer than remote registry storage.
+
+Rolling back is a human decision. A failed health check fails the pipeline and
+tells you the site is down; it does not revert anything on its own. See
+[issue 016](../issues/016-deploys-cannot-be-rolled-back.md) for why automatic
+rollback was deferred.
+
+---
+
+## 5. Next Documents
 *   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
 *   [Project Overview (01_project_overview.md)](./01_project_overview.md)
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
