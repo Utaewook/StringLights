@@ -22,7 +22,16 @@ Developers and AI assistants must strictly adhere to the following implementatio
     *   **Success path:** register cleanup with `BackgroundTasks` so it runs *after* the response is sent.
 *   **Do not wrap the response in a bare `finally`.** The endpoint returns a `FileResponse` that streams from the temp directory; a `finally` block deletes the payload before the client can read it.
 
-### Rule 5: Enforced Shape Inference
+### Rule 5: Bounded Extraction
+*   Never call `ZipFile.extractall` on an upload. Use `app.services.archive.extract_bounded`, which enforces the decompressed-size limits and refuses members that resolve outside the destination directory.
+*   The 50MB upload cap bounds what arrives, not what it becomes. Compressed size is not a proxy for memory use.
+
+### Rule 6: Surgery Runs in a Child Process
+*   Never call `run_graph_surgery` from the request path. Use `app.services.isolation.run_surgery_isolated`, which runs it in a child process under a timeout.
+*   **Do not import `onnx` in `app/main.py` or anything it imports.** The parent process must not carry the library's resident footprint for the life of the container; only the child needs it.
+*   A thread is not a substitute. Python threads cannot be interrupted, so a timed-out surgery would keep both its CPU and its memory.
+
+### Rule 7: Enforced Shape Inference
 *   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
 
 #### Recommended Backend Skeleton:

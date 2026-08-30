@@ -74,3 +74,31 @@ from a crashed one to any external monitor.
 2. Surgery has an explicit wall-clock bound, and exceeding it returns an error and
    releases the semaphore rather than running forever.
 3. `/api/health` is verified to answer while a surgery request is in flight.
+
+## Resolution
+
+`apps/backend/app/services/isolation.py` runs surgery in a throwaway child
+process. The event loop only waits on a pipe, so `/api/health` and every other
+endpoint stay responsive while a model is being processed.
+
+The time bound is `SURGERY_TIMEOUT_SECONDS = 90` in `main.py`, kept under
+nginx's `proxy_read_timeout` of 120s so a slow model returns this service's 504
+rather than nginx's generic gateway error.
+
+A thread was considered and rejected. It would have freed the event loop and
+nothing else: Python threads cannot be interrupted, so a timed-out surgery would
+have kept both its CPU and its memory and the timeout would have been
+decoration. A child process can be killed, and its exit returns every byte
+`onnx` allocated to the OS.
+
+`spawn` rather than `fork`: uvicorn is multi-threaded, and forking a process
+holding locks in other threads can deadlock the child. The cost is that the
+child re-imports `onnx`, which is wanted anyway — `onnx` is imported inside the
+worker, so the parent never carries its resident footprint.
+
+Verified directly against the module: a child that would run for 60s is stopped
+at the 2.0s timeout, and a child that dies without sending a result is reported
+as a failure rather than hanging.
+
+**Remaining:** the end-to-end path has not been exercised against a running
+backend — see [008](./008-ci-runs-no-tests.md).

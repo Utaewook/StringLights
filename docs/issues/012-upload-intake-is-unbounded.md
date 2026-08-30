@@ -1,7 +1,7 @@
 # Upload intake is unbounded before the size and concurrency limits apply
 
 - **Status:** Open
-- **Severity:** High
+- **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-22
 - **Related:** [007](./007-zip-extraction-has-no-size-limit.md), [011](./011-surgery-blocks-the-event-loop.md)
@@ -70,3 +70,21 @@ processing that follows is unbounded in time.
 3. The documented memory budget states the container limit (350MB), not the host's
    512MB. This is the same "documented contract does not match enforced behaviour"
    drift recorded in [007](./007-zip-extraction-has-no-size-limit.md).
+
+## Correction (2026-08-30)
+
+Severity lowered from High to Medium. The original write-up did not account for
+the deployed topology.
+
+nginx sets `client_max_body_size 55M` and answers `413` before proxying, and the
+backend uses `expose`, not `ports` — port 8000 exists only on the compose
+network and is not reachable from the host. An arbitrarily large body therefore
+cannot reach the backend at all in production; the worst case is a 55MB spool,
+bounded and cheap.
+
+What remains true is that Starlette receives the whole body before the handler's
+50MB check runs, so a 55MB upload is written to disk before being rejected. That
+is wasteful, not dangerous, and it is invisible to anything but the disk.
+
+The related decompression risk is a separate matter and is resolved in
+[007](./007-zip-extraction-has-no-size-limit.md).

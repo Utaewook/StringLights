@@ -96,3 +96,28 @@ fixes; this one remains scoped to the decompression budget.
 4. **Cleanup already works.** Aborting with an exception lands in the existing
    `except Exception` handler (`main.py:132-133`), which calls `cleanup_directory` inside
    the semaphore. No new cleanup path is needed.
+
+## Resolution
+
+`apps/backend/app/services/archive.py` replaces `ZipFile.extractall` with a
+bounded extractor. Limits are 150MB across the archive and 80MB for the model
+itself, chosen against the container's 350M ceiling and surgery's ~2x peak.
+
+Enforced twice: against the headers, which rejects a bomb before a byte is
+written, and against bytes actually written. The measured pass is defence in
+depth — CPython's `zipfile` truncates each member read at its declared
+`file_size`, so an understated header surfaces as a CRC failure first. That is a
+standard-library detail, not a property of the format, and the limits should not
+rest on it.
+
+Writing members by hand also loses the path sanitising `extractall` performs, so
+`_safe_destination` rejects any member resolving outside the destination.
+
+Verified directly against the module: a 199KB archive expanding to 200MB is
+refused with nothing written to disk, a `../../` member is refused with nothing
+created outside the destination, and ordinary flat and nested archives extract
+byte-for-byte.
+
+**Remaining:** the end-to-end path has not been exercised against a running
+backend. The dependencies are not installed locally and CI runs no backend tests
+— see [008](./008-ci-runs-no-tests.md).

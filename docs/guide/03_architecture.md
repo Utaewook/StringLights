@@ -7,9 +7,12 @@ The core architectural principle of this project is **"Server protection via str
 ## 1. Backend Role (FastAPI)
 *   **Responsibility:** Receive ONNX model uploads from the client, perform ONNX Graph Surgery, return the modified model file to the frontend, and immediately destroy all generated temporary files.
 *   **Limitation:** The server **never executes ONNX inference** (Session Run). Usage of the `onnxruntime` library is strictly prohibited on the backend.
-*   **OOM Defense:**
-    *   Use `asyncio.Semaphore(1)` to limit concurrent Graph Surgery requests to exactly 1, queueing requests sequentially.
-    *   Validate files at the API entry point to reject any payload exceeding **50MB** with a `400 Bad Request` error before processing.
+*   **OOM Defense:** four limits, each bounding a different quantity.
+    *   `asyncio.Semaphore(1)` limits concurrent Graph Surgery to exactly one, queueing the rest.
+    *   The API entry point rejects any upload over **50MB** with `400 Bad Request` before processing.
+    *   Extraction is bounded at **150MB** across the archive and **80MB** for the model, checked against the ZIP headers and again against bytes actually written. The upload cap bounds what arrives, not what it expands into.
+    *   Surgery runs in a **child process** with a **90s** timeout. This is what makes the timeout real — a thread cannot be interrupted, so a timed-out surgery would keep its memory — and it returns everything `onnx` allocated to the OS when the child exits.
+*   **Responsiveness:** because surgery runs in a child process, the event loop only waits on a pipe. `/api/health` and every other endpoint answer normally while a model is being processed.
 
 ## 2. Frontend Role (onnxruntime-web)
 *   **Responsibility:** Load the modified ONNX model stream, preprocess inputs (construct Tensors), execute client-side inference (`session.run`), save results in the local browser database, and visualize the output.
