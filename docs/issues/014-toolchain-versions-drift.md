@@ -74,3 +74,19 @@ Run 33303853559 annotated:
 Nothing is broken — the runner substitutes a newer Node — but the workflow is no
 longer running what it declares, which is the same class of problem as the
 unpinned `requirements.txt` entries above. `@v5` of both actions removes it.
+
+## Update (2026-09-14)
+
+The annotation has widened. Run 34827167800, the first `main` deploy since
+2026-08-29, flagged the Docker actions in `build-and-push` as well:
+
+| Job | Actions declaring Node 20 |
+| --- | --- |
+| `test-and-lint` | `actions/checkout@v4`, `actions/setup-node@v4` |
+| `build-and-push` | `actions/checkout@v4`, `docker/login-action@v3`, `docker/setup-buildx-action@v3`, `docker/build-push-action@v5` |
+| `deploy` | `actions/checkout@v4` |
+
+Bumping only `checkout` and `setup-node`, as suggested above, would leave the
+image build running on a runtime it does not declare. Each Docker action needs a
+release that declares Node 24, checked against its own changelog rather than
+assumed from the major version.
