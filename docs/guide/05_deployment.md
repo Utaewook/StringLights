@@ -96,7 +96,9 @@ directory. nginx never writes to `/var/www/certbot`; certbot never reads the
 container.
 
 Two host-side requirements are load-bearing, and neither is visible from the
-repository:
+repository. The deploy pipeline sets up neither of them, so a rebuilt host needs
+both again. Do not take an existing `/var/www/certbot` as evidence of setup —
+Docker creates a missing bind-mount source on its own:
 
 1.  **The renewal authenticator must be `webroot`, not `standalone`.** The nginx
     container holds port 80, so a standalone challenge cannot bind it. The
@@ -113,20 +115,21 @@ repository:
     docker exec string_lights_nginx nginx -s reload
     ```
 
-**Verification.** These two commands are the whole test, and both must pass:
+**Verification.** All three must pass:
 
 ```sh
 sudo certbot renew --dry-run
 curl -I http://string-lights.dev/.well-known/acme-challenge/probe   # 404, never 301
+sudo /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh          # "signal process started"
 ```
+
+The hook is run directly because certbot skips deploy hooks under `--dry-run`. A
+dry run passes with the hook missing, and the site then serves the old certificate
+until it expires.
 
 A `301` on the second command means the challenge path is being redirected and
 every future renewal will fail. The failure is silent for up to 90 days, then takes
 the entire site down at once.
-
-> Host-side verification is tracked in
-> [issue 015](../issues/015-tls-renewal-has-no-working-path.md) and is not yet
-> confirmed.
 
 ---
 

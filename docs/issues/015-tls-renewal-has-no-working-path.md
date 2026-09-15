@@ -1,6 +1,6 @@
 # TLS certificate renewal has no working path
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Critical
 - **Track:** Bug
 - **Found:** 2026-08-30
@@ -63,8 +63,8 @@ procedure, which is not written down anywhere.
 
 **Remaining (Lightsail host, one-off):**
 
-- [ ] `sudo mkdir -p /var/www/certbot && sudo chmod 755 /var/www/certbot`
-- [ ] Switch the renewal authenticator from `standalone` to `webroot` in
+- [x] `sudo mkdir -p /var/www/certbot && sudo chmod 755 /var/www/certbot`
+- [x] Switch the renewal authenticator from `standalone` to `webroot` in
       `/etc/letsencrypt/renewal/string-lights.dev.conf`:
       ```ini
       authenticator = webroot
@@ -72,26 +72,60 @@ procedure, which is not written down anywhere.
       [[webroot_map]]
       string-lights.dev = /var/www/certbot
       ```
-- [ ] Register a deploy hook so nginx picks up the new certificate:
+- [x] Register a deploy hook so nginx picks up the new certificate:
       ```
       /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
         #!/bin/sh
         docker exec string_lights_nginx nginx -s reload
       ```
       (`chmod +x`)
-- [ ] Verify end to end: `sudo certbot renew --dry-run` succeeds, and the
+- [x] Verify end to end: `sudo certbot renew --dry-run` succeeds, and the
       challenge path is reachable — `curl -I http://string-lights.dev/.well-known/acme-challenge/probe`
       returns `404`, **not** `301`.
-- [ ] Confirm the renewal timer is active: `systemctl list-timers | grep certbot`
+- [x] Confirm the renewal timer is active: `systemctl list-timers | grep certbot`
 
 The issue closes only when `certbot renew --dry-run` passes on the host. Until
 then the repository change is necessary but not sufficient.
 
 ## Follow-up
 
-The host procedure above is an operational norm, not a one-off note, and it
-belongs in `docs/guide/` rather than in an issue file that will eventually move
-to `docs/history/`. A `docs/guide/05_deployment.md` covering the deploy
-pipeline, the certificate lifecycle, and the rollback procedure would prevent
-the next undocumented-infrastructure failure. Deferred pending a decision on
-whether to add a fifth guide document.
+Done. The host procedure lives in
+[`../guide/05_deployment.md`](../guide/05_deployment.md) §3, where an operational
+norm belongs, rather than in this file.
+
+## Resolution (2026-09-15)
+
+The certificate now renews over HTTP-01 through the running nginx container.
+Verified on the Lightsail host and from outside it:
+
+```
+certbot renew --dry-run                   : all simulated renewals succeeded
+renewal authenticator                     : webroot
+renewal-hooks/deploy/reload-nginx.sh      : present, executable, reload succeeded
+certbot.timer                             : active
+https://string-lights.dev/api/health      : 200
+http://.../.well-known/acme-challenge/... : 404
+served certificate notAfter               : 2026-11-01
+```
+
+Three things should stay on record.
+
+**The repository fix was not in production until 2026-09-14.** The nginx and
+compose change landed on `develop` on 2026-08-30, but production deploys only from
+`main`, which was 19 commits behind. Until `main` was fast-forwarded to `7e20363`
+the live nginx still redirected the challenge path, so no host-side change could
+have passed.
+
+**The host steps had not been done, and nothing reported it.** The first dry run
+after that deploy still failed with `Could not bind TCP port 80`. The renewal
+config was untouched and read `authenticator = standalone`, and the deploy hook
+did not exist. `/var/www/certbot` did exist, but only because Docker creates a
+missing bind-mount source, which says nothing about whether the setup was run.
+The deploy pipeline performs none of these steps, so a rebuilt host needs all of
+them again.
+
+**A dry run does not exercise the hook.** certbot skips deploy hooks under
+`--dry-run`, so the hook was invoked by hand. The first real renewal falls due
+around 2026-10-02, 30 days before expiry. If the served certificate still reads
+2026-11-01 after that, the renewal or the reload failed, and
+`/var/log/letsencrypt/letsencrypt.log` on the host says which.
