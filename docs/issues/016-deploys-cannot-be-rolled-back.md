@@ -1,6 +1,6 @@
 # Deploys cannot be rolled back
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-08-30
@@ -65,7 +65,7 @@ on the previous commit still building reproducibly, which
 
 **Remaining:**
 
-- [ ] The first push to `main` exercises the health gate and passes.
+- [x] The first push to `main` exercises the health gate and passes.
 
 Note that the rollback artefact lives in GHCR, not on the host. The 512MB
 instance keeps only the running release; a rollback pulls the old tag back down.
@@ -78,3 +78,18 @@ Rolling back is still a human decision and a human command. Automatic rollback o
 a failed health check was considered and deferred: it adds a state file on the
 host recording the last good tag, and a failure mode where the rollback itself
 fails and leaves the operator debugging two deploys instead of one.
+
+## Resolution (2026-09-14)
+
+Run 34827167800 was the first push to `main` with the new pipeline. It published
+both images under `sha-7e20363`, deployed that tag rather than `:latest`, and
+passed the health gate through the TLS vhost:
+
+```
+deploying sha-7e20363
+healthy after 4s
+```
+
+The earliest release that can be rolled back to is `sha-7e20363`. Every image
+published before the tagging change carried `:latest` alone and has since been
+overwritten, so there is no addressable artefact for any earlier commit.
