@@ -1,4 +1,4 @@
-import { PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon } from 'lucide-react';
+import { PanelLeft, PanelRight, Cpu, ShieldAlert, Sun, Moon, Coffee } from 'lucide-react';
 import { useUIStore }  from '../../store/uiStore';
 import { useModelStore } from '../../store/modelStore';
 import { Button } from '../ui/Button';
@@ -11,6 +11,12 @@ import { Badge } from '../ui/Badge';
 // URIs, so switching themes costs no request. See docs/design/direction.md.
 import markDark  from '../../assets/icon/amber-night-mini.svg';
 import markLight from '../../assets/icon/amber-light-mini-bordered.svg';
+
+// Ko-fi's own button is a script widget, and its badge is an image served from their
+// CDN. Both are cross-origin subresources, and ADR 0002 sets COEP to require-corp —
+// neither would load. A plain link is a navigation, not a subresource, so it is
+// unaffected. The icon is lucide, per docs/design/direction.md.
+const KOFI_URL = 'https://ko-fi.com/twyou';
 
 export default function Header() {
   const { toggleLeftPanel, toggleRightPanel, engineProvider, theme, toggleTheme } = useUIStore();
@@ -70,6 +76,17 @@ export default function Header() {
             WebGPU accelerated
           </Badge>
         )}
+        <Button asChild variant="ghost" size="icon-sm">
+          <a
+            href={KOFI_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Support StringLights on Ko-fi"
+            aria-label="Support StringLights on Ko-fi"
+          >
+            <Coffee />
+          </a>
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"

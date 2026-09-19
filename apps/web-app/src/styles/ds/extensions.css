@@ -59,3 +59,14 @@
 .ds-btn-block {
   width: 100%;
 }
+
+/* ── Anchors wearing button styling ──────────────────────────────────────────
+   `Button asChild` renders its styling onto whatever element it is given, and
+   `base.css` underlines every `a`. The system solves this per component — see
+   `.ds-breadcrumb a` — so this follows that shape rather than touching the
+   vendored file. Specificity keeps `data-variant="link"`'s hover underline,
+   which is that variant's whole point. */
+
+a.ds-btn {
+  text-decoration: none;
+}
