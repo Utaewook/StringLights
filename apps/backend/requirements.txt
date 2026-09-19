@@ -1,5 +1,17 @@
-fastapi>=0.100.0
-uvicorn>=0.22.0
-python-multipart>=0.0.6
-onnx>=1.14.0
-httpx>=0.24.0
+# Pinned exactly. This project's core operation is version-sensitive ONNX graph
+# manipulation, and the images are rebuilt from scratch on every deploy — the
+# workflow sets no build cache, so an unpinned floor resolves afresh each time and
+# a dependency change can alter surgery behaviour with no commit behind it.
+#
+# These are direct dependencies only. Transitive versions still float within the
+# ranges these packages declare, so this is a pin, not a lockfile. Generating a
+# real lock is tracked in docs/issues/014-toolchain-versions-drift.md.
+#
+# To update: bump a pin here, rebuild build/test.Dockerfile, run the suite, and
+# commit the new version with the result. Never widen a pin to make a build pass.
+
+fastapi==0.141.1
+uvicorn==0.52.4
+python-multipart==0.0.32
+onnx==1.22.0
+httpx==0.28.1
