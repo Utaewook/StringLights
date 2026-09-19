@@ -11,7 +11,7 @@ Developers and AI assistants must strictly adhere to the following implementatio
 *   Only use `import onnx` to manipulate graphs (Graph Surgery) and execute Shape Inference.
 
 ### Rule 2: Strict Queueing via Semaphore(1)
-*   To protect the server memory (512MB RAM), apply `asyncio.Semaphore(1)` to the entry point of the Graph Surgery API endpoint to serialize concurrent operations.
+*   To protect the backend container's **350M** memory limit (`build/docker-compose.yml`), apply `asyncio.Semaphore(1)` to the entry point of the Graph Surgery API endpoint to serialize concurrent operations. The host has 512MB, but it also runs the frontend container and the OS; 350M is the figure the kernel enforces against this process.
 
 ### Rule 3: Early File Size Rejection (50MB Limit)
 *   Inspect the size of the uploaded file before writing it to disk. Immediately reject payloads exceeding **50MB** with an HTTP `400 Bad Request` error.

@@ -1,6 +1,6 @@
 # Error responses return raw exception strings
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Low
 - **Track:** Chore
 - **Found:** 2026-08-22
@@ -44,3 +44,33 @@ release simply because the fix is a few lines.
 3. Validation errors that the user *can* act on (bad ZIP, no `.onnx` inside, unsupported
    opset, unsupported dtype) keep their specific messages — this issue is about
    unexpected internal failures, not about making all errors vague.
+
+
+## Smaller than filed by the time it was fixed
+
+Of the two lines this issue named, only one was still leaking.
+`main.py:109`'s `Graph surgery failed: {str(e)}` now forwards a message that
+`app/services/isolation.py` has already sanitised — the child process catches everything
+that is not a deliberate `ValueError`, prints the type and detail to stderr, and sends
+back `"Graph surgery failed while processing this model."`. That happened while fixing
+[011](./011-surgery-blocks-the-event-loop.md), without either issue noticing.
+
+The same applies to the other validation paths. `ArchiveRejected`, the opset gate, the
+bad-ZIP branch and the no-`.onnx` branch all raise text written for the user, with no
+interpolated exception.
+
+## Resolution (2026-09-19)
+
+The one remaining site was the outer `except Exception`, which forwarded
+`An unexpected error occurred: {str(e)}`. That is where `onnx.load` and protobuf
+failures land, and their messages embed the path they were handed —
+`/app/temp/<uuid>/extracted/<name>.onnx`.
+
+The client now gets a stable sentence. The traceback goes to the container log through
+`logger.exception`, tagged with the session UUID so a report can be traced to its request
+— criterion 2, which nothing satisfied before: the handler logged nothing at all.
+
+**Verified** by `TestErrorResponses`: a ZIP containing bytes that are not a protobuf
+produces a detail carrying no `/app/` path, no `temp`, no traceback and no library symbol,
+while a ZIP with no `.onnx` in it still returns a 400 that says so — criterion 3, that
+actionable errors keep their specifics.

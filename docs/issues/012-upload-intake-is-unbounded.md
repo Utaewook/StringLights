@@ -1,6 +1,6 @@
 # Upload intake is unbounded before the size and concurrency limits apply
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -88,3 +88,54 @@ is wasteful, not dangerous, and it is invisible to anything but the disk.
 
 The related decompression risk is a separate matter and is resolved in
 [007](./007-zip-extraction-has-no-size-limit.md).
+
+
+## Resolution (2026-09-19)
+
+**Criterion 1 — bodies are bounded before they are buffered.**
+`apps/backend/app/middleware.py` adds `ContentLengthLimitMiddleware`, which reads
+`Content-Length` in the ASGI layer and answers `413` without touching the body. It runs
+before FastAPI resolves `UploadFile`, so python-multipart never spools the request.
+
+`MAX_REQUEST_BYTES` is 55MB, not 50: the multipart envelope wraps the file, so the
+request is necessarily larger than its payload. It matches nginx's
+`client_max_body_size` deliberately — the two bound the same thing, and letting them
+drift apart would mean one of them never fires.
+
+A request declaring no length (chunked transfer) passes through. There is nothing to
+check yet, the handler's own 50MB cap still applies, and nginx bounds it upstream.
+
+**Criterion 2 — concurrency is bounded at the proxy.**
+
+```nginx
+limit_conn_zone $binary_remote_addr zone=api_conn:10m;
+limit_req_zone  $binary_remote_addr zone=api_req:10m rate=20r/m;
+...
+location /api/ {
+    limit_conn api_conn 2;
+    limit_req  zone=api_req burst=5 nodelay;
+}
+```
+
+Sized against the 350M container, as the criterion asks. Surgery is serialised by
+`Semaphore(1)`, so a second concurrent upload from the same client gains that client
+nothing while costing the service another 55M spool.
+
+`/api/health` is deliberately exempt, in its own exact-match location. The deploy gate
+polls it every two seconds for up to sixty — thirty requests a minute — and a limit
+tight enough to be worth setting on the upload path would reject that and fail a
+perfectly good deploy. This is the kind of interaction that is obvious in hindsight and
+invisible until the deploy goes red.
+
+**Criterion 3 — the documented budget states the container limit.**
+`docs/guide/01_project_overview.md` now lists the 350M container limit beside the host's
+512MB and says which one the backend is killed for exceeding. `docs/guide/04_convention.md`
+Rule 2 no longer claims `Semaphore(1)` protects 512MB. The remaining 512MB references
+across the repository were audited and are all correct — they describe the host, which
+does have 512MB.
+
+**Verified** by `TestIntakeBound` in `build/test.Dockerfile`: an oversized declared body
+returns 413; a body that is not valid multipart *still* returns 413 rather than 422,
+which is the proof that the request was answered before anything tried to decode it; a
+request within the limit reaches the handler; and a bodyless GET is unaffected. The nginx
+config was parsed end to end in an `nginx:alpine` container with the upstream resolvable.

@@ -6,9 +6,10 @@ StringLights v2 is a web-based tool for visualizing and analyzing intermediate n
 ## 2. Hardware Constraints (Extremely Critical)
 The backend hosting server runs on an entry-level AWS Lightsail instance, which is a **resource-constrained environment with very low memory**.
 *   **CPU:** 2 vCPU
-*   **RAM:** 512MB (Very high risk of OOM; Swap Memory enabled)
+*   **RAM:** 512MB on the host (Very high risk of OOM; Swap Memory enabled)
+*   **Backend container RAM:** **350M** (`build/docker-compose.yml`). This, not the host figure, is the budget the backend is actually killed for exceeding — the host's 512MB is shared with the frontend container and the OS. Quote 350M whenever the number is about what the backend may use.
 *   **Storage:** 20GB
-*   **ONNX Upload Limit:** To prevent server OOM, single ONNX file uploads are strictly limited to a **maximum of 50MB**.
+*   **ONNX Upload Limit:** Uploads are capped at **50MB measured on the compressed archive**. What it expands into is bounded separately during extraction — see [issue 007](../issues/007-zip-extraction-has-no-size-limit.md).
 
 ## 3. Technology Stack
 *   **Backend:** Python 3, FastAPI, `onnx` (For graph manipulation/surgery only. Never import or run `onnxruntime` on the server to maintain stability)
