@@ -1,11 +1,13 @@
 import os
 import json
+import logging
 import shutil
 import uuid
 import zipfile
 import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
+from app.middleware import ContentLengthLimitMiddleware
 from app.services.archive import ArchiveRejected, extract_bounded
 from app.services.isolation import (
     SurgeryFailed,
@@ -14,12 +16,23 @@ from app.services.isolation import (
     run_surgery_isolated,
 )
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="StringLights Backend", version="2.0.0")
 
-# Semaphore to serialize graph surgery and protect 512MB RAM server
+# Serialises graph surgery. The bound that matters is the *container's* 350M
+# (build/docker-compose.yml), not the host's 512MB — the host also carries the
+# frontend container and the OS. See docs/issues/012.
 surgery_semaphore = asyncio.Semaphore(1)
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB, measured on the uploaded archive
+
+# The whole multipart request, which wraps the file in an envelope, so it sits
+# above MAX_FILE_SIZE. Matches nginx's client_max_body_size: the two bound the
+# same thing and drifting apart would mean one of them never fires.
+MAX_REQUEST_BYTES = 55 * 1024 * 1024
+
+app.add_middleware(ContentLengthLimitMiddleware, max_bytes=MAX_REQUEST_BYTES)
 
 # Kept below nginx's proxy_read_timeout of 120s so a slow model surfaces as this
 # service's 504 with a usable message, rather than nginx's generic gateway error.
@@ -154,9 +167,15 @@ async def perform_surgery(
             cleanup_directory(temp_dir)
             if isinstance(e, HTTPException):
                 raise e
+            # The client gets a stable message; the traceback goes to the
+            # container log. Exceptions from onnx.load and protobuf embed the
+            # path they were handed, which here is /app/temp/<uuid>/... — that
+            # tells the user nothing and describes the container's layout to
+            # anyone probing. See docs/issues/013.
+            logger.exception("Unhandled error while processing session %s", session_id)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An unexpected error occurred: {str(e)}",
+                detail="The server could not process this model. Please try again.",
             )
 
 

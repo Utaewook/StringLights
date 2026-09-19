@@ -124,3 +124,90 @@ class TestAPI(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestIntakeBound(unittest.TestCase):
+    """Issue 012, criterion 1. The handler's 50MB check runs after FastAPI has
+    resolved UploadFile, by which point python-multipart has spooled the whole
+    body. The middleware answers from Content-Length before that happens."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_an_oversized_declared_body_is_refused(self):
+        from app.main import MAX_REQUEST_BYTES
+
+        response = self.client.post(
+            "/api/surgery",
+            content=b"",
+            headers={
+                "content-length": str(MAX_REQUEST_BYTES + 1),
+                "content-type": "application/octet-stream",
+            },
+        )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("limit", response.json()["detail"].lower())
+
+    def test_the_guard_does_not_read_the_body(self):
+        """A body that would fail to parse still gets 413, not 422 — proof the
+        request was answered before anything tried to decode it."""
+        from app.main import MAX_REQUEST_BYTES
+
+        response = self.client.post(
+            "/api/surgery",
+            content=b"not multipart at all",
+            headers={
+                "content-length": str(MAX_REQUEST_BYTES + 1),
+                "content-type": "multipart/form-data; boundary=nonsense",
+            },
+        )
+        self.assertEqual(response.status_code, 413)
+
+    def test_a_request_within_the_limit_still_reaches_the_handler(self):
+        response = self.client.post("/api/surgery")
+        self.assertNotEqual(response.status_code, 413)
+
+    def test_a_request_with_no_body_is_unaffected(self):
+        self.assertEqual(self.client.get("/api/health").status_code, 200)
+
+
+class TestErrorResponses(unittest.TestCase):
+    """Issue 013. Validation errors stay specific; internal failures do not
+    forward exception text."""
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_an_internal_failure_names_no_path_or_exception(self):
+        zip_path = os.path.join(self.temp_dir, "bad.zip")
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("model.onnx", b"this is not a protobuf")
+
+        with open(zip_path, "rb") as fh:
+            response = self.client.post(
+                "/api/surgery", files={"file": ("bad.zip", fh, "application/zip")}
+            )
+
+        detail = response.json()["detail"]
+        self.assertNotIn("/app/", detail)
+        self.assertNotIn("temp", detail.lower())
+        self.assertNotIn("Traceback", detail)
+        for symbol in ("onnx.", "protobuf", "DecodeError", "Error:"):
+            self.assertNotIn(symbol, detail)
+
+    def test_validation_errors_keep_their_specifics(self):
+        zip_path = os.path.join(self.temp_dir, "empty.zip")
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("readme.txt", b"nothing here")
+
+        with open(zip_path, "rb") as fh:
+            response = self.client.post(
+                "/api/surgery", files={"file": ("empty.zip", fh, "application/zip")}
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ONNX", response.json()["detail"])
