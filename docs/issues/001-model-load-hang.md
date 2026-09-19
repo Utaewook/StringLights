@@ -139,8 +139,7 @@ copies are the `onnx.helper` calls in `TestLoopOutputPromotion`.
 
 ## Why this stays Open
 
-Resolution criteria 2 and 3 are met, and criterion 4 is now unblocked — see
-below. Criterion 1 is not: the model that first showed the hang is not among the
+Resolution criteria 2, 3 and 4 are met. Criterion 1 is not: the model that first showed the hang is not among the
 three examined above and has not been located, so the fix has never been
 confirmed against the failure that prompted the issue. What exists instead is a
 mechanism reproduced synthetically and fixed under test, which is weaker
@@ -150,5 +149,6 @@ Criterion 4 (remove the diagnostic logging, tracked as
 [003](./003-diagnostic-console-logs.md)) was blocked on this issue, while 003 was
 blocked on it in turn — a deadlock in the two write-ups. Closing
 [009](./009-worker-failures-bypass-error-channel.md) broke it: worker failures
-now produce error text, so the `console.*` tracing is no longer the only
-diagnostic and can go.
+now produce error text, so the `console.*` tracing was no longer the only
+diagnostic. 003 is closed, and a `no-console` lint rule now keeps the next
+investigation's tracing from outliving it.
