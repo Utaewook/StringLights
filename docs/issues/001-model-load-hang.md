@@ -1,6 +1,6 @@
 # Model load hangs after graph surgery
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Critical
 - **Track:** Bug
 - **Found:** 2026-07 (diagnostics added in commit `870c4ec`)
@@ -137,13 +137,46 @@ the owner's `~/Desktop/models/`, with a README describing what each triggers:
 `issue001-custom-domain-op.onnx` (the no-`value_info` path). The authoritative
 copies are the `onnx.helper` calls in `TestLoopOutputPromotion`.
 
-## Why this stays Open
+## Verified in the browser (2026-09-19)
 
-Resolution criteria 2, 3 and 4 are met. Criterion 1 is not: the model that first showed the hang is not among the
-three examined above and has not been located, so the fix has never been
-confirmed against the failure that prompted the issue. What exists instead is a
-mechanism reproduced synthetically and fixed under test, which is weaker
-evidence and should not be recorded as the same thing.
+`issue001-loop-unshaped-output.onnx` was run through the full local stack —
+backend surgery, then the browser — which is where the symptom lived:
+
+```
+POST /api/surgery                200 OK
+graph                            4 nodes (Loop + 2 subgraph + Identity), opset 17
+Engine                           Loading... -> WebGPU accelerated
+inference                        completed, playback ready
+inspector, tensor `looped`       "No data"
+```
+
+The `Engine` line is the one that matters. That transition is where the session
+used to sit forever. The model loads, runs, and reports the one tensor it cannot
+expose, while every other part of it stays usable.
+
+Also confirmed on a real model (`ae_model.onnx`, 10 nodes, external data
+inlined, opset 20): surgery, load, inference, and per-node statistics all work
+end to end.
+
+## Closed with criterion 1 unmet
+
+Criteria 2, 3 and 4 are met. **Criterion 1 is not, and this issue is closed
+anyway** — a decision by the owner on 2026-09-19, recorded here rather than
+disguised.
+
+The model that first showed the hang cannot be located and is not among the
+three examined above. Criterion 1 asks for the root cause to be confirmed
+against a reproducing model, which cannot now happen: there is no path from here
+to that evidence, so leaving the issue open would not produce it. What exists
+instead is the mechanism reproduced synthetically, fixed, covered by
+`TestLoopOutputPromotion`, and exercised in the browser.
+
+That is weaker than what criterion 1 asked for, and the difference is the point
+of writing it down. **If a model hangs at session creation again, this issue is
+the wrong record to trust** — reopen rather than assume the cause was the one
+established here. The two reproducers live in the owner's `~/Desktop/models/`
+with a README, and the authoritative copies are the `onnx.helper` calls in
+`TestLoopOutputPromotion`.
 
 Criterion 4 (remove the diagnostic logging, tracked as
 [003](./003-diagnostic-console-logs.md)) was blocked on this issue, while 003 was

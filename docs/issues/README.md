@@ -25,7 +25,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 
 | ID | Title | Status | Severity |
 | --- | --- | --- | --- |
-| [001](./001-model-load-hang.md) | Model load hangs after graph surgery | Open | Critical |
+| [001](./001-model-load-hang.md) | Model load hangs after graph surgery | Closed | Critical |
 | [002](./002-tensor-std-always-zero.md) | Per-node standard deviation is always reported as 0 | Closed | High |
 | [003](./003-diagnostic-console-logs.md) | Diagnostic `console.*` calls left in shipped code | Closed | Medium |
 | [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Open | Medium |
