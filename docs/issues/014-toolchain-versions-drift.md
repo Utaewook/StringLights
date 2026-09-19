@@ -1,6 +1,6 @@
 # Toolchain versions drift between local, Docker, and CI
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Chore
 - **Found:** 2026-08-22
@@ -90,3 +90,76 @@ Bumping only `checkout` and `setup-node`, as suggested above, would leave the
 image build running on a runtime it does not declare. Each Docker action needs a
 release that declares Node 24, checked against its own changelog rather than
 assumed from the major version.
+
+
+## Measured before fixing (2026-09-19)
+
+The drift was not hypothetical. The same `requirements.txt` resolved differently in
+the two places it is installed:
+
+| | Python | `onnx` | `onnx.defs.onnx_opset_version()` |
+| --- | --- | --- | --- |
+| `apps/backend/venv` | 3.14.2 | 1.21.0 | 26 |
+| production base image | 3.12.14 | 1.22.0 | **27** |
+
+And the base image tag moved *during this session*: `python:3.12-slim` resolved to
+`sha256:6c4dd321…` when pulled and `sha256:2f17fc04…` when queried an hour later.
+
+This compounds with the pipeline. Neither `docker/build-push-action` step sets
+`cache-from` or `cache-to`, and each run gets a fresh `ubuntu-latest` runner, so there
+is **no layer cache between deploys** — every push to `main` re-resolves `onnx>=1.14.0`
+from PyPI. The library that rewrites users' graphs could change version with no commit
+behind it, and nothing recorded which one shipped.
+
+[016](./016-deploys-cannot-be-rolled-back.md) anticipated this: rolling back works
+because GHCR holds the built image, but *rebuilding* the last good commit was never
+guaranteed to reproduce it.
+
+## Resolution (2026-09-19)
+
+**Criterion 1 — runtime dependencies pinned.** `requirements.txt` holds exact versions
+with the update path in its header: bump a pin, rebuild `build/test.Dockerfile`, run the
+suite, commit the version with the result, and never widen a pin to make a build pass.
+
+These are direct dependencies only, and the file says so. Transitive versions still float
+within the ranges those packages declare — the suite picked up a new `anyio` deprecation
+warning on the rebuild, which is that limitation behaving exactly as described. A real
+lockfile is the further step and is not taken here.
+
+**Base images pinned by digest** — not in the criteria, but the same defect:
+
+```
+python:3.12-slim@sha256:2f17fc04…   (backend.Dockerfile, test.Dockerfile)
+node:20-alpine@sha256:fb4cd12c…     (frontend.Dockerfile builder)
+nginx:alpine@sha256:62ff2089…       (frontend.Dockerfile runtime)
+```
+
+Each digest was checked against the registry to confirm it names a multi-arch index
+containing `linux/amd64` before being pinned. A digest naming a single-architecture
+image would build here and fail on the runner.
+
+**Criterion 2** was already met — `requirements-dev.txt` exists and the production image
+carries no test runner.
+
+**Criterion 3 — CI uses the image's interpreter.** The backend suite runs *inside*
+`build/test.Dockerfile`, so it cannot use anything else. `setup-node` pins Node 20,
+matching `node:20-alpine`.
+
+**Criterion 4 — the local mismatch is documented as accepted.** `docs/guide/04_convention.md`
+Rule 7 now states what `apps/backend/venv` does and does not prove: it runs Python 3.14
+against some `onnx`, so a green run there says the logic holds on *some* version, not on
+the one that ships.
+
+**Verified** by rebuilding both images from the pinned bases. The backend image resolves
+exactly the pinned versions on Python 3.12.14 and the suite passes 28/28 under the 350m
+ceiling; the frontend image builds and serves its assets under nginx 1.31.6.
+
+## Remaining: the workflow's own actions
+
+`actions/checkout` and `actions/setup-node` are bumped to `@v5`, which is what this file
+asked for. The Node 20 deprecation notice also names `docker/build-push-action@v5`,
+`docker/login-action@v3` and `docker/setup-buildx-action@v3`. Those are left alone
+deliberately: they are a different vendor's versioning, the notice is a warning rather
+than a break, and bumping four actions at once on the pipeline that deploys to production
+is not a change to make alongside a dependency pin. Filed here rather than in a new issue
+because it is the same drift.

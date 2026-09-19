@@ -39,6 +39,7 @@ Developers and AI assistants must strictly adhere to the following implementatio
     ```
 *   Keep the memory flags. They mirror `build/docker-compose.yml`; without them the OOM path this code exists to prevent is never exercised.
 *   Test-only dependencies belong in `requirements-dev.txt`. The production image must never carry a test runner.
+*   **`apps/backend/venv` is not the production environment and is not expected to be.** It runs Python 3.14 with whatever `onnx` it resolved; the image runs Python 3.12 with the version pinned in `requirements.txt`. A green run in the venv says the code is syntactically sound and the logic holds on *some* `onnx` — it says nothing about the version that will ship. Use it to iterate; use the container to decide.
 
 ### Rule 8: Enforced Shape Inference and Validation
 *   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
