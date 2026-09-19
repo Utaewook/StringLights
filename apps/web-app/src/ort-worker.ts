@@ -1,5 +1,6 @@
 import * as ort from 'onnxruntime-web';
 import type { TensorStats } from './types';
+import { computeStats } from './utils/tensorStats';
 
 ort.env.wasm.wasmPaths = import.meta.env.DEV 
   ? '/node_modules/onnxruntime-web/dist/' 
@@ -8,41 +9,6 @@ ort.env.wasm.wasmPaths = import.meta.env.DEV
 let currentSession: ort.InferenceSession | null = null;
 
 type TypedArray = Exclude<ort.Tensor.DataType, string[]>;
-
-function calculateStats(data: TypedArray): TensorStats {
-  let min = Infinity;
-  let max = -Infinity;
-  let sum = 0;
-  let hasNaN = false;
-  let hasInf = false;
-  const len = data.length;
-
-  for (let i = 0; i < len; i++) {
-    const val = Number(data[i]);
-    if (Number.isNaN(val)) {
-      hasNaN = true;
-      continue;
-    }
-    if (!Number.isFinite(val)) {
-      hasInf = true;
-    }
-    if (val < min) min = val;
-    if (val > max) max = val;
-    sum += val;
-  }
-  
-  if (min === Infinity) min = 0;
-  if (max === -Infinity) max = 0;
-
-  return {
-    min,
-    max,
-    mean: len > 0 ? sum / len : 0,
-    std: 0, // Skipping std for performance
-    hasNaN,
-    hasInf,
-  };
-}
 
 self.onmessage = async (e: MessageEvent) => {
   const { type, payload } = e.data;
@@ -124,7 +90,7 @@ self.onmessage = async (e: MessageEvent) => {
             shape: [...tensor.dims],
             type:  tensor.type,
           };
-          stats[key] = calculateStats(tensor.data);
+          stats[key] = computeStats(tensor.data);
           if (tensor && typeof (tensor as { dispose?: () => void }).dispose === 'function') {
             (tensor as { dispose: () => void }).dispose();
           }

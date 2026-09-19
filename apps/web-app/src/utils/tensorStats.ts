@@ -1,11 +1,19 @@
-import type { TensorResult, TensorStats } from '../types';
+import type { TensorStats } from '../types';
 
 /**
- * Computes min/max/mean/std/NaN/Inf statistics from a TensorResult.
- * Skips NaN and Inf values when computing numeric stats.
+ * Computes min/max/mean/std/NaN/Inf statistics over a tensor's raw buffer.
+ *
+ * NaN and Inf are recorded as flags and then excluded from every numeric result.
+ * They have to be: a single Infinity otherwise propagates through the sum and
+ * makes min, max and mean meaningless, which is the opposite of what an
+ * integrity check is for. `mean` divides by the count of values actually used,
+ * not by the buffer length.
+ *
+ * Two passes rather than Welford's — variance from a known mean is the more
+ * numerically stable of the two, and this runs inside the worker where it costs
+ * the UI thread nothing.
  */
-export function computeStats(tensor: TensorResult): TensorStats {
-  const data = tensor.data as ArrayLike<number | bigint>;
+export function computeStats(data: ArrayLike<number | bigint>): TensorStats {
   const len = data.length;
 
   if (len === 0) {

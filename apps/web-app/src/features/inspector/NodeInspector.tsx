@@ -48,7 +48,7 @@ export default function NodeInspector() {
       );
     }
 
-    const stats = inferenceStats[tensorKey] || computeStats(tensor);
+    const stats = inferenceStats[tensorKey] || computeStats(tensor.data);
     const bytes = tensorByteSize(tensor.shape, tensor.type);
     const hasIntegrityIssue = stats.hasNaN || stats.hasInf;
 
