@@ -18,5 +18,11 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Issue 003: tracing added to diagnose a hang outlived the investigation by
+      // two months. `warn` and `error` stay allowed — the worker's catch blocks
+      // log the Error object itself, which carries a stack the UI message does not.
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
   },
 ])
