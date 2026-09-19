@@ -259,3 +259,71 @@ class TestLoopOutputPromotion(unittest.TestCase):
     def test_the_saved_model_still_passes_the_checker(self):
         run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
         onnx.checker.check_model(onnx.load(self.output_path))
+
+
+class TestOpsetGate(unittest.TestCase):
+    """Issue 006. The ceiling was the literal 21, which matched neither the
+    library doing the rewriting nor the runtime doing the running."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.output_path = os.path.join(self.temp_dir, "modified.onnx")
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def _save(self, model, name="m.onnx"):
+        path = os.path.join(self.temp_dir, name)
+        onnx.save(model, path)
+        return path
+
+    def _relu_model(self, opset):
+        graph = helper.make_graph(
+            [helper.make_node('Relu', ['X'], ['Y'], name='relu')],
+            'relu_graph',
+            [helper.make_tensor_value_info('X', TensorProto.FLOAT, [1, 4])],
+            [helper.make_tensor_value_info('Y', TensorProto.FLOAT, [1, 4])],
+        )
+        return helper.make_model(graph, opset_imports=[helper.make_opsetid('', opset)])
+
+    def test_the_ceiling_is_derived_not_hard_coded(self):
+        """Regression: re-hardcoding the ceiling silently un-fixes issue 006."""
+        from app.services.surgery import MAX_SUPPORTED_OPSET
+
+        self.assertEqual(MAX_SUPPORTED_OPSET, onnx.defs.onnx_opset_version())
+
+    def test_a_model_above_the_old_literal_ceiling_is_accepted(self):
+        """Opset 22 was refused outright before; onnx models it and so can we."""
+        from app.services.surgery import MAX_SUPPORTED_OPSET
+
+        if MAX_SUPPORTED_OPSET < 22:
+            self.skipTest(f'installed onnx only models up to opset {MAX_SUPPORTED_OPSET}')
+
+        path = self._save(self._relu_model(22))
+        meta = run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
+        self.assertEqual(meta['opsetVersion'], 22)
+
+    def test_a_model_above_the_derived_ceiling_is_refused_by_number(self):
+        from app.services.surgery import MAX_SUPPORTED_OPSET
+
+        path = self._save(self._relu_model(MAX_SUPPORTED_OPSET + 1))
+        with self.assertRaises(ValueError) as ctx:
+            run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
+        self.assertIn(str(MAX_SUPPORTED_OPSET + 1), str(ctx.exception))
+        self.assertIn(str(MAX_SUPPORTED_OPSET), str(ctx.exception))
+
+    def test_shape_inference_failure_degrades_instead_of_rejecting(self):
+        """Criterion 3: a graph inference chokes on still returns metadata."""
+        graph = helper.make_graph(
+            [helper.make_node('MatMul', ['X', 'W'], ['H'], name='matmul'),
+             helper.make_node('Relu', ['H'], ['Y'], name='relu')],
+            'inconsistent',
+            [helper.make_tensor_value_info('X', TensorProto.FLOAT, [3, 4]),
+             helper.make_tensor_value_info('W', TensorProto.FLOAT, [9, 9])],
+            [helper.make_tensor_value_info('Y', TensorProto.FLOAT, [3, 9])],
+        )
+        path = self._save(helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)]))
+
+        meta = run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
+        self.assertEqual(len(meta['nodes']), 2)
+        self.assertIn('H', meta['unpromotableOutputNames'])

@@ -5,7 +5,24 @@ from onnx.external_data_helper import load_external_data_for_model
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-SUPPORTED_OPSET_RANGE = (7, 21)
+# The ceiling is whatever the installed `onnx` models, not a literal. Surgery is
+# shape inference plus graph rewriting — both are `onnx`'s job — so `onnx`'s own
+# support is the real bound on what this service can process. The previous value
+# of 21 corresponded to nothing: the pinned onnx 1.22.0 reports 27, and
+# onnxruntime-web 1.26 executes well past 21, so the gate was stricter than both
+# the library doing the work and the runtime doing the running.
+#
+# Execution is deliberately not this service's gate. A model this service can
+# rewrite but the browser cannot run fails in the browser, with a message
+# (issue 009) — which is a better outcome than refusing at upload a model the
+# client would have executed. See docs/issues/006.
+#
+# This is only meaningful because onnx is pinned; an unpinned floor would move
+# this ceiling between deploys with no commit behind it. See docs/issues/014.
+MIN_SUPPORTED_OPSET = 7
+MAX_SUPPORTED_OPSET = onnx.defs.onnx_opset_version()
+
+SUPPORTED_OPSET_RANGE = (MIN_SUPPORTED_OPSET, MAX_SUPPORTED_OPSET)
 
 # ─── ONNX elem_type → dtype string ───────────────────────────────────────────
 
@@ -64,10 +81,15 @@ def check_opset_version(model: onnx.ModelProto) -> int:
     """
     version = get_opset_version(model)
     lo, hi = SUPPORTED_OPSET_RANGE
-    if not (lo <= version <= hi):
+    if version > hi:
         raise ValueError(
-            f"Unsupported ONNX opset version: {version}. "
-            f"Supported range is opset {lo}–{hi}."
+            f"This model uses ONNX opset {version}, and this server understands "
+            f"up to opset {hi}. Re-export the model at opset {hi} or lower."
+        )
+    if version < lo:
+        raise ValueError(
+            f"This model uses ONNX opset {version}, which predates opset {lo}. "
+            f"Re-export it from a current version of your framework."
         )
     return version
 
