@@ -81,7 +81,7 @@ Follow these steps in order when starting a work session.
 
 ## 4. Session End Checklist
 
-1. **Clean Workspace:** Ensure no temporary files (like `temp_in_*`, `temp_out_*`) remain in the repository.
+1. **Clean Workspace:** Ensure `apps/backend/temp/` is empty — each request stages its upload, extracted model, and response there under a UUID directory, and every path is expected to clean up after itself.
 2. **Branch Check:** All commits must be made to the `develop` branch. Direct commits to `main` are strictly forbidden.
 3. **Commit Message:** Strictly adhere to the Conventional Commits specification (see details in `docs/guide/04_convention.md`).
 

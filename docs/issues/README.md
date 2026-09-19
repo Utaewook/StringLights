@@ -28,7 +28,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [001](./001-model-load-hang.md) | Model load hangs after graph surgery | Closed | Critical |
 | [002](./002-tensor-std-always-zero.md) | Per-node standard deviation is always reported as 0 | Closed | High |
 | [003](./003-diagnostic-console-logs.md) | Diagnostic `console.*` calls left in shipped code | Closed | Medium |
-| [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Open | Medium |
+| [004](./004-gitignore-misses-backend-temp-dir.md) | `.gitignore` no longer matches the backend temp directory | Closed | Medium |
 | [005](./005-input-tensor-dtype-mismatch.md) | Model inputs are built with TypedArrays that do not match their dtype | Closed | High |
 | [006](./006-opset-ceiling-rejects-runnable-models.md) | Opset ceiling of 21 rejects models the client could run | Open | Medium |
 | [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Closed | High |

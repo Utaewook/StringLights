@@ -10,9 +10,14 @@ env/
 htmlcov/
 
 # Temporary Surgery & Model Files
-temp_in_*
-temp_out_*
+# Every request is staged under apps/backend/temp/<uuid>/ — the uploaded zip, the
+# extracted model, and the response zip. Ignore the root rather than a filename
+# pattern: the temp_in_* / temp_out_* rules this replaces named paths the code had
+# stopped producing, and nothing noticed. A rule tied to a directory the code
+# actually reads from cannot drift the same way.
+apps/backend/temp/
 *.onnx
+*.onnx.data
 *.wasm
 
 # Node.js / Frontend
