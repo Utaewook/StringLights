@@ -20,6 +20,7 @@ tensor statistics at every step. Your model never leaves your machine.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![React](https://img.shields.io/badge/React-19-149ECA)
 ![ONNX Runtime Web](https://img.shields.io/badge/ONNX%20Runtime%20Web-1.26-005CED)
+[![Ko-fi](https://img.shields.io/badge/ko--fi-support-FF5E5B)](https://ko-fi.com/twyou)
 
 ### [Try it at string-lights.dev](https://string-lights.dev/)
 
@@ -182,6 +183,13 @@ Known limitations worth reading before you file a bug:
 
 The design system this UI follows is documented in
 [docs/design/direction.md](docs/design/direction.md).
+
+---
+
+## Support
+
+StringLights is free, runs entirely in your browser, and has no account to create.
+If it saved you an afternoon, you can [buy me a coffee](https://ko-fi.com/twyou).
 
 ---
 

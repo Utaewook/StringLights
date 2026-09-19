@@ -64,7 +64,7 @@ exclamation marks, no "Oops" — failure states are neutral and say what to do.
 
 ## What we add on top
 
-Two things the design system does not cover. Both are ours to maintain, and both follow its
+Three things the design system does not cover. All are ours to maintain, and each follows its
 existing patterns rather than inventing new ones.
 
 1. **`--success` / `--warning`.** Needed for the engine badge and tensor integrity warnings.
@@ -73,6 +73,13 @@ existing patterns rather than inventing new ones.
 2. **Graph node style.** Derived from the `Card` tokens (radius, border, surface). The
    canvas is the product, so chrome stays subordinate to it — but it is the same system,
    not an exception to it.
+3. **Anchors as buttons.** `Button` takes `asChild` so a link can wear button styling,
+   and `extensions.css` resets the underline `base.css` puts on every `a`. The system
+   does the same thing per component (`.ds-breadcrumb a`); this generalises it to
+   `a.ds-btn`. Needed because Ko-fi's script widget and CDN badge are cross-origin
+   subresources that COEP `require-corp` blocks — see
+   [ADR 0002](../decisions/0002-coep-require-corp.md). Icon is lucide, never a brand
+   asset.
 
 ## The brand mark
 
@@ -118,7 +125,7 @@ palette in both modes.
 
 | Surface | File | Design system component | Status |
 | --- | --- | --- | --- |
-| Header + engine badge | `components/layout/Header.tsx` | `Button`, `Badge` | Done |
+| Header + engine badge + Ko-fi link | `components/layout/Header.tsx` | `Button` (incl. `asChild`), `Badge` | Done |
 | Upload + run controls | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
 | Data mode switch | `features/inference/InferencePanel.tsx` | `Tabs` | Done |
 | File chips | `features/inference/InferencePanel.tsx` | Card treatment, Badge tint | Done |
