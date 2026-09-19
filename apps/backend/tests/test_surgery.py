@@ -175,3 +175,87 @@ class TestOutputPromotionSafety(unittest.TestCase):
         meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
         self.assertIn('unpromotableOutputNames', meta)
         self.assertIsInstance(meta['unpromotableOutputNames'], list)
+
+
+class TestLoopOutputPromotion(unittest.TestCase):
+    """Issue 001, second path.
+
+    A `Loop` node's output is typed by shape inference but not shaped. Promoting
+    it produced a graph the checker rejects with "Field 'shape' of 'type' is
+    required but missing" — the same message the UNDEFINED promotion produced,
+    so the same class of unloadable model, reached a different way. The model
+    itself is valid, so rejecting it outright would take a working model away
+    from the user.
+    """
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.model_path = os.path.join(self.temp_dir, "loop.onnx")
+        self.output_path = os.path.join(self.temp_dir, "modified.onnx")
+        onnx.save(self._create_loop_model(), self.model_path)
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def _create_loop_model(self):
+        body = helper.make_graph(
+            [
+                helper.make_node('Identity', ['cond_in'], ['cond_out']),
+                helper.make_node('Add', ['value_in', 'value_in'], ['value_out']),
+            ],
+            'body',
+            [
+                helper.make_tensor_value_info('iter', TensorProto.INT64, []),
+                helper.make_tensor_value_info('cond_in', TensorProto.BOOL, []),
+                helper.make_tensor_value_info('value_in', TensorProto.FLOAT, [1]),
+            ],
+            [
+                helper.make_tensor_value_info('cond_out', TensorProto.BOOL, []),
+                helper.make_tensor_value_info('value_out', TensorProto.FLOAT, [1]),
+            ],
+        )
+        graph = helper.make_graph(
+            [
+                helper.make_node('Loop', ['trip', 'cond', 'X'], ['looped'], body=body),
+                helper.make_node('Identity', ['looped'], ['Y']),
+            ],
+            'loop_graph',
+            [helper.make_tensor_value_info('X', TensorProto.FLOAT, [1])],
+            [helper.make_tensor_value_info('Y', TensorProto.FLOAT, [1])],
+            [
+                helper.make_tensor('trip', TensorProto.INT64, [], [3]),
+                helper.make_tensor('cond', TensorProto.BOOL, [], [1]),
+            ],
+        )
+        return helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)])
+
+    def test_the_fixture_is_a_valid_model(self):
+        """If this fails the test below proves nothing about surgery."""
+        onnx.checker.check_model(onnx.load(self.model_path))
+
+    def test_surgery_does_not_reject_the_model(self):
+        """Regression: this raised ValueError before the guard covered shapes."""
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+        self.assertTrue(os.path.exists(self.output_path))
+        self.assertGreater(len(meta['nodes']), 0)
+
+    def test_the_unshaped_tensor_is_reported_not_promoted(self):
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+        self.assertIn('looped', meta['unpromotableOutputNames'])
+        self.assertNotIn('looped', meta['intermediateOutputNames'])
+
+    def test_every_promoted_output_carries_a_shape(self):
+        run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+
+        model = onnx.load(self.output_path)
+        for out in model.graph.output:
+            if not out.type.HasField('tensor_type'):
+                continue
+            self.assertTrue(
+                out.type.tensor_type.HasField('shape'),
+                f'output {out.name} was promoted without a shape',
+            )
+
+    def test_the_saved_model_still_passes_the_checker(self):
+        run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+        onnx.checker.check_model(onnx.load(self.output_path))

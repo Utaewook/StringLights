@@ -207,6 +207,24 @@ def extract_graph_meta(
 
 # ─── Main surgery entrypoint ──────────────────────────────────────────────────
 
+def _is_promotable(value_info) -> bool:
+    """Whether a tensor can legally be added to graph.output.
+
+    A graph output must carry a complete type. Shape inference can return a
+    tensor type whose element type it resolved but whose shape it did not —
+    `Loop`'s output is the ordinary case, and the model itself is perfectly
+    valid — and ONNX rejects a graph output whose type has no shape, with the
+    same message the UNDEFINED promotion in issue 001 produced.
+
+    Non-tensor types (sequence, map, optional) are left to the checker: this
+    guard exists for the one case that is known to be reachable and known to
+    produce an invalid graph.
+    """
+    if not value_info.type.HasField("tensor_type"):
+        return True
+    return value_info.type.tensor_type.HasField("shape")
+
+
 def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
     """
     Loads an ONNX model, validates opset + external data requirements,
@@ -283,13 +301,15 @@ def run_graph_surgery(model_path: str, output_path: str, data_dir: str) -> dict:
                 continue
 
             value_info = value_info_map.get(out_name)
-            if value_info is None:
-                # Shape inference could not type this tensor. This used to be
-                # promoted anyway, as TensorProto.UNDEFINED with no shape, which
-                # produces a graph onnx.checker rejects and onnxruntime can stall
-                # on while creating a session — the leading suspect for the
-                # model-load hang in issue 001. Leave it out of the outputs and
-                # tell the client it exists but cannot be inspected.
+            if value_info is None or not _is_promotable(value_info):
+                # Shape inference could not produce a complete type for this
+                # tensor — either no value_info at all, or one without a shape.
+                # Both used to be promoted anyway, which produces a graph
+                # onnx.checker rejects and onnxruntime can stall on while
+                # creating a session: the model-load hang in issue 001. Leave it
+                # out of the outputs and tell the client it exists but cannot be
+                # inspected. Rejecting the tensor keeps the rest of the model
+                # usable; rejecting the model would not.
                 unpromotable_output_names.append(out_name)
                 continue
 
