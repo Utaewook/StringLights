@@ -160,7 +160,7 @@ Relu -> MaxPool -> Flatten -> Gemm -> Softmax`, float32 `[1,1,8,8]` input, about
 The canvas lays out a real graph, playback has nine steps to walk, and the inspector gets
 tensors with shapes and statistics.
 
-Stay inside the constraints the backend enforces: **opset 7-21** (see
+Stay inside the constraints the backend enforces: **opset 7 up to whatever the pinned `onnx` models** (see
 [issue 006](../issues/006-opset-ceiling-rejects-runnable-models.md)) and a **float32** input, which
 sidesteps [issue 005](../issues/005-input-tensor-dtype-mismatch.md)'s dtype bug. The frontend zips
 files client-side before `POST /api/surgery`, so a direct `curl` needs a zip under the form

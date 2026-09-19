@@ -159,14 +159,21 @@ tracked in the open — [docs/issues/](docs/issues/) is the live list.
 | --- | --- | --- |
 | Upload size | 50MB per ZIP | 512MB host, no swap headroom to spare |
 | Archive contents | Exactly one `.onnx` | Ambiguous archives are rejected rather than guessed at |
-| Opset range | 7–21 | Outside this range, surgery output is not trusted |
+| Opset range | 7 – whatever `onnx` models (27 today) | The ceiling tracks the pinned library, not a literal. Execution is the browser's limit, and it reports its own errors |
 | Concurrency | One surgery at a time | Requests queue rather than compete for memory |
 
 Known limitations worth reading before you file a bug:
 
-- [001](docs/issues/001-model-load-hang.md) — model load can hang after graph surgery
-- [005](docs/issues/005-input-tensor-dtype-mismatch.md) — some input dtypes are built incorrectly
-- [010](docs/issues/010-subgraph-nodes-never-surfaced.md) — nodes inside `If` / `Loop` / `Scan` are not surfaced
+- **Activations inside `If` / `Loop` / `Scan` are not inspectable.** The nodes appear in
+  the graph and are labelled, but a subgraph runs conditionally and its tensors do not
+  exist in the enclosing scope, so they cannot be promoted to outputs
+  ([010](docs/issues/010-subgraph-nodes-never-surfaced.md)).
+- **Dynamic axes that are not the batch axis are set to 1.** A sequence length or a
+  variable image side gets 1, the run succeeds, and nothing on screen says the number was
+  guessed ([017](docs/issues/017-non-batch-dynamic-axes-are-guessed.md)).
+- **`float16` and `string` inputs are refused rather than approximated.** Synthesising
+  half-precision values that a model will accept is not something random data can do
+  honestly ([005](docs/issues/005-input-tensor-dtype-mismatch.md)).
 
 ---
 

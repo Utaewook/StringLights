@@ -1,6 +1,6 @@
 # Opset ceiling of 21 rejects models the client could run
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-22
@@ -80,3 +80,55 @@ is needed. Deriving the bound from `onnx.defs.onnx_opset_version()` replaces the
 unexplained literal with a value that is correct by construction and tracks the installed
 package. Note that this only holds once the package is pinned — see
 [014](./014-toolchain-versions-drift.md).
+
+
+## Resolution (2026-09-19)
+
+```python
+MIN_SUPPORTED_OPSET = 7
+MAX_SUPPORTED_OPSET = onnx.defs.onnx_opset_version()
+```
+
+**Criterion 1 — the ceiling is derived.** Surgery is shape inference plus graph
+rewriting, and both are `onnx`'s job, so `onnx`'s own support is the real bound on what
+this service can process. With the pinned onnx 1.22.0 that is **27**, up from the
+literal 21.
+
+**Criterion 2 — the rationale is recorded** in a comment at the constant, including the
+part that is a deliberate choice rather than a derivation: *execution is not this
+service's gate*. A model this service can rewrite but the browser cannot run now fails
+in the browser with a message ([009](./009-worker-failures-bypass-error-channel.md))
+instead of being refused at upload. Refusing at the door is the worse outcome — it turns
+away models the client would have executed, which is the first-contact failure this
+issue was filed about.
+
+**Criterion 3 — shape inference failure already degrades** rather than rejecting.
+`run_graph_surgery` falls back to the un-inferred graph, whose tensors then have no
+`value_info` and are reported as unpromotable rather than promoted. That path is now
+covered by a test instead of being assumed.
+
+The error messages changed too. `Unsupported ONNX opset version: 22. Supported range is
+opset 7–21.` named a range without saying what to do about it; the ceiling and the floor
+now have separate messages that tell the user to re-export.
+
+This is only correct because `onnx` is pinned. An unpinned floor would move this ceiling
+between deploys with no commit behind it — the measurement in
+[014](./014-toolchain-versions-drift.md) found exactly that, with the venv reporting 26
+and the image 27.
+
+**Verified** in `build/test.Dockerfile` by `TestOpsetGate`: the ceiling equals
+`onnx.defs.onnx_opset_version()` (a regression test against re-hardcoding it), an opset
+22 model — refused outright before — is accepted, a model one above the ceiling is
+refused with both numbers in the message, and a graph shape inference chokes on returns
+metadata instead of raising. 32 tests pass under the 350m ceiling.
+
+## Documentation corrected with it
+
+`README.md` stated the range as a literal `7–21`. It now describes the ceiling as
+tracking the pinned library, and says execution is the browser's limit.
+
+The README's "known limitations" list was also pointing readers at
+[001](./001-model-load-hang.md), [005](./005-input-tensor-dtype-mismatch.md) and
+[010](./010-subgraph-nodes-never-surfaced.md) — all three closed. It now names the
+limitations that are actually current: subgraph activations cannot be inspected, non-batch
+dynamic axes are guessed, and `float16` / `string` inputs are refused.
