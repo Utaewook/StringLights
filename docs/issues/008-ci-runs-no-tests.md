@@ -118,3 +118,34 @@ the next change to it is unguarded.
 
 Installing a runner is a dependency decision and needs sign-off, which is why it
 is not done here. This issue stays Open until it is.
+
+
+## Criterion 2 met (2026-09-19)
+
+`vitest` is installed and `npm test` runs **50 tests across `src/utils/`**, wired into
+`test-and-lint` between the type-check and the backend suite. `build-and-push` and
+`deploy` both gate on that job, so a frontend logic regression now blocks the deploy the
+same way a backend one does.
+
+| file | tests | what it pins |
+| --- | --- | --- |
+| `tensorStats.test.ts` | 16 | NaN and Inf excluded from every numeric result, mean divided by the count actually used, real std, `BigInt64Array`, a 1000-element cross-check against an independently computed reference |
+| `modelInputs.test.ts` | 25 | one case per dtype asserting the exact TypedArray onnxruntime requires, `int16` two bytes wide, four unsupported dtypes refused by name, dynamic axes resolving to `[4,1,8]` not `[4,4,8]`, integers left at zero in random mode |
+| `graphLayout.test.ts` | 9 | finite positions, direction-dependent ordering and handle sides, input nodes not mutated, parallel branches separated |
+
+**These are the checks that were written twice and thrown away.** `modelInputs` was
+verified by bundling it with esbuild and running it under Node while fixing
+[005](./005-input-tensor-dtype-mismatch.md); `computeStats` the same way while fixing
+[002](./002-tensor-std-always-zero.md). Both runs proved the logic and protected nothing.
+They are now the test suite.
+
+**Mutation-checked.** Removing the `continue` that skips `Infinity` in `computeStats` —
+which is precisely the defect 002 was filed for — fails three tests and no others.
+
+## Criterion 3 not met — 008 stays Open
+
+Coverage is not reported, so the 80% target is still aspirational. That needs
+`@vitest/coverage-v8`, a second dev dependency, and this project's rules require an
+explicit approval per package. The approval given covered `vitest`. Asking for one more
+is a smaller question than it was — the runner exists and the tests are written — but it
+has not been asked yet, so the criterion is recorded as unmet rather than waved through.
