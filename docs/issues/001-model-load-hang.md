@@ -80,9 +80,75 @@ Issue [009](./009-worker-failures-bypass-error-channel.md) covers the other half
 of the symptom: the UI is no longer able to sit in a loading state forever
 regardless of what causes it.
 
+## Second path to the same invalid graph (2026-09-19)
+
+The guard added above was incomplete. It skipped a tensor when shape inference
+produced **no** `value_info`, and promoted it otherwise — but inference can also
+return a `value_info` whose element type is resolved and whose shape is not:
+
+```
+Loop output 'looped': elem_type=1  HasField(shape)=False
+```
+
+Promoting that produces the same unloadable graph, and `onnx.checker` rejects it
+with the same message as the UNDEFINED promotion:
+
+```
+Field 'shape' of 'type' is required but missing.
+```
+
+`Loop` is the ordinary case, and `onnx.checker` accepts such a model as written —
+so the defect took a **valid** model and made it unusable. After the checker was
+added in the first fix this surfaced as a `400` rather than a hang, which is an
+improvement but not what resolution criterion 2 asks for: it rejected the model,
+not the tensor.
+
+`_is_promotable` in `surgery.py` now requires a tensor type to carry a shape
+before it can become a graph output. The tensor is reported in
+`unpromotableOutputNames` and the rest of the model stays usable. Non-tensor
+types (sequence, map, optional) are left to the checker — this guard covers the
+cases known to be reachable and known to produce an invalid graph.
+
+**Verified** in `build/test.Dockerfile` by `TestLoopOutputPromotion`, five tests
+covering: the fixture is valid ONNX to begin with, surgery no longer rejects it,
+`looped` is reported rather than promoted, every promoted output carries a shape,
+and the saved model passes the checker. Mutation-checked — narrowing the guard
+back to `value_info is None` fails four of the five, and the fixture-validity
+test correctly keeps passing.
+
+## Candidate models examined (2026-09-19)
+
+Three real models were run through `run_graph_surgery` directly:
+
+| model | opset | nodes | external data | unpromotable |
+| --- | --- | --- | --- | --- |
+| `ae_model.onnx` | 20 | 10 (`Gemm`×6, `Relu`×4) | yes | 0 |
+| `gan_generator.onnx` | 20 | 5 | yes | 0 |
+| `vae_decoder.onnx` | 20 | 5 | yes | 0 |
+
+None carries the trigger. They are small MLPs whose every tensor shape inference
+types, so the pre-fix code would have produced a valid graph for them too — they
+cannot confirm or deny this issue, and the owner confirms none of them is the
+model that hung.
+
+Two synthetic reproducers were built instead and kept outside the repository, in
+the owner's `~/Desktop/models/`, with a README describing what each triggers:
+`issue001-loop-unshaped-output.onnx` (the path above) and
+`issue001-custom-domain-op.onnx` (the no-`value_info` path). The authoritative
+copies are the `onnx.helper` calls in `TestLoopOutputPromotion`.
+
 ## Why this stays Open
 
-The cause is established and the trigger is removed, but the original hang was
-never reproduced against a specific model, so the fix is not confirmed against
-one either. Closing requires loading the model that first showed the symptom and
-seeing it either load or fail with a message.
+Resolution criteria 2 and 3 are met, and criterion 4 is now unblocked — see
+below. Criterion 1 is not: the model that first showed the hang is not among the
+three examined above and has not been located, so the fix has never been
+confirmed against the failure that prompted the issue. What exists instead is a
+mechanism reproduced synthetically and fixed under test, which is weaker
+evidence and should not be recorded as the same thing.
+
+Criterion 4 (remove the diagnostic logging, tracked as
+[003](./003-diagnostic-console-logs.md)) was blocked on this issue, while 003 was
+blocked on it in turn — a deadlock in the two write-ups. Closing
+[009](./009-worker-failures-bypass-error-channel.md) broke it: worker failures
+now produce error text, so the `console.*` tracing is no longer the only
+diagnostic and can go.
