@@ -46,6 +46,10 @@ jobs:
         working-directory: apps/web-app
         run: npx tsc -b --force
 
+      - name: Run Frontend Tests
+        working-directory: apps/web-app
+        run: npm test
+
       # Run the backend suite in the same image and under the same memory
       # ceiling as production. Surgery spawns child processes and is bounded by
       # container memory; a run on the bare runner would not exercise either.

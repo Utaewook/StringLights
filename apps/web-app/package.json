@@ -8,7 +8,8 @@
     "build": "npm run copy-wasm && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "copy-wasm": "node scripts/copy-wasm.cjs"
+    "copy-wasm": "node scripts/copy-wasm.cjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@types/dagre": "^0.7.54",
@@ -34,6 +35,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^5.0.1"
   }
 }
