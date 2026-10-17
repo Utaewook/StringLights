@@ -1,6 +1,7 @@
 # Demo Recording
 
-- **Status:** Rehearsed 2026-10-17 — not yet recorded
+- **Status:** Rehearsed 2026-10-17 — recording waits on
+  [issue 020](../issues/020-replay-steps-one-node-at-a-time.md) (same-depth nodes highlight together)
 - **Owner:** @Utaewook
 - **Last updated:** 2026-10-17
 
