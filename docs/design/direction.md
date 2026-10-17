@@ -245,4 +245,5 @@ was lost, but nothing was learned from it either. That is the failure §5 exists
 
 ## Assets
 
-Screenshots, references, and mockups belong in [`./assets/`](./assets/).
+Screenshots, references, and mockups belong in [`./assets/`](./assets/). The README demo
+GIF and screenshots are planned in [`./demo-recording.md`](./demo-recording.md).
