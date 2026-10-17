@@ -76,6 +76,44 @@ describe it as concurrent execution.
    skipped rather than shown empty.
 4. The step counter, the slider range and the speed control count levels, not nodes. On
    SqueezeNet 1.1 the bar reads **50 steps**.
-5. Nodes inside control-flow subgraphs ([010](./010-subgraph-nodes-never-surfaced.md)) either
-   get a defined depth or are left out of replay, and which one is stated here on closing.
-6. No UI text, tooltip or README sentence calls same-depth nodes simultaneous or parallel.
+5. Nodes inside control-flow subgraphs ([010](./010-subgraph-nodes-never-surfaced.md)) are
+   **left out of replay**, and no code is written to do it — see *Settled before starting*
+   below. They still take part in depth numbering; criterion 3 removes the levels that
+   hold nothing else.
+6. No UI text, tooltip or README sentence calls same-depth nodes simultaneous or parallel,
+   **and the UI says positively what a step holds.** Forbidding the wrong word is not
+   enough: the unit changes from node to level with nothing on screen admitting it, and a
+   viewer who sees two nodes light at once will supply "parallel" unprompted — which is
+   the reading this criterion exists to prevent.
+
+
+## Settled before starting (2026-10-17)
+
+**Criterion 5 needs no code.** Subgraph tensors are never promoted and their names carry a
+path prefix ([010](./010-subgraph-nodes-never-surfaced.md)), while the inference output keys
+are top-level names. `setTraceData`'s existing filter — keep a node only if one of its
+outputs is a real inference output — therefore already excludes them, today, before this
+issue is touched. Leaving the decision until closing would have meant deciding something
+that was never open.
+
+They do take part in depth numbering, where an unresolved reference out to an enclosing
+tensor lands them at depth 0. That is invisible: criterion 3 drops any level with no
+traceable node, and a level holding only subgraph nodes holds none.
+
+**Depth is one pass, not a traversal.** ONNX requires the node list to be topologically
+ordered, and `run_graph_surgery` runs `onnx.checker.check_model` before saving (added for
+[001](./001-model-load-hang.md)), so the client can rely on it. A node's inputs are
+therefore always produced by nodes already seen:
+
+```
+depth(node)   = 1 + max(depth of the producers of its inputs), 0 if none
+depth(tensor) = depth of the node that produced it
+```
+
+No recursion, no work list, no cycle guard. O(V + E).
+
+**`TraceStep.outputTensorKey` is removed with this change.** It is set in `setTraceData`
+and read nowhere — `grep` across `src` finds the type declaration and the assignment and
+nothing else. What is load-bearing is the *filter* that computes it, and that stays. This
+is the same class of dead state as [019](./019-loaded-model-bytes-are-never-read.md), but
+it is removed here rather than filed, because `TraceStep` is being rewritten anyway.
