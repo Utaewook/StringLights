@@ -47,8 +47,8 @@ to a graph output, so a single run hands you every tensor in the model
 
 ## How it works in 30 seconds
 
-**1. Upload.** Zip your `.onnx` file — together with its external data files, if the
-model has any — and drop the archive in. 50MB per upload.
+**1. Upload.** Drop in your `.onnx` file — together with its external data files, if the
+model has any. 50MB per upload.
 
 **2. Inspect.** Click any node in the graph. You get its dtype and shape, plus
 min / max / mean / std over the produced tensor, and explicit `NaN` and `Inf` flags.
@@ -95,7 +95,7 @@ sequenceDiagram
     participant Client as Browser
     participant Server as FastAPI
 
-    User->>Client: Upload ZIP (.onnx + external data)
+    User->>Client: Upload .onnx (+ external data)
     Client->>Server: POST /api/surgery
     Note over Server: Serialised by Semaphore(1)<br/>50MB limit enforced at intake
     Server->>Server: Graph surgery + shape inference
@@ -157,8 +157,8 @@ tracked in the open — [docs/issues/](docs/issues/) is the live list.
 
 | Limit | Value | Why |
 | --- | --- | --- |
-| Upload size | 50MB per ZIP | 512MB host, no swap headroom to spare |
-| Archive contents | Exactly one `.onnx` | Ambiguous archives are rejected rather than guessed at |
+| Upload size | 50MB per upload, all files combined | 512MB host, no swap headroom to spare |
+| Model files | Exactly one `.onnx` per upload | Ambiguous uploads are rejected rather than guessed at |
 | Opset range | 7 – whatever `onnx` models (27 today) | The ceiling tracks the pinned library, not a literal. Execution is the browser's limit, and it reports its own errors |
 | Concurrency | One surgery at a time | Requests queue rather than compete for memory |
 
