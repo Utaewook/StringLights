@@ -1,6 +1,6 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
-  Upload, Play, Loader2, AlertCircle,
+  Upload, Play, Loader2, AlertCircle, TriangleAlert,
   FileText, Database, X, CheckCircle2,
 } from 'lucide-react';
 import { useWorker }     from '../../contexts/WorkerContext';
@@ -11,6 +11,15 @@ import { Input }  from '../../components/ui/Input';
 import { Label }  from '../../components/ui/Label';
 import { Alert }  from '../../components/ui/Alert';
 import { Tabs }   from '../../components/ui/Tabs';
+import {
+  MAX_BATCH_SIZE,
+  MAX_RUN_BYTES,
+  clampBatchSize,
+  estimateRunBytes,
+  largestFittingBatch,
+  resolveShape,
+} from '../../utils/runBudget';
+import { formatBytes } from '../../utils/tensorStats';
 import './InferencePanel.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -45,6 +54,18 @@ export default function InferencePanel() {
   const [dragOver,   setDragOver]   = useState(false);
   const [dataMode,   setDataMode]   = useState<DataMode>('zeros');
   const [batchSize,  setBatchSize]  = useState(1);
+
+  // meta.json crosses a JSON.parse boundary, so `outputs` is defended rather
+  // than trusted — an older backend would simply report no output cost.
+  const modelOutputs = useMemo(() => modelMeta?.outputs ?? [], [modelMeta]);
+  const estimate = useMemo(
+    () => (modelMeta ? estimateRunBytes(modelMeta.inputs, modelOutputs, batchSize) : null),
+    [modelMeta, modelOutputs, batchSize],
+  );
+  const fittingBatch = useMemo(
+    () => (modelMeta ? largestFittingBatch(modelMeta.inputs, modelOutputs) : 0),
+    [modelMeta, modelOutputs],
+  );
 
   // ── Derived state ──────────────────────────────────────────────────────────
   const modelFiles  = selectedFiles.filter((f) => f.role === 'model');
@@ -253,6 +274,9 @@ export default function InferencePanel() {
                 <div className="input-config-meta">
                   <span className="input-config-shape">
                     [{inp.shape.map((d) => (d === -1 ? 'N' : d)).join(', ')}]
+                    {inp.shape.includes(-1) && (
+                      <> → [{resolveShape(inp.shape, batchSize).join(', ')}]</>
+                    )}
                   </span>
                   <span className="input-config-dtype">{inp.dtype}</span>
                 </div>
@@ -276,9 +300,9 @@ export default function InferencePanel() {
                 id="batch-size"
                 type="number"
                 min={1}
-                max={512}
+                max={MAX_BATCH_SIZE}
                 value={batchSize}
-                onChange={(e) => setBatchSize(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setBatchSize(clampBatchSize(e.target.value))}
               />
             </div>
           )}
@@ -286,13 +310,36 @@ export default function InferencePanel() {
       )}
 
       {/* ── Run Inference ─────────────────────────────────────────────────── */}
-      {modelMeta && (
+      {modelMeta && estimate && (
         <section className="panel-section">
+          {estimate.withinBudget ? (
+            <p className="run-budget">
+              Returns about {formatBytes(estimate.outputBytes)} of activations
+              {/* The inputs are usually a rounding error beside the activations;
+                  printing the same figure twice reads as a mistake. */}
+              {formatBytes(estimate.totalBytes) === formatBytes(estimate.outputBytes)
+                ? '.'
+                : `, ${formatBytes(estimate.totalBytes)} in total.`}
+            </p>
+          ) : (
+            <Alert
+              variant="warning"
+              icon={<TriangleAlert aria-hidden />}
+              title="Over the memory budget"
+            >
+              This run would use {formatBytes(estimate.totalBytes)}, above the
+              {' '}{formatBytes(MAX_RUN_BYTES)} a run is allowed. Running it would
+              most likely close the tab.
+              {fittingBatch > 0
+                ? ` Batch size ${fittingBatch} fits.`
+                : ' Even batch size 1 is over budget for this model.'}
+            </Alert>
+          )}
           <Button
             id="run-inference-btn"
             className="ds-btn-block"
             onClick={() => handleRunInference(dataMode, batchSize)}
-            disabled={isLoading || !engineProvider}
+            disabled={isLoading || !engineProvider || !estimate.withinBudget}
           >
             {isInferenceRunning ? (
               <>
