@@ -62,15 +62,35 @@ export function computeStats(data: ArrayLike<number | bigint>): TensorStats {
   };
 }
 
-/** Human-readable byte size string. */
+/**
+ * Human-readable byte size string.
+ *
+ * A GB tier matters for the run budget (issue 018): the figures it refuses are
+ * exactly the ones that run off the end of a MB scale, and "13083.50 MB" is a
+ * number the reader has to divide in their head.
+ */
 export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  const KB = 1024;
+  const MB = KB * 1024;
+  const GB = MB * 1024;
+
+  if (bytes < KB) return `${bytes} B`;
+  if (bytes < MB) return `${(bytes / KB).toFixed(1)} KB`;
+  if (bytes < GB) return `${(bytes / MB).toFixed(2)} MB`;
+  return `${(bytes / GB).toFixed(2)} GB`;
 }
 
-/** Returns element byte size for a given dtype string. */
-function elementSize(dtype: string): number {
+/**
+ * Returns element byte size for a given dtype string.
+ *
+ * Exported so `runBudget.ts` sizes a run from the same table this file reports
+ * tensor sizes with. A second copy would be free to drift from this one, and the
+ * budget would then disagree with the figure shown next to the tensor.
+ *
+ * `string` is not a fixed-width dtype and falls to the default; a string tensor
+ * cannot be budgeted by element count at all.
+ */
+export function elementSize(dtype: string): number {
   switch (dtype) {
     case 'float64':
     case 'int64':

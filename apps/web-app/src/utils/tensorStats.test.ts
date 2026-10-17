@@ -96,10 +96,15 @@ describe('computeStats', () => {
 });
 
 describe('formatBytes', () => {
-  it('uses bytes, KB and MB at the right thresholds', () => {
+  it('uses bytes, KB, MB and GB at the right thresholds', () => {
     expect(formatBytes(512)).toBe('512 B');
     expect(formatBytes(1024)).toBe('1.0 KB');
     expect(formatBytes(1024 * 1024)).toBe('1.00 MB');
+    expect(formatBytes(1024 ** 3)).toBe('1.00 GB');
+  });
+
+  it('does not print a four-digit MB figure, which the budget would produce', () => {
+    expect(formatBytes(13 * 1024 ** 3)).toBe('13.00 GB');
   });
 });
 

@@ -18,9 +18,18 @@ export interface ModelInput {
   dtype: string;     // 'float32', 'int64', etc.
 }
 
+/**
+ * A promoted graph output. Structurally identical to `ModelInput` — the backend
+ * builds both from the same `ValueInfoProto` — but the role differs: the app
+ * allocates inputs and only measures outputs.
+ */
+export type ModelOutput = ModelInput;
+
 export interface ModelMeta {
   inputs: ModelInput[];
   inputNames: string[];
+  /** Shape and dtype for every promoted output, so a run can be sized first. */
+  outputs: ModelOutput[];
   outputNames: string[];
   originalOutputNames: string[];
   intermediateOutputNames: string[];

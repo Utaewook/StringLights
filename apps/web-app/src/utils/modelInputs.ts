@@ -1,4 +1,5 @@
 import type { ModelInput } from '../types';
+import { MAX_RUN_BYTES, resolveShape, tensorBytes } from './runBudget';
 
 /**
  * Builds the tensors fed to a model for a test run.
@@ -63,25 +64,10 @@ const ARRAY_BY_DTYPE: Record<string, (length: number) => InputTypedArray> = {
 
 const RANDOMISABLE_DTYPES = new Set(['float32', 'float64']);
 
-/** ~256MB as float32. Past this the tab dies before onnxruntime sees anything. */
-const MAX_ELEMENTS = 64 * 1024 * 1024;
-
 export const SUPPORTED_INPUT_DTYPES = Object.keys(ARRAY_BY_DTYPE);
 
-/**
- * Resolves dynamic axes to concrete lengths.
- *
- * Only the leading axis is treated as a batch axis, because that is the only
- * one convention lets us guess. Substituting the batch size into a sequence or
- * spatial axis — which is what this used to do for every dynamic dimension —
- * fabricates a shape the model was never exported for, and does it silently.
- * Those axes get 1, the one length that is always valid.
- */
-function resolveShape(input: ModelInput, batchSize: number): number[] {
-  return input.shape.map((dim, axis) => {
-    if (dim !== -1) return dim;
-    return axis === 0 ? batchSize : 1;
-  });
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(0)}MB`;
 }
 
 export function buildModelInputs(
@@ -90,6 +76,7 @@ export function buildModelInputs(
   batchSize: number,
 ): Record<string, BuiltInput> {
   const built: Record<string, BuiltInput> = {};
+  let allocatedBytes = 0;
 
   for (const input of inputs) {
     const createArray = ARRAY_BY_DTYPE[input.dtype];
@@ -100,7 +87,7 @@ export function buildModelInputs(
       );
     }
 
-    const shape = resolveShape(input, batchSize);
+    const shape = resolveShape(input.shape, batchSize);
     const elements = shape.reduce((total, dim) => total * dim, 1);
 
     if (!Number.isSafeInteger(elements) || elements <= 0) {
@@ -109,11 +96,16 @@ export function buildModelInputs(
           `has no usable size.`,
       );
     }
-    if (elements > MAX_ELEMENTS) {
+    // Bytes, summed across every input, rather than elements on one of them.
+    // The old check counted elements, so an int64 input bought twice the bytes a
+    // float32 one did, and it ran per input, so a model with three of them could
+    // ask for three times the limit. See docs/issues/018.
+    allocatedBytes += tensorBytes(input, batchSize);
+    if (allocatedBytes > MAX_RUN_BYTES) {
       throw new UnsupportedInputError(
-        `Input "${input.name}" would need ${elements.toLocaleString()} elements at ` +
-          `batch size ${batchSize}. That is more than this app will allocate in the ` +
-          `browser — try a smaller batch size.`,
+        `The inputs for this model need ${formatMegabytes(allocatedBytes)} at batch ` +
+          `size ${batchSize}, above the ${formatMegabytes(MAX_RUN_BYTES)} budget for a ` +
+          `run — try a smaller batch size.`,
       );
     }
 
