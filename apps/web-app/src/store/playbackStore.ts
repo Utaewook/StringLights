@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { OnnxNode, TraceStep } from '../types';
+import { buildReplaySteps } from '../utils/replaySteps';
 
 interface PlaybackState {
   isActive: boolean;
@@ -34,13 +35,8 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
   _timerId: null,
 
   setTraceData: (outputKeys, nodes) => {
-    const valid = new Set(outputKeys);
-    const trace: TraceStep[] = nodes
-      .map((node) => {
-        const key = node.outputs.find((k) => valid.has(k));
-        return key ? { nodeName: node.name, outputTensorKey: key } : null;
-      })
-      .filter((s): s is TraceStep => s !== null);
+    // One step per dependency depth, not per node — see docs/issues/020.
+    const trace: TraceStep[] = buildReplaySteps(nodes, outputKeys);
 
     set({
       isActive: true,
@@ -83,7 +79,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
         set({
           isPlaying: false,
           currentStep: state.totalSteps - 1,
-          activeNodeNames: last ? new Set([last.nodeName]) : new Set(),
+          activeNodeNames: last ? new Set(last.nodeNames) : new Set(),
           stepNonce: state.stepNonce + 1,
           _timerId: null,
         });
@@ -93,7 +89,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
       const trace = state.traceData[nextStep];
       set({
         currentStep: nextStep,
-        activeNodeNames: trace ? new Set([trace.nodeName]) : state.activeNodeNames,
+        activeNodeNames: trace ? new Set(trace.nodeNames) : state.activeNodeNames,
         stepNonce: state.stepNonce + 1,
       });
 
@@ -140,7 +136,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     set({
       isPlaying: false,
       currentStep: nextStep,
-      activeNodeNames: trace ? new Set([trace.nodeName]) : new Set(),
+      activeNodeNames: trace ? new Set(trace.nodeNames) : new Set(),
       stepNonce: stepNonce + 1,
       _timerId: null,
     });
@@ -156,7 +152,7 @@ export const usePlaybackStore = create<PlaybackState>((set, get) => ({
     set({
       isPlaying: false,
       currentStep: clamped,
-      activeNodeNames: trace ? new Set([trace.nodeName]) : new Set(),
+      activeNodeNames: trace ? new Set(trace.nodeNames) : new Set(),
       stepNonce: stepNonce + 1,
       _timerId: null,
     });
