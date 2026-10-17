@@ -186,6 +186,7 @@ All commits must strictly adhere to the Conventional Commits specification.
 *   **main Branch:** Reserved exclusively for finalized, production-ready code. Commits are pushed to `main` only when release elements are confirmed.
 *   **develop Branch:** All active development, code revisions, and feature edits are conducted on this branch.
 *   **Archiving Branches & Tags:** For large-scale or structural updates, or when keeping a snapshot of a major product version, use dedicated archiving branches (e.g., `legacy-v1`) and Git tags.
+*   **Release Tags:** Annotated, `vMAJOR.MINOR.PATCH`, on `main`, applied **after** the deploy succeeds. The same version is set in `apps/backend/app/main.py` and `apps/web-app/package.json` in the release commit — see [05_deployment.md](./05_deployment.md) §4 for the full procedure and why all three move together.
 *   **Merge Policy:** When development for a release is complete, merge changes from `develop` into `main`.
 
 ### Rule 3: Dependency Installation Limit

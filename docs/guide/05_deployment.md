@@ -133,7 +133,48 @@ the entire site down at once.
 
 ---
 
-## 4. Rollback
+## 4. Releases and Tags
+
+A deploy and a release are not the same event. Every push to `main` deploys; a
+release is the subset worth being able to name and return to.
+
+Tags are annotated, `vMAJOR.MINOR.PATCH`, and live on `main`. The history is
+`v1.0-legacy`, `v2.0.0`–`v2.0.3`, `v2.1.0`, `v2.2.0`.
+
+**Three places carry the version and all three move together.** They drifted
+once — the tags reached `v2.1.0` while `main.py` still said `2.0.0` and
+`package.json` had never left `0.0.0`, and the FastAPI figure is served to users
+in `/docs` and the OpenAPI schema.
+
+| Where | What |
+| --- | --- |
+| `apps/backend/app/main.py` | `FastAPI(..., version=...)` |
+| `apps/web-app/package.json` | `"version"` |
+| git | the annotated tag on `main` |
+
+Procedure:
+
+1. On `develop`, bump both version strings and commit them with the release.
+2. Push `develop` and let CI pass. The deploy gates on that job, so a red run
+   here is a release that would have failed in production.
+3. Fast-forward `main` to `develop` and push. This triggers the deploy.
+4. Tag the `main` commit, annotated, and push the tag:
+   ```bash
+   git tag -a v2.2.0 -m "<what this release contains>"
+   git push origin v2.2.0
+   ```
+5. Confirm the deploy's health gate passed and the site serves the new build.
+
+Tag **after** the deploy succeeds, not before. A tag on a commit that failed to
+deploy names a release that never existed.
+
+Two deploys — 2026-09-14 and 2026-09-19 — went out untagged because this was
+remembered rather than written down. They are not tagged retroactively: a tag is
+a decision to mark a release, and inventing that boundary afterwards would record
+a decision nobody made. Their images remain addressable in GHCR under their
+`sha-` tags, which is what a rollback actually uses.
+
+## 5. Rollback
 
 Every release stays addressable in GHCR under its `sha-<short>` tag. Rolling back
 is one variable:
@@ -163,7 +204,7 @@ rollback was deferred.
 
 ---
 
-## 5. Next Documents
+## 6. Next Documents
 *   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
 *   [Project Overview (01_project_overview.md)](./01_project_overview.md)
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)

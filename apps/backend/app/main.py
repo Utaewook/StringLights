@@ -18,7 +18,7 @@ from app.services.isolation import (
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="StringLights Backend", version="2.0.0")
+app = FastAPI(title="StringLights Backend", version="2.2.0")
 
 # Serialises graph surgery. The bound that matters is the *container's* 350M
 # (build/docker-compose.yml), not the host's 512MB — the host also carries the
