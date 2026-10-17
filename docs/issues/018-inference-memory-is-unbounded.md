@@ -87,3 +87,120 @@ once the whole tab is gone.
 Transferring buffers instead of copying them in `postMessage` would lower the
 cost of every run, and is worth doing alongside, but it is not a bound and does
 not meet any criterion above.
+
+## Design (2026-10-17)
+
+### Measured first
+
+A VGG-shaped CNN was built to put numbers on the output side — four
+`Conv -> Relu -> MaxPool` stages on `[N, 3, 224, 224]`, then
+`GlobalAveragePool -> Flatten`. 14 nodes, **940 KB on disk**, because the weights
+are small and the activations are not.
+
+| batch | input | activations returned | ratio |
+| --- | --- | --- | --- |
+| 1 | 0.6 MB | **25.0 MB** | 43.5x |
+| 8 | 4.6 MB | **199.8 MB** | 43.5x |
+| 32 | 18.4 MB | **799.3 MB** | 43.5x |
+
+The input is 150,528 elements per batch item, so the current `MAX_ELEMENTS`
+ceiling of 67,108,864 admits **batch 445** — about **11 GB** of returned
+activations, each buffer existing roughly three times over. The existing limit
+does not merely measure the wrong side; at this shape it does not bind at all.
+
+The three real models in the owner's `~/Desktop/models/` show the same asymmetry
+in miniature: output-to-input ratios of 102.8x (`gan_generator`) and 257.0x
+(`vae_decoder`). The ratio is a property of the model, not a constant, which is
+why criterion 3 is a prerequisite rather than a convenience — the client cannot
+guess it.
+
+### The budget: 512 MB of returned tensors, fixed
+
+```ts
+/** Total bytes of inputs plus returned activations for one run. */
+const MAX_RUN_BYTES = 512 * 1024 * 1024;
+```
+
+Each tensor exists about three times: built on the main thread, copied into the
+worker, and copied again into onnxruntime's WASM heap. 512 MB of tensors is
+therefore roughly 1.5 GB of real footprint, which is near what a tab can carry
+without being killed.
+
+**Fixed rather than derived from `navigator.deviceMemory`.** A device-derived
+budget would admit larger batches on larger machines, and would make the same
+model, at the same batch size, succeed for one person and fail for another. For
+a debugging tool, a bug report that cannot be reproduced on a colleague's laptop
+costs more than the batches the fixed number turns away. `deviceMemory` is also
+Chrome-only and clamped to 8, so it is a coarse hint rather than a measurement.
+
+The number is a stated budget, not a prediction. Its job is to turn a silent tab
+death into a sentence.
+
+### Over budget: refuse, and say which batch size fits
+
+Total bytes are affine in the batch size — each output contributes
+`width x (product of its non-batch dims) x (batch, if it has a batch axis)` — so
+
+```
+bytes(batch) = fixed + perItem * batch
+largestFittingBatch = floor((MAX_RUN_BYTES - fixed) / perItem)
+```
+
+is exact, not a search. The run is blocked and the UI states the estimate, the
+budget, and the batch size that fits:
+
+```
+This run would return 2.4 GB of activations, above the 512 MB budget.
+Batch size 6 fits (480 MB).
+```
+
+Refusing rather than warning: a killed tab loses the loaded model, the graph, and
+every activation already inspected. "Run anyway" offers the user a choice whose
+downside is losing all their work, with no way to know in advance which side of
+the line their machine sits on.
+
+Showing the estimate is not only for the refusal — **it is displayed for every
+run**, which is also the cheap half of
+[017](./017-non-batch-dynamic-axes-are-guessed.md): once the resolved shapes are
+on screen, a dynamic axis that was guessed as 1 is visible rather than silent.
+
+### Changes
+
+| criterion | change | where |
+| --- | --- | --- |
+| 3 | `extract_graph_meta` gains `outputs: [{name, dtype, shape}]`, built from `graph.output` with the existing `_get_tensor_meta` | `apps/backend/app/services/surgery.py` |
+| 1 | `MAX_BATCH_SIZE` constant shared with the input's `max` attribute; `onChange` clamps both ends and guards `NaN` | `features/inference/InferencePanel.tsx` |
+| 2 | `MAX_ELEMENTS` replaced by a byte budget summed across all inputs, using each dtype's width | `utils/modelInputs.ts` |
+| 4 | `estimateRunBytes(inputs, outputs, batchSize)` and `largestFittingBatch(...)` | new `utils/runBudget.ts` |
+| 4 | the estimate rendered beside the batch control; run disabled when over | `features/inference/InferencePanel.tsx` |
+| 5 | tests for 1, 2 and 4 | `src/utils/*.test.ts` |
+
+Criterion 3 is close to free. Each entry in `graph.output` is a `ValueInfoProto`
+already carrying `elem_type` and `shape` — surgery promotes those very objects —
+so the same `_get_tensor_meta` the inputs use applies unchanged. Tensors that
+could not be promoted are absent from `graph.output`, so they are excluded
+without a special case.
+
+Criterion 2's input budget stays inside `modelInputs.ts` even though criterion 4
+covers inputs too. That module is the one that allocates; it has to bound itself
+regardless of what its caller checked.
+
+### Also in scope: transferring instead of copying
+
+`postMessage` is called eight times across `ort-worker.ts` and
+`WorkerContext.tsx`, none with a transfer list. The worker-to-main post of every
+activation (`ort-worker.ts:100`) is the largest copy in the system, and the
+worker discards those buffers immediately afterwards, so detaching them is safe.
+
+This is not a bound and meets no criterion above. It is included because it
+touches the same two files as the budget work and halves the cost of every run
+that the budget admits.
+
+### Not in scope
+
+Reducing what surgery returns — streaming activations, returning them on demand,
+or promoting a subset. That would revisit
+[ADR 0001](../decisions/0001-promote-all-intermediate-outputs.md), whose trade
+(one round trip per model, every activation in hand) is deliberate and not what
+this issue disputes. This issue bounds the cost of that trade; it does not
+renegotiate it.
