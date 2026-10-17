@@ -249,7 +249,16 @@ export function WorkerProvider({ children }: { children: React.ReactNode }) {
     }
 
     useUIStore.getState().addToast('Inference started', 'info');
-    workerRef.current.postMessage({ type: 'RUN', payload: { inputs } });
+
+    // Inputs are allocated by buildModelInputs just above and referenced
+    // nowhere else, so their buffers are transferred rather than copied. The
+    // LOAD message deliberately does not do this: its bytes are also handed to
+    // the model store, and detaching them there would be a silent corruption.
+    const transfer = Object.values(inputs)
+      .map((input) => input.data.buffer)
+      .filter((buffer): buffer is ArrayBuffer => buffer instanceof ArrayBuffer);
+
+    workerRef.current.postMessage({ type: 'RUN', payload: { inputs } }, { transfer });
   };
 
   return (

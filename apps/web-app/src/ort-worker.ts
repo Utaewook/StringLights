@@ -97,7 +97,34 @@ self.onmessage = async (e: MessageEvent) => {
           }
         }
 
-        self.postMessage({ type: 'RUN_SUCCESS', outputs: serializableOutputs, stats });
+        // Transfer the activation buffers rather than copying them. Surgery
+        // returns every intermediate tensor, so this is the largest copy in the
+        // system, and the worker drops its references immediately after posting.
+        //
+        // Three conditions, each excluding a buffer that must not be detached:
+        // a SharedArrayBuffer (onnxruntime's WASM heap is one when threading is
+        // on), a view that does not own its whole buffer (detaching would take
+        // its siblings with it), and a buffer already in the list (transferring
+        // the same one twice throws). Anything excluded is copied as before —
+        // slower, still correct.
+        const transfer: ArrayBuffer[] = [];
+        for (const key of Object.keys(serializableOutputs)) {
+          const view = serializableOutputs[key].data;
+          const buffer = view.buffer;
+          if (
+            buffer instanceof ArrayBuffer &&
+            view.byteOffset === 0 &&
+            view.byteLength === buffer.byteLength &&
+            !transfer.includes(buffer)
+          ) {
+            transfer.push(buffer);
+          }
+        }
+
+        self.postMessage(
+          { type: 'RUN_SUCCESS', outputs: serializableOutputs, stats },
+          { transfer },
+        );
       } catch (error) {
         const err = error as Error;
         console.error('Inference run failed:', err);
