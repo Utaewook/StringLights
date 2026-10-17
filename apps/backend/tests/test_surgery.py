@@ -327,3 +327,93 @@ class TestOpsetGate(unittest.TestCase):
         meta = run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
         self.assertEqual(len(meta['nodes']), 2)
         self.assertIn('H', meta['unpromotableOutputNames'])
+
+
+class TestOutputMetadata(unittest.TestCase):
+    """Issue 018, criterion 3. The client cannot size a run without knowing the
+    shape and dtype of what the run will return."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.model_path = os.path.join(self.temp_dir, "m.onnx")
+        self.output_path = os.path.join(self.temp_dir, "modified.onnx")
+
+        graph = helper.make_graph(
+            [helper.make_node('Relu', ['X'], ['h'], name='relu'),
+             helper.make_node('Cast', ['h'], ['Y'], to=TensorProto.DOUBLE, name='cast')],
+            'meta_graph',
+            [helper.make_tensor_value_info('X', TensorProto.FLOAT, [1, 4])],
+            [helper.make_tensor_value_info('Y', TensorProto.DOUBLE, [1, 4])],
+        )
+        onnx.save(
+            helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)]),
+            self.model_path,
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir)
+
+    def test_every_promoted_output_carries_shape_and_dtype(self):
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+
+        self.assertIn('outputs', meta)
+        by_name = {o['name']: o for o in meta['outputs']}
+        self.assertEqual(sorted(by_name), sorted(meta['outputNames']))
+        for entry in meta['outputs']:
+            self.assertIn('shape', entry)
+            self.assertIn('dtype', entry)
+
+    def test_dtypes_are_per_output_not_copied_from_the_input(self):
+        """A width-based budget is wrong if every output reads float32."""
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+
+        by_name = {o['name']: o for o in meta['outputs']}
+        self.assertEqual(by_name['h']['dtype'], 'float32')
+        self.assertEqual(by_name['Y']['dtype'], 'float64')
+
+    def test_shapes_are_reported_per_output(self):
+        meta = run_graph_surgery(self.model_path, self.output_path, data_dir=self.temp_dir)
+
+        for entry in meta['outputs']:
+            self.assertEqual(entry['shape'], [1, 4])
+
+    def test_a_dynamic_batch_axis_survives_as_minus_one(self):
+        graph = helper.make_graph(
+            [helper.make_node('Relu', ['X'], ['Y'], name='relu')],
+            'dyn',
+            [helper.make_tensor_value_info('X', TensorProto.FLOAT, ['N', 8])],
+            [helper.make_tensor_value_info('Y', TensorProto.FLOAT, ['N', 8])],
+        )
+        path = os.path.join(self.temp_dir, 'dyn.onnx')
+        onnx.save(helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)]), path)
+
+        meta = run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
+
+        self.assertEqual(meta['outputs'][0]['shape'], [-1, 8])
+
+    def test_unpromotable_tensors_are_absent_from_outputs(self):
+        """They are not in graph.output, so they must not appear here either."""
+        body = helper.make_graph(
+            [helper.make_node('Identity', ['cond_in'], ['cond_out']),
+             helper.make_node('Add', ['value_in', 'value_in'], ['value_out'])],
+            'body',
+            [helper.make_tensor_value_info('iter', TensorProto.INT64, []),
+             helper.make_tensor_value_info('cond_in', TensorProto.BOOL, []),
+             helper.make_tensor_value_info('value_in', TensorProto.FLOAT, [1])],
+            [helper.make_tensor_value_info('cond_out', TensorProto.BOOL, []),
+             helper.make_tensor_value_info('value_out', TensorProto.FLOAT, [1])])
+        graph = helper.make_graph(
+            [helper.make_node('Loop', ['trip', 'cond', 'X'], ['looped'], body=body),
+             helper.make_node('Identity', ['looped'], ['Y'])],
+            'loop', [helper.make_tensor_value_info('X', TensorProto.FLOAT, [1])],
+            [helper.make_tensor_value_info('Y', TensorProto.FLOAT, [1])],
+            [helper.make_tensor('trip', TensorProto.INT64, [], [3]),
+             helper.make_tensor('cond', TensorProto.BOOL, [], [1])])
+        path = os.path.join(self.temp_dir, 'loop.onnx')
+        onnx.save(helper.make_model(graph, opset_imports=[helper.make_opsetid('', 17)]), path)
+
+        meta = run_graph_surgery(path, self.output_path, data_dir=self.temp_dir)
+
+        names = {o['name'] for o in meta['outputs']}
+        self.assertIn('looped', meta['unpromotableOutputNames'])
+        self.assertNotIn('looped', names)

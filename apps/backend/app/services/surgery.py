@@ -210,12 +210,28 @@ def extract_graph_meta(
     original_output_set = set(original_output_names)
     intermediate_output_names = [n for n in output_names if n not in original_output_set]
 
+    # Shape and dtype for every promoted output, so the client can size a run
+    # before starting it — see docs/issues/018. These are the same ValueInfoProto
+    # objects surgery promoted, so the information is already on them; tensors
+    # that could not be promoted are absent from graph.output and so are
+    # excluded without a special case.
+    #
+    # An elem_type outside ELEM_TYPE_TO_STR reads as float32, which overstates
+    # the width of every narrower type. For a budget that is the safe direction:
+    # the estimate is conservative rather than optimistic.
+    outputs = []
+    for out in graph.output:
+        if out.name:
+            meta = _get_tensor_meta(out)
+            outputs.append({"name": out.name, "shape": meta["shape"], "dtype": meta["dtype"]})
+
     nodes = collect_nodes(graph)
     subgraph_node_count = sum(1 for node in nodes if node.get("subgraph"))
 
     return {
         "inputs":                   inputs,
         "inputNames":               input_names,
+        "outputs":                  outputs,
         "outputNames":              output_names,
         "originalOutputNames":      list(original_output_names),
         "intermediateOutputNames":  intermediate_output_names,
