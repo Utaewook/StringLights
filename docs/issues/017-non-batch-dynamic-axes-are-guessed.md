@@ -1,6 +1,6 @@
 # Non-batch dynamic axes are guessed as 1
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Bug
 - **Found:** 2026-08-30
@@ -55,3 +55,27 @@ Either:
 
 (b) is the real fix and needs UI. (a) is cheap and removes the silence, which is
 the part that actually misleads.
+
+
+## Resolution (2026-10-17)
+
+Criterion (a). The resolved shape is shown beside the declared one for every input that
+has a dynamic axis, and it updates with the batch size:
+
+```
+input   [N, 3, 224, 224] -> [32, 3, 224, 224]   float32
+```
+
+A sequence or spatial axis resolved to 1 is now a number on the screen rather than an
+assumption the user cannot see. That is the part this issue called misleading — the
+guess itself was always the least bad option available.
+
+It arrived alongside [018](./018-inference-memory-is-unbounded.md), which had to resolve
+shapes anyway to size a run; `resolveShape` moved into `utils/runBudget.ts` so the
+display, the estimate and the allocation all read the same function. Covered by
+`runBudget.test.ts`, including `[-1, -1, 8]` at batch 4 resolving to `[4, 1, 8]` and not
+`[4, 4, 8]`.
+
+**(b) is still the real fix and is not done.** Letting the user set each dynamic axis
+needs UI this issue does not justify on its own. Closed on (a) because (a) is what the
+resolution criteria asked for, and the silence — not the guess — was the defect.

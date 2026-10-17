@@ -126,7 +126,7 @@ palette in both modes.
 | Surface | File | Design system component | Status |
 | --- | --- | --- | --- |
 | Header + engine badge + Ko-fi link | `components/layout/Header.tsx` | `Button` (incl. `asChild`), `Badge` | Done |
-| Upload + run controls | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
+| Upload + run controls, run budget | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
 | Data mode switch | `features/inference/InferencePanel.tsx` | `Tabs` | Done |
 | File chips | `features/inference/InferencePanel.tsx` | Card treatment, Badge tint | Done |
 | Sidebar (explorer) | `components/layout/Sidebar.tsx` | sidebar tokens | Done |

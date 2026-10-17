@@ -41,8 +41,9 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [014](./014-toolchain-versions-drift.md) | Toolchain versions drift between local, Docker, and CI | Closed | Medium |
 | [015](./015-tls-renewal-has-no-working-path.md) | TLS certificate renewal has no working path | Closed | Critical |
 | [016](./016-deploys-cannot-be-rolled-back.md) | Deploys cannot be rolled back | Closed | High |
-| [017](./017-non-batch-dynamic-axes-are-guessed.md) | Non-batch dynamic axes are guessed as 1 | Open | Medium |
-| [018](./018-inference-memory-is-unbounded.md) | Inference memory is bounded only per input, and not at all on the output side | Open | High |
+| [017](./017-non-batch-dynamic-axes-are-guessed.md) | Non-batch dynamic axes are guessed as 1 | Closed | Medium |
+| [018](./018-inference-memory-is-unbounded.md) | Inference memory is bounded only per input, and not at all on the output side | Closed | High |
+| [019](./019-loaded-model-bytes-are-never-read.md) | The uploaded model is kept in the store and never read | Open | Low |
 
 ## Template
 

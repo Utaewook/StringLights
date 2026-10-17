@@ -1,6 +1,6 @@
 # Inference memory is bounded only per input, and not at all on the output side
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** High
 - **Track:** Bug
 - **Found:** 2026-09-21
@@ -204,3 +204,79 @@ or promoting a subset. That would revisit
 (one round trip per model, every activation in hand) is deliberate and not what
 this issue disputes. This issue bounds the cost of that trade; it does not
 renegotiate it.
+
+
+## Resolution (2026-10-17)
+
+All five criteria met.
+
+**1. The batch size is clamped in code.** `clampBatchSize` in `utils/runBudget.ts`
+bounds both ends and returns 1 for anything that is not a finite number — `Number('')`
+is `NaN`, which the previous `Math.max(1, …)` returned unchanged. It lives in `utils/`
+rather than in the panel so criterion 5 can cover it.
+
+**2. The input limit is a byte budget summed over all inputs.** `MAX_ELEMENTS` is gone.
+`buildModelInputs` accumulates `tensorBytes` across every input and refuses once the
+total passes the budget, so neither a wider dtype nor a second input buys more than the
+documented figure.
+
+**3. Metadata carries shape and dtype for every promoted output.** `extract_graph_meta`
+returns `outputs: [{name, dtype, shape}]`, built with the same `_get_tensor_meta` the
+inputs use — each entry in `graph.output` is a `ValueInfoProto` surgery promoted, so the
+information was already there. Unpromotable tensors are absent from `graph.output` and so
+are excluded without a special case.
+
+**4. The run is sized before it starts.** `estimateRunBytes` sums inputs and outputs at
+the chosen batch size against `MAX_RUN_BYTES = 512MB`. The estimate is displayed for
+every run; over budget, the run is disabled and the panel names the batch size that
+fits. `largestFittingBatch` solves rather than searches: total bytes are affine in the
+batch size, so measuring at 1 and 2 gives the per-item cost.
+
+The budget and its rationale are in the constant's doc comment. Fixed rather than
+derived from `navigator.deviceMemory`, because a device-derived limit would make the
+same model at the same batch size succeed for one person and fail for another, and an
+irreproducible report costs a debugging tool more than the batches a fixed number turns
+away.
+
+**5. Covered by tests.** `utils/runBudget.test.ts`, 20 cases: the clamp at both ends and
+on `NaN`/`Infinity`/fractions, per-dtype widths, summation across inputs, the budget
+boundary exactly at the limit, and `largestFittingBatch` against a fixed part, an
+over-budget single item, and the batch ceiling. The frontend suite is 70 tests over four
+files; the backend suite is 43, five of them `TestOutputMetadata`.
+
+### Verified in the browser
+
+Local stack, real model and a purpose-built CNN:
+
+```
+ae_model.onnx, batch 1      Returns about 4.0 KB of activations.
+budget-cnn.onnx, batch 1    Returns about 24.98 MB of activations, 25.55 MB in total.
+budget-cnn.onnx, batch 20   511.07 MB in total      run enabled
+budget-cnn.onnx, batch 32   817.72 MB               run disabled, "Batch size 20 fits."
+typed 99999                 clamped to 512
+```
+
+The 817.72 MB the client estimates at batch 32 matches the figure measured
+independently on the backend (799.3 MB of activations plus 18.4 MB of input).
+
+Inference was run with the transfer list in place and the activations arrive intact:
+across a `Relu` boundary, `min` clamps to exactly 0, `max` is unchanged, `mean` rises
+and `std` falls. A detached or truncated buffer could not produce that.
+
+### Also done: transferring instead of copying
+
+The worker-to-main post of every activation now transfers its buffers. Three conditions
+guard the list, each excluding a buffer that must not be detached: a `SharedArrayBuffer`
+(onnxruntime's WASM heap is one when threading is on), a view that does not own its whole
+buffer, and a buffer already listed. Anything excluded is copied as before.
+
+The `LOAD` message deliberately still copies. Its bytes are also handed to the model
+store, and detaching them there would corrupt it silently.
+
+### Found while fixing, not fixed
+
+`modelStore.loadedModelBytes` is written and never read. It holds the entire uploaded
+model — up to 50MB — for the life of the session with no consumer. That is a memory
+problem of the same family as this issue but not one of its criteria, and removing state
+is not a change to fold into a fix. Filed separately as
+[019](./019-loaded-model-bytes-are-never-read.md).

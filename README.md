@@ -169,8 +169,9 @@ Known limitations worth reading before you file a bug:
   exist in the enclosing scope, so they cannot be promoted to outputs
   ([010](docs/issues/010-subgraph-nodes-never-surfaced.md)).
 - **Dynamic axes that are not the batch axis are set to 1.** A sequence length or a
-  variable image side gets 1, the run succeeds, and nothing on screen says the number was
-  guessed ([017](docs/issues/017-non-batch-dynamic-axes-are-guessed.md)).
+  variable image side gets 1. The resolved shape is shown beside the declared one before
+  a run, so the guess is visible, but you cannot yet choose the length
+  ([017](docs/issues/017-non-batch-dynamic-axes-are-guessed.md)).
 - **`float16` and `string` inputs are refused rather than approximated.** Synthesising
   half-precision values that a model will accept is not something random data can do
   honestly ([005](docs/issues/005-input-tensor-dtype-mismatch.md)).
