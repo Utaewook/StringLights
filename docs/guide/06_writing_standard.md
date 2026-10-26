@@ -179,6 +179,7 @@ When you change most of a document, rewrite all of it.
 | `docs/design/direction.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/0001-promote-all-intermediate-outputs.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/0002-coep-require-corp.md` | Rewritten in ASD-STE100 |
+| `docs/decisions/0003-adopt-shadcn-design-system.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/README.md` | Rewritten in ASD-STE100 |
 | `docs/guide/01_project_overview.md` | Rewritten in ASD-STE100 |
 | `docs/guide/02_terminology.md` | Rewritten in ASD-STE100 |
