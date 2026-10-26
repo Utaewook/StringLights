@@ -1,18 +1,17 @@
-# 0002. Enable cross-origin isolation via COEP `require-corp`
+# 0002. Enable cross-origin isolation with COEP `require-corp`
 
 - **Status:** Accepted
-- **Date:** 2026-08-22 (documents behaviour introduced in commit `b2c2ffa`)
+- **Date:** 2026-08-22. This ADR records the behavior that commit `b2c2ffa` added.
 
 ## Context
 
-`onnxruntime-web` runs multithreaded WASM, which needs `SharedArrayBuffer`. Browsers only
-expose `SharedArrayBuffer` to a cross-origin isolated document. Without it, inference
-falls back to single-threaded WASM and gets substantially slower.
+`onnxruntime-web` runs WASM with multiple threads. WASM with threads needs `SharedArrayBuffer`.
+Browsers give `SharedArrayBuffer` only to a document that is cross-origin isolated.
+Without `SharedArrayBuffer`, inference uses WASM with one thread, and it becomes much slower.
 
 ## Decision
 
-Nginx serves the frontend with both isolation headers
-(`build/nginx/nginx.conf`):
+Nginx serves the frontend with the two isolation headers (`build/nginx/nginx.conf`):
 
 ```nginx
 add_header Cross-Origin-Opener-Policy  "same-origin"  always;
@@ -21,44 +20,43 @@ add_header Cross-Origin-Embedder-Policy "require-corp" always;
 
 ## Consequences
 
-### What this buys
+### Advantages
 
-- `SharedArrayBuffer` is available, so WASM multithreading works and the WASM fallback
-  path stays usable rather than being unbearably slow.
+- `SharedArrayBuffer` is available. Thus, WASM with threads works.
+  The WASM fallback stays usable. Without threads, it would be too slow to use.
 
-### What this costs
+### Disadvantages
 
-Under `require-corp`, **every cross-origin subresource must opt in** with a
-`Cross-Origin-Resource-Policy` header or a successful CORS fetch. Anything that does not
-is blocked by the browser. Concretely:
+With `require-corp`, **each cross-origin subresource must permit the load**.
+A subresource permits the load with a `Cross-Origin-Resource-Policy` header or with a successful CORS fetch.
+The browser blocks each subresource that does not permit the load.
+These are the specific results:
 
-- **Third-party embedded widgets do not work.** Anything iframe-based — donation
-  widgets, embedded forms — is blocked unless it also sends the isolation headers, which
-  such services generally do not.
-- **Externally hosted analytics scripts are not safe to assume.** They load only if the
-  provider serves CORP or CORS correctly; this must be verified per provider rather than
-  taken for granted.
-- Remote images, fonts, and CDN scripts are subject to the same rule.
+- **Embedded widgets from third parties do not work.** The browser blocks each widget in an iframe, for example a donation widget or an embedded form.
+  The only exception is a widget that also sends the isolation headers. These services usually do not send them.
+- **You cannot assume that an analytics script from an external host loads.**
+  It loads only if the provider serves CORP or CORS correctly.
+  Verify this for each provider. Do not assume that it is correct.
+- The same rule applies to remote images, fonts, and CDN scripts.
 
-### Working within it
+### How to prevent these blocks
 
-- Link out with a plain `<a href>` instead of embedding a widget. Navigation is not a
-  subresource, so it is unaffected.
-- Serve analytics same-origin — self-host, or proxy the script through Nginx.
-- Keep assets local. The build already copies ORT's `.wasm` and `.mjs` files into the
-  app's own origin.
+- Use a plain `<a href>` link instead of an embedded widget.
+  A navigation is not a subresource, so the rule does not apply to it.
+- Serve analytics from the same origin. Host the script yourself, or proxy it through Nginx.
+- Keep the assets local. The build already copies the `.wasm` and `.mjs` files of `onnxruntime-web` to the origin of the app.
 
-## Alternatives considered
+## Other options
 
-- **Drop cross-origin isolation.** Restores third-party embeds, but forces
-  single-threaded WASM for every user without WebGPU. Rejected: the fallback path is the
-  one that most needs the performance.
-- **`COEP: credentialless`.** Relaxes the requirement for no-cors subresources, but
-  browser support is uneven and it does not fix iframes. Worth revisiting if a specific
-  embed becomes necessary.
+- **Remove cross-origin isolation.** Embeds from third parties then work again.
+  But each user without WebGPU must use WASM with one thread.
+  The project rejected this option. The WASM fallback is the path that needs the performance most.
+- **`COEP: credentialless`.** This option makes the rule less strict for no-cors subresources.
+  But browser support for it is not consistent, and it does not correct the problem with iframes.
+  Examine this option again if a specific embed becomes necessary.
 
 ## Open questions
 
-- Does cross-origin isolation survive putting a CDN in front of the origin? Any
-  script-injecting optimisation feature is a candidate for breaking it, and this should
-  be verified before launch rather than after.
+- Does cross-origin isolation continue to work if the project puts a CDN in front of the origin?
+  Each optimization feature that adds scripts to the page can possibly cause it to fail.
+  Verify this before the launch, not after the launch.
