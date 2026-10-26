@@ -12,7 +12,8 @@
 
 StringLights re-exports every intermediate node as a model output, runs the model
 in your browser, and replays the forward pass one node at a time — with per-node
-tensor statistics at every step. Your model never leaves your machine.
+tensor statistics at every step. The server only rewrites your model: it never runs it,
+and it deletes it as soon as the response is sent.
 
 [![CI](https://github.com/Utaewook/StringLights/actions/workflows/deploy.yml/badge.svg)](https://github.com/Utaewook/StringLights/actions/workflows/deploy.yml)
 [![Live](https://img.shields.io/badge/live-string--lights.dev-4f46e5)](https://string-lights.dev/)
@@ -186,6 +187,7 @@ Known limitations worth reading before you file a bug:
 | [Terminology](docs/guide/02_terminology.md) | Graph surgery, web inference, fallback badge |
 | [Architecture](docs/guide/03_architecture.md) | Full request and data flow |
 | [Conventions](docs/guide/04_convention.md) | Branches, commits, coding rules |
+| [Deployment](docs/guide/05_deployment.md) | Runtime topology, CI pipeline, certificates, releases |
 | [Writing standard](docs/guide/06_writing_standard.md) | Writing rules for documents and replies (ASD-STE100) |
 | [Decisions](docs/decisions/) | ADRs — the trade-offs, not just the outcome |
 | [Issues](docs/issues/) | Open problems, with severity and status |
@@ -197,7 +199,7 @@ The design system this UI follows is documented in
 
 ## Support
 
-StringLights is free, runs entirely in your browser, and has no account to create.
+StringLights is free, runs your model in your browser, and has no account to create.
 If it saved you an afternoon, you can [buy me a coffee](https://ko-fi.com/twyou).
 
 ---
