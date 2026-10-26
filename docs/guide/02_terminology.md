@@ -111,3 +111,4 @@ In this project, the word "backend" means the server only.
 - [Architecture and data flow (03_architecture.md)](./03_architecture.md)
 - [Coding rules (04_convention.md)](./04_convention.md)
 - [Deployment and certificate lifecycle (05_deployment.md)](./05_deployment.md)
+- [Writing standard (06_writing_standard.md)](./06_writing_standard.md)

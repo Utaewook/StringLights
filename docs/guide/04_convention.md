@@ -135,3 +135,4 @@ All commits must strictly adhere to the Conventional Commits specification.
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
 *   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
 *   [Deployment & Certificate Lifecycle (05_deployment.md)](./05_deployment.md)
+*   [Writing Standard (06_writing_standard.md)](./06_writing_standard.md)

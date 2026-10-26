@@ -216,3 +216,4 @@ rollback was deferred.
 *   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
 *   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
 *   [AI Coding Rules (04_convention.md)](./04_convention.md)
+*   [Writing Standard (06_writing_standard.md)](./06_writing_standard.md)
