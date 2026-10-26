@@ -46,10 +46,16 @@ test-and-lint  ──▶  build-and-push  ──▶  deploy
  (all triggers)     (push to main)      (push to main)
 ```
 
-**`test-and-lint`** — installs the frontend with `npm ci`, runs ESLint, type-checks
-with `tsc -b`, then builds `build/test.Dockerfile` and runs the backend suite
-inside it under the production memory ceiling. This is the only job that runs on
-`develop` and on pull requests, and everything downstream gates on it.
+**`test-and-lint`** — This job does these steps:
+
+1. It installs the frontend dependencies with `npm ci`. Then it runs ESLint.
+2. It type-checks the frontend with `tsc -b --force`.
+3. It runs the frontend tests (Vitest) with `npm test`.
+4. It builds `build/test.Dockerfile` and runs the backend tests in that image.
+   The tests run with the memory limit of production.
+
+This job is the only job that runs on `develop` and on pull requests.
+The other jobs start only if this job passes.
 
 **`build-and-push`** — builds both images and pushes each under two tags:
 `:latest`, a moving convenience pointer, and `:sha-<short>`, an immutable handle
