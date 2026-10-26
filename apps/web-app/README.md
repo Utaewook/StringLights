@@ -33,7 +33,7 @@ Use Node 20 or later. Run these commands in this directory.
 | `src/styles/ds/` | The vendored design system. See [its README](src/styles/ds/README.md). |
 | `src/types/` | The shared TypeScript types. |
 
-## Rules
+## Documents to read before a change
 
 Read these documents before you change the frontend:
 
