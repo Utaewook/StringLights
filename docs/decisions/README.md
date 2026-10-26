@@ -1,10 +1,10 @@
 # Architecture Decision Records
 
-One file per decision that is hard to reverse. An ADR records **the trade-off that was
-accepted**, not just the outcome — the outcome is already visible in the code.
+Each file in this directory records one decision that is difficult to reverse.
+An ADR records the trade-off that the project accepted. The code already shows the result.
 
-An ADR is written once and then left alone. If a decision is later changed, write a new
-ADR and mark the old one `Superseded by NNNN`.
+Write an ADR one time. Then do not change it.
+If the project changes the decision, write a new ADR. Then set the status of the old ADR to `Superseded by NNNN`.
 
 ## Status values
 
@@ -19,6 +19,17 @@ ADR and mark the old one `Superseded by NNNN`.
 | [0003](./0003-adopt-shadcn-design-system.md) | Adopt the Shadcn design system wholesale for the web app | Accepted |
 
 ## Template
+
+Write the ADR in ASD-STE100 English. See [`../guide/06_writing_standard.md`](../guide/06_writing_standard.md).
+
+| Section | Contents |
+| --- | --- |
+| Context | The problem, and the facts that were true at the time of the decision |
+| Decision | The choice, in one or two sentences |
+| What this buys | The advantages of the choice |
+| What this costs | The disadvantages that the project accepts |
+| Alternatives considered | The other choices, and the reason that the project did not select them |
+| Open questions | The questions that the decision does not answer |
 
 ```markdown
 # NNNN. <Decision in one line>
