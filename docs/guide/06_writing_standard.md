@@ -160,7 +160,7 @@ If you change the session brief, keep the two marker comments around it.
 
 ---
 
-## 5. Existing documents
+## 5. Documents written before this standard
 
 Many documents were written before this standard.
 When you change one of these documents, rewrite the sections that you change.
