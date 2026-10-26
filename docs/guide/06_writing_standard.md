@@ -176,6 +176,7 @@ When you change most of a document, rewrite all of it.
 | `docs/guide/01_project_overview.md` | Rewritten in ASD-STE100 |
 | `docs/guide/02_terminology.md` | Rewritten in ASD-STE100 |
 | `docs/guide/03_architecture.md` | Rewritten in ASD-STE100 |
+| `docs/guide/04_convention.md` | Rewritten in ASD-STE100 |
 | `docs/guide/06_writing_standard.md` | Written in ASD-STE100 |
 | `docs/issues/README.md` | Rewritten in ASD-STE100 |
 | All other documents | Not rewritten |
