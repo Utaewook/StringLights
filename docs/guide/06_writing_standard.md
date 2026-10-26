@@ -171,6 +171,7 @@ When you change most of a document, rewrite all of it.
 | `CLAUDE.md` | Rewritten in ASD-STE100 |
 | `README.md` | Rewritten in ASD-STE100 |
 | `apps/web-app/README.md` | Written in ASD-STE100 |
+| `apps/web-app/src/styles/ds/README.md` | Rewritten in ASD-STE100 |
 | `docs/README.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/README.md` | Rewritten in ASD-STE100 |
 | `docs/guide/01_project_overview.md` | Rewritten in ASD-STE100 |

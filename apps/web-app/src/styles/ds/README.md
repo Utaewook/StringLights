@@ -1,35 +1,40 @@
 # Vendored design system
 
-Tokens from the **Shadcn** design system (shadcn/ui `radix-nova` style, neutral base),
-adopted by [ADR 0003](../../../../docs/decisions/0003-adopt-shadcn-design-system.md).
+This directory contains the tokens and the styles of the **Shadcn** design system.
+The style is shadcn/ui `radix-nova`, with the neutral base color.
+[ADR 0003](../../../../docs/decisions/0003-adopt-shadcn-design-system.md) records the decision.
 
-| | |
+| Item | Value |
 | --- | --- |
 | Source | claude.ai/design project `Shadcn` |
 | Project id | `3e9943b6-fb13-4931-bb8e-09f11a035088` |
-| How to read the source | The `DesignSync` tool — `list_files`, then `get_file` |
+| How to read the source | The `DesignSync` tool: `list_files`, then `get_file` |
 | Vendored on | 2026-08-22 |
 
-This is a **copy**, not a dependency. It does not update itself. Re-syncing is a
-deliberate act through `DesignSync`, not `npm update`.
+This directory is a **copy**, not a dependency. It does not update itself.
+To synchronize it again, use `DesignSync`. Do not use `npm update`.
 
-## What is here
+## Contents
 
-`tokens/` is verbatim from the source, with two deliberate reductions:
+`tokens/` is the same as the source, with one reduction:
 
-- `tokens/themes.css` carries **only `theme-indigo`**. The source ships fifteen accent
-  themes; this product uses one. Pull another with `DesignSync` if the accent is revisited.
-`styles/base.css` and `styles/components.css` are vendored verbatim. `components.css` is
-the plain-CSS port of every component in the system, including ones this app does not use
-— keeping it whole is what makes a re-sync a copy rather than a merge.
+- `tokens/themes.css` contains **only `theme-indigo`**. The source has fifteen accent themes, but this product uses one. If the accent changes, get the other theme with `DesignSync`.
 
-`extensions.css` is **ours**, not the source's: the `--ds-success` / `--ds-warning` tokens
-the design system does not define, the badge and alert variants built on them, and one
-layout utility. Keep it separate so a re-sync never has to merge it. It is imported last
-so its component variants land after the styles they extend.
+`styles/base.css` and `styles/components.css` are the same as the source.
+`components.css` is the plain CSS of all components in the system. It also contains the components that this app does not use.
+Keep the file complete. Then a new synchronization is a copy, not a merge.
 
-## What is not here
+`extensions.css` is **ours**. It is not part of the source. It contains these items:
 
-`../bridge.css` — the temporary mapping from the legacy `App.css` variables onto these
-tokens. It is application code, not design system code, and it is meant to shrink to
-nothing. See its header comment.
+- the `--ds-success` and `--ds-warning` tokens, which the design system does not define,
+- the badge variants and the alert variant for these tokens,
+- one layout utility (`.ds-btn-block`),
+- a reset for links with button styles (`a.ds-btn`). See the "What we add on top" section of [`direction.md`](../../../../docs/design/direction.md).
+
+Keep `extensions.css` separate. Then a new synchronization does not have to merge it.
+`index.css` imports it last. Thus, its component variants come after the styles that they extend.
+
+## Items outside this directory
+
+`../bridge.css` is a temporary map from the old `App.css` variables to these tokens.
+It is application code, not design system code. The project wants to make it empty and delete it. See the comment at the top of the file.
