@@ -12,10 +12,14 @@ The backend hosting server runs on an entry-level AWS Lightsail instance, which 
 *   **ONNX Upload Limit:** Uploads are capped at **50MB measured on the compressed archive**. What it expands into is bounded separately during extraction — see [issue 007](../issues/007-zip-extraction-has-no-size-limit.md).
 
 ## 3. Technology Stack
-*   **Backend:** Python 3, FastAPI, `onnx` (For graph manipulation/surgery only. Never import or run `onnxruntime` on the server to maintain stability)
-*   **Frontend:** HTML5, CSS (Vanilla CSS), JavaScript/TypeScript (React), `onnxruntime-web` (WebGPU / WASM fallback structure)
-    *   *UI/UX Reference:* Refer to the `legacy-v1` branch for the interface design, styles, and dashboard layout references to ensure continuity.
-*   **Infra:** Docker (Lightweight FastAPI container + Nginx proxy server)
+*   **Backend:** Python 3.12 or later, FastAPI, and `onnx`.
+    *   The backend uses `onnx` only for Graph Surgery.
+    *   Do not import or run `onnxruntime` on the server.
+*   **Frontend:** React and TypeScript with Vite, and `onnxruntime-web` (WebGPU, with a WASM fallback).
+    *   The styles are plain CSS. The design system is in `src/styles/ds/` ([ADR 0003](../decisions/0003-adopt-shadcn-design-system.md)).
+    *   **Visual design:** Use [`docs/design/direction.md`](../design/direction.md) and ADR 0003. Do not use the palette or the typography of the `legacy-v1` branch.
+    *   **Interaction and structure:** Use the `legacy-v1` branch only to learn the components, the state, and the failure states of the old UI.
+*   **Infrastructure:** Docker, with a small FastAPI container and an Nginx proxy.
 
 ## 4. Version Control & Open Source Policy
 *   **Git:** Track all configuration and code changes using Git. Follow Conventional Commits convention.
