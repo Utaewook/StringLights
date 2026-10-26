@@ -82,7 +82,7 @@ sequenceDiagram
     end
 
     Client->>Client: Run the InferenceSession in the Web Worker
-    Client->>User: Show the graph, the tensor statistics, and the replay
+    Client->>User: Show the graph, the tensor statistics, and the playback
 ```
 
 ---
