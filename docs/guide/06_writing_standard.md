@@ -169,6 +169,7 @@ When you change most of a document, rewrite all of it.
 | Document | Status |
 | --- | --- |
 | `CLAUDE.md` | Rewritten in ASD-STE100 |
+| `README.md` | Rewritten in ASD-STE100 |
 | `docs/README.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/README.md` | Rewritten in ASD-STE100 |
 | `docs/guide/02_terminology.md` | Rewritten in ASD-STE100 |
