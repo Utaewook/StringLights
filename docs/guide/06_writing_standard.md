@@ -174,6 +174,7 @@ When you change most of a document, rewrite all of it.
 | `apps/web-app/src/components/ui/README.md` | Rewritten in ASD-STE100 |
 | `apps/web-app/src/styles/ds/README.md` | Rewritten in ASD-STE100 |
 | `docs/README.md` | Rewritten in ASD-STE100 |
+| `docs/design/demo-recording.md` | Rewritten in ASD-STE100 |
 | `docs/design/direction.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/README.md` | Rewritten in ASD-STE100 |
 | `docs/guide/01_project_overview.md` | Rewritten in ASD-STE100 |
