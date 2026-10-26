@@ -192,8 +192,6 @@ Read these known limits before you report a bug:
   length gets 1. Before a run, the app shows the resolved shape beside the declared shape.
   Thus, you can see the guess. You cannot select the length yet
   ([017](docs/issues/017-non-batch-dynamic-axes-are-guessed.md)).
-- **The app refuses `float16` and `string` inputs.** It does not approximate them. Issue
-  [005](docs/issues/005-input-tensor-dtype-mismatch.md) gives the reason.
 
 ---
 
