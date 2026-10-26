@@ -141,7 +141,7 @@ Write each commit message in the Conventional Commits format.
 ---
 
 ## 4. Next documents
-*   [CLAUDE.md (session rules and trigger routing)](../../CLAUDE.md)
+*   [CLAUDE.md (session rules and the documents to read before a change)](../../CLAUDE.md)
 *   [Project overview (01_project_overview.md)](./01_project_overview.md)
 *   [Terminology (02_terminology.md)](./02_terminology.md)
 *   [Architecture and data flow (03_architecture.md)](./03_architecture.md)

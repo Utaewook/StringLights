@@ -22,7 +22,7 @@ All text in this file obeys ASD-STE100. See [docs/guide/06_writing_standard.md](
 
 ---
 
-## 2. Trigger Routing
+## 2. Documents to Read Before a Change
 
 > Before you change a path or a file in this table, read the document in the second column. That document gives the architecture contract.
 
@@ -40,7 +40,7 @@ All text in this file obeys ASD-STE100. See [docs/guide/06_writing_standard.md](
 
 ---
 
-## 2-1. Documentation Map
+## 2-1. Where to Write Each Document
 
 > Each document has one location only. See `docs/README.md` for the full contract.
 

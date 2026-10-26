@@ -40,7 +40,7 @@ The backend runs on a small AWS Lightsail instance. The instance has very little
 
 ## 5. Next documents
 
-- [CLAUDE.md (session rules and trigger routing)](../../CLAUDE.md)
+- [CLAUDE.md (session rules and the documents to read before a change)](../../CLAUDE.md)
 - [Terminology (02_terminology.md)](./02_terminology.md)
 - [Architecture and data flow (03_architecture.md)](./03_architecture.md)
 - [Coding rules (04_convention.md)](./04_convention.md)

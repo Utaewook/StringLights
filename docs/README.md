@@ -48,6 +48,6 @@ Then the links from commits and ADRs continue to work.
 
 ## Related
 
-- [`../CLAUDE.md`](../CLAUDE.md): session rules and trigger routing
+- [`../CLAUDE.md`](../CLAUDE.md): session rules and the documents to read before a change
 - [`guide/04_convention.md`](./guide/04_convention.md): coding and Git conventions
 - [`guide/06_writing_standard.md`](./guide/06_writing_standard.md): writing rules (ASD-STE100)
