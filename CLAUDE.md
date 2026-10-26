@@ -28,9 +28,11 @@ All text in this file obeys ASD-STE100. See [docs/guide/06_writing_standard.md](
 
 | Path or file | Document to read first | Notes and constraints |
 | --- | --- | --- |
-| `apps/backend/app/services/**` (graph manipulation) | `docs/guide/03_architecture.md` | **Do not run ONNX inference on the server.** Use `Semaphore(1)` for Graph Surgery. |
-| `apps/backend/app/main.py` (API entry point) | `docs/guide/01_project_overview.md` | **The upload limit is 50MB.** If an upload is larger, return `400 Bad Request` immediately. |
-| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | Run `InferenceSession` in a Web Worker. Call `release()` on the session to free its memory. |
+| `apps/backend/app/services/**` (Graph Surgery and extraction) | `docs/guide/03_architecture.md`, then section 1 of `docs/guide/04_convention.md` | **Do not run ONNX inference on the server.** Run Graph Surgery only through `run_surgery_isolated`, in a child process. Extract an upload only with `extract_bounded`. |
+| `apps/backend/app/main.py` (API entry point) | Section 1 of `docs/guide/04_convention.md` | **The upload limit is 50MB.** If an upload is larger, return `400 Bad Request` immediately. Apply `Semaphore(1)` to the Graph Surgery endpoint. Do not import `onnx` in this file or in a module that it imports. |
+| `apps/web-app/src/ort-worker.ts` (inference worker) | Section 2 of `docs/guide/04_convention.md` | Release the old session before you load a new model. Dispose of the tensors after each run. Try WebGPU and WASM in separate calls. |
+| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | This file sends the model and the inputs to the worker. Keep `session.run` in the worker, not in this file. |
+| `apps/web-app/src/utils/**` (pure functions) | The `*.test.ts` file beside the module | The tests give the expected behavior. They run with Vitest (`npm test`). If you change the behavior of a module, update its test. |
 | `apps/web-app/src/**` (frontend UI) | `docs/design/direction.md` | Obey the UI/UX direction. If WebGPU is not available, use WASM and show the status badge. |
 | `build/**` (Docker and Nginx configuration) | `docs/guide/05_deployment.md` | The document gives the runtime topology, the pipeline, and the certificate lifecycle. **Do not redirect `/.well-known/acme-challenge/`.** If you redirect it, TLS renewal fails and no error shows. |
 | Git branches, tags, and commits | `docs/guide/04_convention.md` | Use the Conventional Commits format and the branch strategy. |
@@ -80,6 +82,7 @@ Do these steps in sequence at the start of a work session.
 
 - [ ] **No backend inference:** Do not import or run `onnxruntime` in the backend. Use only `onnx` for graph manipulation.
 - [ ] **Strict queue:** Apply `asyncio.Semaphore(1)` to the Graph Surgery API endpoints. This limits the concurrency to one request.
+- [ ] **Child process for surgery:** Run Graph Surgery only through `run_surgery_isolated`. Do not import `onnx` in `app/main.py` or in a module that it imports.
 - [ ] **50MB upload limit:** Apply a strict limit of 50MB to each upload on the backend.
 - [ ] **Resource cleanup:** Each request must delete its temporary directory.
   - On the error path, delete the directory immediately.
