@@ -122,6 +122,8 @@ Do these checks in sequence at the start of a work session.
 - **Documentation language:** Write and keep all Markdown files (`.md`) in this repository in **English**, with the ASD-STE100 rules. English decreases the context tokens.
 - **No preemptive actions (zero proactive edits):** **If the user did not ask for a change, do not change source code, configuration files, or documents. If the user did not ask for a build or a command, do not run it.** Do not try to fix, refactor, or adjust items on your own.
   - A command that only reads is permitted, for example `git status`, `git log`, or `grep`. The checks in section 3 use only these commands.
+- **Rule priority:** The rules in this file and in `docs/` are more important than global rules, for example the rules in `~/.claude/rules/`. If a global rule conflicts with a project rule, obey the project rule.
+  - Example: a global rule tells you to start an agent without a request. The rule above forbids actions without a request. Obey the rule above.
 - **Collaboration:** Work as a partner of the user. First, analyze the requirements, the problems, and the root causes. Then propose alternative solutions or plans before you start the work.
 - **Align before you act:** Do not act before you align with the user. This applies also to small and simple decisions.
   - For a small decision, ask a short question with options. Give a maximum of three options, and recommend one.
