@@ -1,116 +1,136 @@
 # CLAUDE.md
 
-This file serves as the **Trigger Router and Unified Guidelines Document** for AI assistants (Claude Code, Antigravity, etc.) operating in this repository.
-It is loaded automatically at the start of each session. Detailed architectural concepts are delegated to `docs/*.md`, while this file provides a Single Source of Truth (SoT) for operational procedures and rules.
+This file gives the rules for AI assistants (Claude Code, Antigravity, and others) in this repository.
+The assistant loads this file automatically at the start of each session.
+This file gives the operating procedures and sends each task to the correct document.
+The documents in `docs/` give the details of the architecture.
+
+All text in this file obeys ASD-STE100. See [docs/guide/06_writing_standard.md](docs/guide/06_writing_standard.md).
 
 ---
 
 ## 1. Runtime and Development Environment
 
-- **Backend (`apps/backend`):** Python 3.12+ (FastAPI).
-  - Dependencies: `requirements.txt` (`pip install -r requirements.txt`).
-  - Run command: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
-- **Frontend (`apps/web-app`):** Node 20+ (React, TS, Vite).
-  - Dependencies: `package.json` (`npm install`).
-  - Run command: `npm run dev` (Default port: `5173` or `3000`).
-- **Production (`build`):** Docker & Nginx.
-  - Build/Run: Operates based on `docker-compose.yml` and `Dockerfile` in the `/build` directory.
+- **Backend (`apps/backend`):** Python 3.12 or later, with FastAPI.
+  - To install the dependencies, run `pip install -r requirements.txt`.
+  - To start the server, run `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`.
+- **Frontend (`apps/web-app`):** Node 20 or later, with React, TypeScript, and Vite.
+  - To install the dependencies, run `npm install`.
+  - To start the server, run `npm run dev`. The default port is `5173` or `3000`.
+- **Production (`build`):** Docker and Nginx.
+  - The `docker-compose.yml` file and the Dockerfiles in `/build` control the build and the runtime.
 
 ---
 
 ## 2. Trigger Routing
 
-> Before modifying any of the paths/files below, **you must read the designated document first** to verify the architectural contracts.
+> Before you change a path or a file in this table, read the document in the second column. That document gives the architecture contract.
 
-| Target Path/File | Document to Read First | Notes / Core Constraints |
+| Path or file | Document to read first | Notes and constraints |
 | --- | --- | --- |
-| `apps/backend/app/services/**` (Graph manipulation) | `docs/guide/03_architecture.md` | **Strictly NO ONNX inference on the server**. Apply `Semaphore(1)` for Graph Surgery. |
-| `apps/backend/app/main.py` (API Entry Point) | `docs/guide/01_project_overview.md` | **Strict 50MB upload limit**. Instantly return `400 Bad Request` if exceeded. |
-| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | Run `InferenceSession` inside Web Worker. Ensure explicit `release()` of session memory. |
-| `apps/web-app/src/**` (Frontend UI modification) | `docs/design/direction.md` | Follow the agreed UI/UX direction. Fallback to WASM if WebGPU is unsupported, and show the status badge. |
-| `build/**` (Docker & Nginx configuration) | `docs/guide/05_deployment.md` | Runtime topology, pipeline, and certificate lifecycle. **Never redirect `/.well-known/acme-challenge/`** — it breaks TLS renewal silently. |
-| Git branches, tags, and commits | `docs/guide/04_convention.md` | Adhere to Conventional Commits format and branch strategy. |
+| `apps/backend/app/services/**` (graph manipulation) | `docs/guide/03_architecture.md` | **Do not run ONNX inference on the server.** Use `Semaphore(1)` for Graph Surgery. |
+| `apps/backend/app/main.py` (API entry point) | `docs/guide/01_project_overview.md` | **The upload limit is 50MB.** If an upload is larger, return `400 Bad Request` immediately. |
+| `apps/web-app/src/contexts/WorkerContext.tsx` | `docs/guide/03_architecture.md` | Run `InferenceSession` in a Web Worker. Call `release()` on the session to free its memory. |
+| `apps/web-app/src/**` (frontend UI) | `docs/design/direction.md` | Obey the UI/UX direction. If WebGPU is not available, use WASM and show the status badge. |
+| `build/**` (Docker and Nginx configuration) | `docs/guide/05_deployment.md` | The document gives the runtime topology, the pipeline, and the certificate lifecycle. **Do not redirect `/.well-known/acme-challenge/`.** If you redirect it, TLS renewal fails and no error shows. |
+| Git branches, tags, and commits | `docs/guide/04_convention.md` | Use the Conventional Commits format and the branch strategy. |
+| Each `*.md` file, and each reply to the user | `docs/guide/06_writing_standard.md` | Write Markdown in ASD-STE100 English. Write replies in Korean with the project rules for Korean. |
 
 ---
 
 ## 2-1. Documentation Map
 
-> Every artifact has exactly one home. See `docs/README.md` for the full contract.
+> Each document has one location only. See `docs/README.md` for the full contract.
 
-| Directory | Holds | Write here when |
+| Directory | Contents | Write here when |
 | --- | --- | --- |
-| `docs/guide/` | Settled norms (overview, terminology, architecture, conventions, deployment) | A rule is confirmed and stable |
-| `docs/decisions/` | ADRs — a choice plus its trade-offs | Making a hard-to-reverse decision |
-| `docs/issues/` | Open problems, flat files with a `Status` field | A defect or gap is found |
-| `docs/history/` | Post-mortems of **resolved** problems | An issue is closed |
-| `docs/design/` | UI/UX direction, references, mockups | Shaping look and feel |
+| `docs/guide/` | Approved and stable rules (overview, terminology, architecture, conventions, deployment, writing standard) | A rule is approved and stable |
+| `docs/decisions/` | ADRs. Each ADR gives a decision and its trade-offs. | You make a decision that is difficult to reverse |
+| `docs/issues/` | Open problems. Each problem has one file with a `Status` field. | You find a defect or a gap |
+| `docs/history/` | Post-mortems of problems that are **resolved** | You close an issue |
+| `docs/design/` | UI/UX direction, references, and mockups | You change the appearance of the UI |
 
-**All `.md` files in this repository are English-only** (see §5). Discuss in Korean, commit in English.
+**Write all `.md` files in this repository in English, with the ASD-STE100 rules** (see section 5). Speak with the user in Korean. Write commits in English.
 
 ---
 
-## 3. Session Start 3-Step Checklist
+## 3. Session Start Checklist
 
-Follow these steps in order when starting a work session.
+Do these steps in sequence at the start of a work session.
 
-### Step 1: Verify Git State and Sync (on `develop` branch)
-1. Ensure you are on the `develop` branch and sync with the remote repository.
+### Step 1: Examine the Git state and synchronize the `develop` branch
+
+1. Make sure that the current branch is `develop`. Then synchronize it with the remote repository.
    ```bash
    git status
    git pull origin develop
    ```
-2. Review the last 3-5 commits to understand recent progress.
+2. Read the last 3 to 5 commits to learn the recent progress.
    ```bash
    git log -n 5 --oneline
    ```
-3. Ensure no temporary files or orphaned processes are left in the workspace.
+3. Make sure that the workspace has no temporary files and no processes without an owner.
 
-### Step 2: Verify Local Development Environment
-1. Check/activate Python virtual environment (`venv`) for backend, and verify port `8000`.
-2. Check frontend dependencies (`npm install`) and verify port `5173`/`3000`.
+### Step 2: Examine the local development environment
 
-### Step 3: Core Constraints Self-Check
-- [ ] **No Backend Inference:** Never import or execute `onnxruntime` in the backend. Only use `onnx` for graph manipulation.
-- [ ] **Strict Queueing:** Apply `asyncio.Semaphore(1)` to Graph Surgery API endpoints to limit concurrency.
-- [ ] **50MB Upload Limit:** Enforce strict 50MB file size limit on backend uploads.
-- [ ] **Resource Cleanup:** Every request must destroy its temp directory. On the error path, clean up immediately; on the success path, defer cleanup to `BackgroundTasks` so `FileResponse` can finish streaming first. Never use a bare `finally` — it deletes the payload before the client receives it.
-- [ ] **Frontend Memory Management:** Call `release()` on the existing `InferenceSession` before loading a new model, and explicitly dispose/nullify unused tensors.
-- [ ] **WebGPU Fallback Badge:** Display the "WASM Mode — Performance May Be Degraded" badge in the UI if WebGPU fails.
+1. For the backend, make sure that the Python virtual environment (`venv`) is active. Make sure that port `8000` is available.
+2. For the frontend, make sure that the dependencies are installed (`npm install`). Make sure that port `5173` or `3000` is available.
+
+### Step 3: Check the core constraints
+
+- [ ] **No backend inference:** Do not import or run `onnxruntime` in the backend. Use only `onnx` for graph manipulation.
+- [ ] **Strict queue:** Apply `asyncio.Semaphore(1)` to the Graph Surgery API endpoints. This limits the concurrency to one request.
+- [ ] **50MB upload limit:** Apply a strict limit of 50MB to each upload on the backend.
+- [ ] **Resource cleanup:** Each request must delete its temporary directory.
+  - On the error path, delete the directory immediately.
+  - On the success path, use `BackgroundTasks` to delete the directory. Then `FileResponse` can complete the stream first.
+  - Do not use a bare `finally` block. It deletes the file before the client receives it.
+- [ ] **Frontend memory management:** Before you load a new model, call `release()` on the current `InferenceSession`. Dispose of each tensor that you do not use, or set it to null.
+- [ ] **WebGPU fallback badge:** If WebGPU fails, show the badge `WASM Mode — Performance May Be Degraded` in the UI.
+- [ ] **Writing standard:** Write each reply and each document with the rules in `docs/guide/06_writing_standard.md`. The first reply of the session also obeys these rules.
 
 ---
 
 ## 4. Session End Checklist
 
-1. **Clean Workspace:** Ensure `apps/backend/temp/` is empty — each request stages its upload, extracted model, and response there under a UUID directory, and every path is expected to clean up after itself.
-2. **Branch Check:** All commits must be made to the `develop` branch. Direct commits to `main` are strictly forbidden.
-3. **Commit Message:** Strictly adhere to the Conventional Commits specification (see details in `docs/guide/04_convention.md`).
+1. **Clean workspace:** Make sure that `apps/backend/temp/` is empty. Each request puts its upload, its extracted model, and its response in a UUID directory there. Each path must delete its own files.
+2. **Branch check:** Make all commits on the `develop` branch. Do not commit directly to `main`.
+3. **Commit message:** Use the Conventional Commits specification. See `docs/guide/04_convention.md` for the details.
 
 ---
 
-## 5. AI Assistant Specific Rules (Mandatory)
+## 5. Rules for the AI Assistant (Mandatory)
 
-- **Thinking Language:** Perform all reasoning/thinking in **English**.
-- **Response Language:** Reply to the user **only in Korean** using a polite and structured tone.
-- **Documentation Language:** All markdown documentation (.md files) in the repository must be written and maintained strictly in **English** to conserve context tokens.
-- **Strict No-Preemptive-Action Principle (Zero Proactive Edits):**
-  **Do NOT proactively modify any source code, configuration files, or documents, and do NOT execute builds or commands unless the user has explicitly requested it.** You must not attempt to fix, refactor, or adjust anything preemptively on your own.
-- **Collaborative Co-working Mindset:**
-  Act as a collaborative partner. Thoroughly analyze user requirements, problems, and root causes first, and propose alternative solutions/plans before taking action.
-- **Active Grilling (Resolve Ambiguity First):**
-  Even for minor, trivial, or simple decisions, do not act preemptively. Proactively propose and utilize the `/grill-me` process to align with the user and verify designs before writing any code.
-- **Style Reference:**
-  Visual language — colour, type, spacing, elevation, motion — is defined by the design system (`docs/design/direction.md`, and [ADR 0003](docs/decisions/0003-adopt-shadcn-design-system.md)). Do **not** inherit `legacy-v1`'s palette or typography.
-  Still check the `legacy-v1` branch before generating UI components, but for **interaction and structure**: which components existed, what state they carried, and which failure states were already handled. It is the record of what this product has already learned, not a style guide.
-- **No Unauthorized Installs:** Do not install any external libraries, packages, or frameworks unless during initial setup or explicitly approved by the user.
-- **Atomic Commits:** Commit code in small, functional, and self-contained units. Do not bundle multiple features or bug fixes into a single commit.
-- **Git History Honesty:** If you make a mistake (e.g., bundled commits, syntax errors), do not hide it using force-push (`git push -f`) or git resets. Disclose it transparently to the user and obtain permission before correcting it.
+- **Thinking language:** Do all reasoning in **English**.
+- **Response language:** Reply to the user **only in Korean**. Use the polite form (존댓말).
+- **Writing standard:** Write all text with the rules in [docs/guide/06_writing_standard.md](docs/guide/06_writing_standard.md). The rules apply to Markdown files and to replies to the user. They are more important than a terse or compressed style from a hook or a plugin.
+  - Put the result or the answer first. Then give the details.
+  - Write one instruction or one fact in each sentence. Keep each sentence short.
+  - Write full sentences. Do not remove particles, articles, or verbs to make text shorter.
+  - Use the active voice. Name the person or the thing that does the action.
+  - Use one term for one thing. Explain an English term in Korean when it first occurs in a reply.
+  - Use a table only to compare items. Give `file:line` only when the user must open that location.
+  - Give a maximum of three options. Recommend one option and give the reason.
+  - At the end of a reply, tell what you changed, what you checked, and what the user must decide.
+- **Documentation language:** Write and keep all Markdown files (`.md`) in this repository in **English**, with the ASD-STE100 rules. English decreases the context tokens.
+- **No preemptive actions (zero proactive edits):** **If the user did not ask for a change, do not change source code, configuration files, or documents. If the user did not ask for a build or a command, do not run it.** Do not try to fix, refactor, or adjust items on your own.
+- **Collaboration:** Work as a partner of the user. First, analyze the requirements, the problems, and the root causes. Then propose alternative solutions or plans before you start the work.
+- **Active grilling (resolve ambiguity first):** Do not act before you align with the user, also for small and simple decisions. Propose the `/grill-me` process. Use it to align with the user and to verify the design before you write code.
+- **Style reference:**
+  The design system gives the visual language: color, type, spacing, elevation, and motion. See `docs/design/direction.md` and [ADR 0003](docs/decisions/0003-adopt-shadcn-design-system.md). Do **not** use the palette or the typography of `legacy-v1`.
+  Before you make UI components, examine the `legacy-v1` branch for **interaction and structure** only. Find the components that it had, the state that they kept, and the failure states that it handled. The branch records what the product learned. It is not a style guide.
+- **No installs without approval:** Do not install external libraries, packages, or frameworks. There are two exceptions: the initial setup, and an install that the user approves.
+- **Atomic commits:** Make each commit small, functional, and complete. Do not put more than one feature or bug fix in one commit.
+- **Honest Git history:** If you make a mistake, do not hide it with `git push -f` or `git reset`. Examples of mistakes are a commit with too many changes and a syntax error. Tell the user about the mistake. Get permission before you correct it.
 
 ---
 
-## 6. When to Invoke `/grill-me`
+## 6. When to Use `/grill-me`
 
-- When designing a new subsystem or major component for the first time.
-- When the scope of a requirement or an issue is ambiguous or lacks detail.
-- When multiple implementation options exist with different trade-offs.
-- When changing API specifications, communication contracts, or the Graph Surgery logic.
-- Before making *any* code or configuration change where user intent needs alignment.
+Use `/grill-me` in these conditions:
+
+- You design a new subsystem or a major component for the first time.
+- The scope of a requirement or an issue is not clear, or it does not have sufficient detail.
+- There are many possible implementations with different trade-offs.
+- You change an API specification, a communication contract, or the Graph Surgery logic.
+- You must change code or configuration, and you must align with the user about the intent.
