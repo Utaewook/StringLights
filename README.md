@@ -36,7 +36,7 @@ You do not have to install anything or make an account. You only need an ONNX fi
 
 ---
 
-## Why
+## The problem that StringLights solves
 
 A graph viewer shows the structure of a model. It does not show the values in the model.
 For example, it does not show that layer 47 starts to give `NaN` values.
