@@ -2,7 +2,7 @@
 
 This directory contains the tokens and the styles of the **Shadcn** design system.
 The style is shadcn/ui `radix-nova`, with the neutral base color.
-[ADR 0003](../../../../docs/decisions/0003-adopt-shadcn-design-system.md) records the decision.
+[ADR 0003](../../../../../docs/decisions/0003-adopt-shadcn-design-system.md) records the decision.
 
 | Item | Value |
 | --- | --- |
@@ -29,7 +29,7 @@ Keep the file complete. Then a new synchronization is a copy, not a merge.
 - the `--ds-success` and `--ds-warning` tokens, which the design system does not define,
 - the badge variants and the alert variant for these tokens,
 - one layout utility (`.ds-btn-block`),
-- a reset for links with button styles (`a.ds-btn`). See the "Additions to the design system" section of [`direction.md`](../../../../docs/design/direction.md).
+- a reset for links with button styles (`a.ds-btn`). See the "Additions to the design system" section of [`direction.md`](../../../../../docs/design/direction.md).
 
 Keep `extensions.css` separate. Then a new synchronization does not have to merge it.
 `index.css` imports it last. Thus, its component variants come after the styles that they extend.
