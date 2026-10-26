@@ -123,7 +123,9 @@ Do these checks in sequence at the start of a work session.
 - **No preemptive actions (zero proactive edits):** **If the user did not ask for a change, do not change source code, configuration files, or documents. If the user did not ask for a build or a command, do not run it.** Do not try to fix, refactor, or adjust items on your own.
   - A command that only reads is permitted, for example `git status`, `git log`, or `grep`. The checks in section 3 use only these commands.
 - **Collaboration:** Work as a partner of the user. First, analyze the requirements, the problems, and the root causes. Then propose alternative solutions or plans before you start the work.
-- **Active grilling (resolve ambiguity first):** Do not act before you align with the user, also for small and simple decisions. Propose the `/grill-me` process. Use it to align with the user and to verify the design before you write code.
+- **Align before you act:** Do not act before you align with the user. This applies also to small and simple decisions.
+  - For a small decision, ask a short question with options. Give a maximum of three options, and recommend one.
+  - In the conditions of section 6, use the `/grill-me` process. Use it to align with the user and to verify the design before you write code.
 - **Style reference:**
   The design system gives the visual language: color, type, spacing, elevation, and motion. See `docs/design/direction.md` and [ADR 0003](docs/decisions/0003-adopt-shadcn-design-system.md). Do **not** use the palette or the typography of `legacy-v1`.
   Before you make UI components, examine the `legacy-v1` branch for **interaction and structure** only. Find the components that it had, the state that they kept, and the failure states that it handled. The branch records what the product learned. It is not a style guide.
@@ -135,7 +137,7 @@ Do these checks in sequence at the start of a work session.
 
 ## 6. When to Use `/grill-me`
 
-Use `/grill-me` in these conditions:
+Use `/grill-me` only in these conditions. For other decisions, ask a short question with options (see section 5).
 
 - You design a new subsystem or a major component for the first time.
 - The scope of a requirement or an issue is not clear, or it does not have sufficient detail.
