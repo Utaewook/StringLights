@@ -186,6 +186,7 @@ Known limitations worth reading before you file a bug:
 | [Terminology](docs/guide/02_terminology.md) | Graph surgery, web inference, fallback badge |
 | [Architecture](docs/guide/03_architecture.md) | Full request and data flow |
 | [Conventions](docs/guide/04_convention.md) | Branches, commits, coding rules |
+| [Writing standard](docs/guide/06_writing_standard.md) | Writing rules for documents and replies (ASD-STE100) |
 | [Decisions](docs/decisions/) | ADRs — the trade-offs, not just the outcome |
 | [Issues](docs/issues/) | Open problems, with severity and status |
 
