@@ -160,11 +160,15 @@ Relu -> MaxPool -> Flatten -> Gemm -> Softmax`, float32 `[1,1,8,8]` input, about
 The canvas lays out a real graph, playback has nine steps to walk, and the inspector gets
 tensors with shapes and statistics.
 
-Stay inside the constraints the backend enforces: **opset 7 up to whatever the pinned `onnx` models** (see
-[issue 006](../issues/006-opset-ceiling-rejects-runnable-models.md)) and a **float32** input, which
-sidesteps [issue 005](../issues/005-input-tensor-dtype-mismatch.md)'s dtype bug. The frontend zips
-files client-side before `POST /api/surgery`, so a direct `curl` needs a zip under the form
-field `file` — not the raw `.onnx`.
+Stay inside the limits of the app:
+
+- Use an opset from 7 up to the highest opset that the pinned `onnx` supports. See
+  [issue 006](../issues/006-opset-ceiling-rejects-runnable-models.md).
+- Use a **float32** input. The frontend refuses some input dtypes, for example `float16`. See
+  [issue 005](../issues/005-input-tensor-dtype-mismatch.md).
+
+The frontend puts the files in a ZIP archive before `POST /api/surgery`.
+Thus, a direct `curl` request must send a ZIP file in the form field `file`, not the raw `.onnx` file.
 
 One path stays unverified: the inspector's NaN/Inf integrity row cannot be produced by a
 zero-tensor or random-tensor run. Its styling was checked by rendering the row directly.
