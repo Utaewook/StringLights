@@ -177,6 +177,7 @@ When you change most of a document, rewrite all of it.
 | `docs/design/assets/README.md` | Rewritten in ASD-STE100 |
 | `docs/design/demo-recording.md` | Rewritten in ASD-STE100 |
 | `docs/design/direction.md` | Rewritten in ASD-STE100 |
+| `docs/decisions/0001-promote-all-intermediate-outputs.md` | Rewritten in ASD-STE100 |
 | `docs/decisions/README.md` | Rewritten in ASD-STE100 |
 | `docs/guide/01_project_overview.md` | Rewritten in ASD-STE100 |
 | `docs/guide/02_terminology.md` | Rewritten in ASD-STE100 |

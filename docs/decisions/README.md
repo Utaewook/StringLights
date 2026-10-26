@@ -14,7 +14,7 @@ If the project changes the decision, write a new ADR. Then set the status of the
 
 | ID | Decision | Status |
 | --- | --- | --- |
-| [0001](./0001-promote-all-intermediate-outputs.md) | Promote every intermediate node to a graph output | Accepted |
+| [0001](./0001-promote-all-intermediate-outputs.md) | Promote all intermediate tensors to graph outputs | Accepted |
 | [0002](./0002-coep-require-corp.md) | Enable cross-origin isolation via COEP `require-corp` | Accepted |
 | [0003](./0003-adopt-shadcn-design-system.md) | Adopt the Shadcn design system wholesale for the web app | Accepted |
 

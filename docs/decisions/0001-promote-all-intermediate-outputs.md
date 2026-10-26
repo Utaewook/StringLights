@@ -1,55 +1,61 @@
-# 0001. Promote every intermediate node to a graph output
+# 0001. Promote all intermediate tensors to graph outputs
 
 - **Status:** Accepted
-- **Date:** 2026-08-22 (documents behaviour already in `main`)
+- **Date:** 2026-08-22. This ADR records behavior that is already in `main`.
 
 ## Context
 
-The product exists to show the actual tensor values flowing through a model. To read an
-intermediate activation with ONNX Runtime, that tensor has to be a graph output — the
-runtime does not expose interior values otherwise.
+The purpose of the product is to show the real values of the tensors that go through a model.
+To read an intermediate tensor with ONNX Runtime, that tensor must be a graph output.
+ONNX Runtime does not give the values of other tensors.
 
-Two shapes were possible: let the user pick which nodes to expose and run surgery per
-selection, or expose everything once.
+Two designs were possible:
+
+- Let the user select the nodes to promote. Then run the surgery again for each selection.
+- Promote all intermediate tensors one time.
 
 ## Decision
 
-`run_graph_surgery` appends **every** node output that is not already a graph output,
-in a single pass (`apps/backend/app/services/surgery.py:217-233`).
+`run_graph_surgery` adds **all** node outputs to the graph outputs, in one pass (`apps/backend/app/services/surgery.py:217-233`).
+It does not add a node output that is already a graph output.
 
 ## Consequences
 
-### What this buys
+### Advantages
 
-- One round trip to the 512MB server per model. Selecting a different node afterwards is
-  free — no re-upload, no second surgery, no queue wait behind `Semaphore(1)`.
-- The playback feature works at all: stepping through the graph requires every
-  activation to be present simultaneously.
+- The app sends each model to the 512MB server one time.
+  After that, the user can select a different node with no more work on the server:
+  - The app does not upload the model again.
+  - The surgery does not run again.
+  - There is no wait in the queue of `Semaphore(1)`.
+- The playback is possible. The playback steps through the graph. Thus, it needs all intermediate tensors at the same time.
 
-### What this costs
+### Disadvantages
 
-- **ONNX Runtime loses most memory planning.** Every intermediate tensor is a live graph
-  output, so buffer reuse and node fusion are largely unavailable.
-- **Peak memory is the sum of all activations**, not the maximum live set.
-- The worker sends results with `postMessage` **without a transfer list**
-  (`apps/web-app/src/ort-worker.ts`), so every buffer is structurally cloned, then held
-  again in the Zustand store — roughly 2–3× the raw activation size in the tab.
-- **The practical model-size ceiling is browser memory, not the 50MB upload limit.** The
-  server-side cap says nothing about whether a given model can actually be inspected.
+- **ONNX Runtime cannot do most of its memory planning.** Each intermediate tensor is a graph output, so it stays in memory.
+  Thus, ONNX Runtime cannot reuse most buffers or fuse most nodes.
+- **The peak memory is the sum of all intermediate tensors.** It is not the largest set of tensors that are in use at one time.
+- The worker sends the results with `postMessage` **without a transfer list** (`apps/web-app/src/ort-worker.ts`).
+  Thus, the browser makes a structured clone of each buffer. Then the Zustand store keeps the buffers again.
+  The tab uses approximately 2–3× the raw size of the intermediate tensors.
+- **In practice, the memory of the browser limits the model size, not the upload limit of 50MB.**
+  The upload limit on the server does not tell you if you can examine a given model.
 
-## Alternatives considered
+## Other options
 
-- **Selective promotion.** Lower memory, but re-runs surgery on every selection change,
-  which serialises behind `Semaphore(1)` and re-uploads the model.
-- **Streaming activations per step.** Would bound memory, but requires re-running
-  inference for each step and rules out instant scrubbing.
+- **Selective promotion.** This option uses less memory.
+  But the surgery runs again each time that the selection changes.
+  Each run waits behind `Semaphore(1)`, and the app uploads the model again.
+- **Streaming of intermediate tensors for each step.** This option would limit the memory.
+  But it requires a new inference run for each step.
+  It also prevents a move to any step with no delay.
 
 ## Open questions
 
-- What is the real ceiling? No measurement exists yet. This must be established before
-  demo models are chosen — ResNet-18 and Tiny YOLO are unverified assumptions.
-- Would a transfer list on `postMessage` remove one full copy at negligible cost?
-- Should very large graphs fall back to selective promotion automatically?
+- What is the real limit? No measurement exists yet.
+  The project must find the limit before it selects the demo models.
+  ResNet-18 and Tiny YOLO are assumptions, not measured results.
+- Would a transfer list on `postMessage` remove one full copy at a very small cost?
+- Should the app change to selective promotion automatically for very large graphs?
 
-This ADR is also a candidate root cause for
-[../issues/001-model-load-hang.md](../issues/001-model-load-hang.md).
+The decision in this ADR is also a possible root cause of [issue 001](../issues/001-model-load-hang.md).
