@@ -58,25 +58,29 @@ All text in this file obeys ASD-STE100. See [docs/guide/06_writing_standard.md](
 
 ## 3. Session Start Checklist
 
-Do these steps in sequence at the start of a work session.
+Do these checks in sequence at the start of a work session.
 
-### Step 1: Examine the Git state and synchronize the `develop` branch
+- Run only commands that read. Examples are `git status` and `git log`.
+- Do not run a command that changes a file, a branch, or a process. Examples are `git pull`, `npm install`, and a server start.
+- If a check shows a problem, tell the user. Ask the user before you correct it.
 
-1. Make sure that the current branch is `develop`. Then synchronize it with the remote repository.
+### Step 1: Examine the Git state
+
+1. Make sure that the current branch is `develop`.
    ```bash
    git status
-   git pull origin develop
    ```
-2. Read the last 3 to 5 commits to learn the recent progress.
+2. If the branch is behind `origin/develop`, tell the user. Do not run `git pull` on your own.
+3. Read the last 3 to 5 commits to learn the recent progress.
    ```bash
    git log -n 5 --oneline
    ```
-3. Make sure that the workspace has no temporary files and no processes without an owner.
+4. Make sure that the workspace has no temporary files and no processes without an owner.
 
 ### Step 2: Examine the local development environment
 
-1. For the backend, make sure that the Python virtual environment (`venv`) is active. Make sure that port `8000` is available.
-2. For the frontend, make sure that the dependencies are installed (`npm install`). Make sure that port `5173` or `3000` is available.
+1. For the backend, make sure that the Python virtual environment (`venv`) exists. Make sure that port `8000` is available.
+2. For the frontend, make sure that `node_modules` exists. Make sure that port `5173` or `3000` is available.
 
 ### Step 3: Check the core constraints
 
@@ -117,6 +121,7 @@ Do these steps in sequence at the start of a work session.
   - At the end of a reply, tell what you changed, what you checked, and what the user must decide.
 - **Documentation language:** Write and keep all Markdown files (`.md`) in this repository in **English**, with the ASD-STE100 rules. English decreases the context tokens.
 - **No preemptive actions (zero proactive edits):** **If the user did not ask for a change, do not change source code, configuration files, or documents. If the user did not ask for a build or a command, do not run it.** Do not try to fix, refactor, or adjust items on your own.
+  - A command that only reads is permitted, for example `git status`, `git log`, or `grep`. The checks in section 3 use only these commands.
 - **Collaboration:** Work as a partner of the user. First, analyze the requirements, the problems, and the root causes. Then propose alternative solutions or plans before you start the work.
 - **Active grilling (resolve ambiguity first):** Do not act before you align with the user, also for small and simple decisions. Propose the `/grill-me` process. Use it to align with the user and to verify the design before you write code.
 - **Style reference:**
