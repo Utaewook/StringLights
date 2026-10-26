@@ -11,7 +11,7 @@ Select the directory by the **type** of the document, not by its subject.
 | [`history/`](./history/) | Post-mortems of problems that are **resolved** | You add new files only. You do not edit a file. |
 | [`design/`](./design/) | UI/UX direction, references, and mockups | You update a document when the design changes. |
 
-## The rule that keeps the documents correct
+## What a `guide/` document contains
 
 **A `guide/` document tells what is true now. It must not tell what you plan to do.**
 
@@ -46,7 +46,7 @@ The paths of issue files and ADR files do not change.
 When you close an issue, change its `Status` field. Do not move or rename the file.
 Then the links from commits and ADRs continue to work.
 
-## Related
+## Related documents
 
 - [`../CLAUDE.md`](../CLAUDE.md): session rules and the documents to read before a change
 - [`guide/04_convention.md`](./guide/04_convention.md): coding and Git conventions
