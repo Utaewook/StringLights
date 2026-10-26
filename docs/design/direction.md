@@ -79,7 +79,7 @@ Size each icon to its control: 16px by default, 14px for `sm`, and 12px for `xs`
 The design system does not include three items. The project maintains them.
 Each item follows the existing patterns of the system.
 
-1. **`--ds-success` and `--ds-warning`.** The WASM Mode badge and the warnings for `NaN` and `Inf` values need these tokens.
+1. **`--ds-success` and `--ds-warning`.** The provider badge and the warnings for `NaN` and `Inf` values need these tokens.
    They use the same pattern as `--destructive`: a 10% tint background with full-strength text, never a solid block.
    Color is never the only signal. Use a lucide icon and a label with it.
 2. **Graph node style.** The node style comes from the `Card` tokens (radius, border, surface).
@@ -133,7 +133,7 @@ Also, the app has no `<meta name="theme-color">`. A navy browser frame would not
 
 | Surface | File | Design system component | Status |
 | --- | --- | --- | --- |
-| Header, WASM Mode badge, and Ko-fi link | `components/layout/Header.tsx` | `Button` (with `asChild`), `Badge` | Done |
+| Header, provider badge, and Ko-fi link | `components/layout/Header.tsx` | `Button` (with `asChild`), `Badge` | Done |
 | Upload and run controls, run budget | `features/inference/InferencePanel.tsx` | `Button`, `Input`, `Label`, `Alert` | Done |
 | Switch for the data mode | `features/inference/InferencePanel.tsx` | `Tabs` | Done |
 | File chips | `features/inference/InferencePanel.tsx` | Card style, Badge tint | Done |

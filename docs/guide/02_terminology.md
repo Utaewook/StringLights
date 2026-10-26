@@ -86,6 +86,7 @@ In this project, the word "backend" means the server only.
 | Session | The `InferenceSession` of `onnxruntime-web`. | Ort session | 추론 세션 |
 | Execution provider | The runtime that runs the session: `webgpu` or `wasm`. | engine, backend | 실행 공급자 |
 | WASM Mode badge | See the section above. | | WASM 모드 배지 |
+| Provider badge | The badge in the header that shows the execution provider: `WebGPU accelerated`, or the WASM Mode badge. | engine badge | 실행 공급자 배지 |
 | Synthetic input | An input tensor that the app makes from zeros or from random values. | | 합성 입력 |
 | Tensor statistics | The minimum, maximum, mean, and standard deviation of a tensor, with a flag for `NaN` and a flag for `Inf` (`TensorStats`). | stats | 텐서 통계 |
 | Inspector | The panel that shows the dtype, the shape, and the tensor statistics of the selected node. | | 인스펙터 |
