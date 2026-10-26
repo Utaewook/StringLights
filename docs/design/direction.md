@@ -4,7 +4,7 @@
 - **Owner:** @Utaewook
 - **Last updated:** 2026-10-26
 
-## The direction
+## The selected design system
 
 The web app uses the **Shadcn** design system for all of its UI.
 The style is shadcn/ui `radix-nova`, with the neutral base color and lucide icons.
@@ -74,7 +74,7 @@ Size each icon to its control: 16px by default, 14px for `sm`, and 12px for `xs`
 - Format numbers, for example `182 ms` and `12,480`. Do not show raw numbers.
 - Do not use exclamation marks or "Oops". A failure state is neutral and tells the user what to do.
 
-## What we add on top
+## Additions to the design system
 
 The design system does not include three items. The project maintains them.
 Each item follows the existing patterns of the system.
@@ -129,7 +129,7 @@ The project made `apple-touch-icon.png` and the PWA icons from the `-square` var
 This color is intentionally not the `--background` of the app.
 Also, the app has no `<meta name="theme-color">`. A navy browser frame would not match the neutral palette in either mode.
 
-## Surface map
+## Components for each surface
 
 | Surface | File | Design system component | Status |
 | --- | --- | --- | --- |
@@ -253,7 +253,7 @@ Section 5 of `CLAUDE.md` exists to prevent this failure.
 
 - Did anybody measure the contrast of the light mode? Nobody checked this UI with a contrast checker yet.
 
-### Answered
+### Answered questions
 
 - **Was the canvas readable in light mode? Answered on 2026-08-29: no. The project fixed it.**
   `GraphCanvas.tsx` had five fixed colors that CSS could not change. The minimap showed an almost black block on a white page.
