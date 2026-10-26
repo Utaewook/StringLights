@@ -26,9 +26,9 @@ Write the ADR in ASD-STE100 English. See [`../guide/06_writing_standard.md`](../
 | --- | --- |
 | Context | The problem, and the facts that were true at the time of the decision |
 | Decision | The choice, in one or two sentences |
-| What this buys | The advantages of the choice |
-| What this costs | The disadvantages that the project accepts |
-| Alternatives considered | The other choices, and the reason that the project did not select them |
+| Advantages | The advantages of the choice |
+| Disadvantages | The disadvantages that the project accepts |
+| Other options | The other options, and the reason that the project did not select them |
 | Open questions | The questions that the decision does not answer |
 
 ```markdown
@@ -40,8 +40,8 @@ Write the ADR in ASD-STE100 English. See [`../guide/06_writing_standard.md`](../
 ## Context
 ## Decision
 ## Consequences
-### What this buys
-### What this costs
-## Alternatives considered
+### Advantages
+### Disadvantages
+## Other options
 ## Open questions
 ```
