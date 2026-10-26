@@ -1,6 +1,6 @@
 # AI Coding Rules (Must Follow)
 
-Developers and AI assistants must strictly adhere to the following implementation rules and code skeletons when writing code.
+Obey these rules when you write code. The rules apply to developers and to AI assistants.
 
 ---
 
@@ -46,115 +46,50 @@ Developers and AI assistants must strictly adhere to the following implementatio
 *   **Never promote a tensor shape inference could not type.** A `TensorProto.UNDEFINED` output with no shape produces a graph `onnx.checker` rejects, and onnxruntime stalls on it rather than raising — the browser cannot report a malformed graph. Leave it out and list it in `unpromotableOutputNames`.
 *   Always run `onnx.checker.check_model()` before saving. A model that would fail in the browser must fail here, as a `400` with a reason attached.
 
-#### Recommended Backend Skeleton:
-```python
-import os
-import uuid
-import asyncio
-from fastapi import (
-    FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks,
-)
-from fastapi.responses import FileResponse
+#### Reference implementation
 
-app = FastAPI()
-surgery_semaphore = asyncio.Semaphore(1)
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-TEMP_ROOT = os.path.join(os.path.dirname(__file__), "temp")
+`apps/backend/app/main.py` is the reference implementation of these rules.
+This document does not copy its code, because a copy does not stay correct when the code changes.
+Read these parts of `perform_surgery`:
 
-@app.post("/api/surgery")
-async def perform_graph_surgery(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-):
-    # 1. Early validation of file size
-    file.file.seek(0, os.SEEK_END)
-    file_size = file.file.tell()
-    file.file.seek(0)
-    
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File size exceeds the 50MB limit (Uploaded: {file_size / (1024*1024):.2f}MB)"
-        )
-    
-    # Each request owns an isolated temp directory keyed by a UUID.
-    temp_dir = os.path.join(TEMP_ROOT, str(uuid.uuid4()))
-    os.makedirs(temp_dir, exist_ok=True)
-
-    async with surgery_semaphore:
-        try:
-            # [Persist upload, run Graph Surgery, build the response payload...]
-
-            # Success path: defer cleanup until AFTER the response is streamed.
-            background_tasks.add_task(cleanup_directory, temp_dir)
-            return FileResponse(output_path, media_type="application/zip")
-
-        except Exception as e:
-            # Error path: nothing is streamed, so destroy the directory now.
-            cleanup_directory(temp_dir)
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An unexpected error occurred: {str(e)}",
-            )
-```
-
-> The endpoint signature therefore takes `background_tasks: BackgroundTasks` as its
-> first parameter. See `apps/backend/app/main.py` for the authoritative implementation.
+*   The size check before the semaphore (Rule 3).
+*   `surgery_semaphore` around the work of each request (Rule 2).
+*   `extract_bounded` (Rule 5) and `run_surgery_isolated` (Rule 6).
+*   The two cleanup paths: the `except` block for an error, and `BackgroundTasks` for a success (Rule 4).
+*   The stable message for an unexpected error. The traceback goes only to the log. See [issue 013](../issues/013-error-responses-leak-internals.md).
 
 ---
 
 ## 2. Frontend (JavaScript/TypeScript/React)
 
-### Rule 1: Explicit InferenceSession Release
-*   When a user uploads a new ONNX model or switches intermediate nodes, call `.release()` on the existing `InferenceSession` instance to prevent memory leaks, then trigger garbage collection.
+### Rule 1: Release the InferenceSession before you load a new model
+*   Before the worker loads a new model, call `release()` on the current `InferenceSession`. Then set the reference to `null`.
+*   A change of the selected node does not load a new model. One run gives all intermediate tensors ([ADR 0001](../decisions/0001-promote-all-intermediate-outputs.md)).
+*   JavaScript code cannot start garbage collection. Remove each reference that you do not need. Then the browser can free the memory.
 
-### Rule 2: Explicit Tensor Disposal
-*   After the inference loop finishes, invoke `.dispose()` on all instantiated `ort.Tensor` objects (if supported) or assign them to `null` to ensure proper garbage collection.
+### Rule 2: Dispose of tensors after a run
+*   After a run, call `dispose()` on each input tensor and each output tensor that has this method.
+*   If a tensor does not have `dispose()`, remove the reference to it.
+*   For a tensor on the GPU, `dispose()` releases the GPU buffer. Garbage collection does not release this buffer.
 
-### Rule 3: WebGPU Prioritization & WASM Fallback UI Badge
-*   Initialize `ort.InferenceSession.create` with `executionProviders` ordered as `['webgpu', 'wasm']`.
-*   If WebGPU setup fails or throws an exception, catch it, fall back to the WASM backend, and trigger a state update to render a warning status badge reading **"WASM Mode — Performance May Be Degraded"** in the layout.
+### Rule 3: Try WebGPU first, then WASM, in separate calls
+*   Call `ort.InferenceSession.create` with `executionProviders: ['webgpu']`.
+*   If this call throws an error, call it again with `executionProviders: ['wasm']`.
+*   Do not put the two providers in one list. The worker must report which provider the session uses.
+    One call with one list does not give the worker this information.
+*   When the session uses WASM, show the badge `WASM Mode — Performance May Be Degraded`.
 
-### Rule 4: Offload Inference to Web Worker
-*   To prevent UI blocking (freezing), encapsulate all `session.run` and heavy preprocessing logic inside a dedicated Web Worker thread.
+### Rule 4: Run inference in a Web Worker
+*   Run each `session.run` call in the Web Worker. Also compute the tensor statistics there.
+*   Then the UI thread does not stop during a run.
 
-#### Recommended Frontend Worker Skeleton:
-```typescript
-// ort-worker.ts (Session management pattern inside Web Worker)
-import * as ort from 'onnxruntime-web';
+#### Reference implementation
 
-let currentSession: ort.InferenceSession | null = null;
+`apps/web-app/src/ort-worker.ts` is the reference implementation of these rules.
+Read these parts:
 
-async function loadSession(modelBytes: Uint8Array) {
-  if (currentSession) {
-    try {
-      await currentSession.release();
-    } catch (e) {
-      console.error("Failed to release session", e);
-    }
-    currentSession = null;
-  }
-
-  try {
-    currentSession = await ort.InferenceSession.create(modelBytes, {
-      executionProviders: ['webgpu'],
-    });
-    postMessage({ type: 'STATUS', provider: 'webgpu' });
-  } catch (gpuError) {
-    console.warn("WebGPU initialization failed, falling back to WASM", gpuError);
-    try {
-      currentSession = await ort.InferenceSession.create(modelBytes, {
-        executionProviders: ['wasm'],
-      });
-      postMessage({ type: 'STATUS', provider: 'wasm' });
-    } catch (wasmError) {
-      postMessage({ type: 'ERROR', detail: 'Both WebGPU and WASM execution failed' });
-    }
-  }
-}
-```
+*   The `LOAD` case releases the old session. Then it tries WebGPU and WASM in separate calls (Rules 1 and 3).
+*   The `RUN` case disposes of the tensors (Rule 2). It transfers the output buffers to the main thread and does not copy them.
 
 ---
 
