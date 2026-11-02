@@ -187,6 +187,7 @@ When you change most of a document, rewrite all of it.
 | `docs/guide/04_convention.md` | Rewritten in ASD-STE100 |
 | `docs/guide/05_deployment.md` | Rewritten in ASD-STE100 |
 | `docs/guide/06_writing_standard.md` | Written in ASD-STE100 |
+| `docs/guide/08_monitoring_nginx.md` | Written in ASD-STE100 |
 | `docs/issues/README.md` | Rewritten in ASD-STE100 |
 | All other documents | Not rewritten |
 
