@@ -14,6 +14,7 @@ FROM nginx:alpine@sha256:62ff2089abf5a9ed33bd232895bef5e22f7bb4b200675cec49a5ebc
 
 # Copy custom nginx config
 COPY build/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY build/nginx/cloudflare-ips.conf /etc/nginx/cloudflare-ips.conf
 
 # Copy built static files
 COPY --from=builder /app/dist /usr/share/nginx/html

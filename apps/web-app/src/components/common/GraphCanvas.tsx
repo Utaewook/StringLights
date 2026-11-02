@@ -18,6 +18,7 @@ import { useModelStore }    from '../../store/modelStore';
 import { useUIStore }        from '../../store/uiStore';
 import { usePlaybackStore }  from '../../store/playbackStore';
 import { getLayoutedElements } from '../../utils/graphLayout';
+import { applyHighlight } from '../../utils/graphHighlight';
 import type { OnnxNode } from '../../types';
 
 // ─── Custom Node — defined outside component to prevent re-registration ──────
@@ -135,18 +136,10 @@ export default function GraphCanvas() {
     setEdges(le);
   }, [modelMeta, setNodes, setEdges, palette.edge]);
 
-  // Update highlight state when playback advances
+  // Update highlight state when playback advances. A step can hold more than
+  // one node (issue 020); applyHighlight decides each node on its own.
   useEffect(() => {
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          isHighlighted: activeNodeNames.has(node.data.label),
-          stepNonce,
-        },
-      }))
-    );
+    setNodes((nds) => applyHighlight(nds, activeNodeNames, stepNonce));
   }, [activeNodeNames, stepNonce, setNodes]);
 
   const onNodeClick = useCallback(

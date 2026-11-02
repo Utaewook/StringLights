@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sed -n \"/<!-- session-brief:start -->/,/<!-- session-brief:end -->/{/session-brief:/d;p}\" \"$CLAUDE_PROJECT_DIR/docs/guide/06_writing_standard.md\" 2>/dev/null || echo \"WARNING: docs/guide/06_writing_standard.md is missing. Read CLAUDE.md section 5 for the writing rules.\"",
+            "timeout": 5,
+            "statusMessage": "Loading the writing standard (ASD-STE100)..."
+          }
+        ]
+      }
+    ]
+  }
+}

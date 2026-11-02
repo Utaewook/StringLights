@@ -1,167 +1,112 @@
-# AI Coding Rules (Must Follow)
+# Coding Rules
 
-Developers and AI assistants must strictly adhere to the following implementation rules and code skeletons when writing code.
+Obey these rules when you write code. The rules apply to developers and to AI assistants.
 
 ---
 
 ## 1. Backend (Python/FastAPI)
 
-### Rule 1: No Inference Libraries on Backend
-*   Do not use `import onnxruntime` anywhere in the backend codebase.
-*   Only use `import onnx` to manipulate graphs (Graph Surgery) and execute Shape Inference.
+### Rule 1: Do not use an inference library in the backend
+*   Do not import `onnxruntime` in the backend.
+*   Use only `onnx`, for Graph Surgery and for shape inference.
 
-### Rule 2: Strict Queueing via Semaphore(1)
-*   To protect the backend container's **350M** memory limit (`build/docker-compose.yml`), apply `asyncio.Semaphore(1)` to the entry point of the Graph Surgery API endpoint to serialize concurrent operations. The host has 512MB, but it also runs the frontend container and the OS; 350M is the figure the kernel enforces against this process.
+### Rule 2: Use `Semaphore(1)` for Graph Surgery
+*   Apply `asyncio.Semaphore(1)` to the Graph Surgery endpoint. Then only one surgery runs at a time.
+*   The semaphore protects the memory limit of the backend container: **350M** (`build/docker-compose.yml`).
+*   The host has 512MB. But the frontend container and the operating system also use that memory. The kernel applies the limit of 350M to the backend.
 
-### Rule 3: Early File Size Rejection (50MB Limit)
-*   Inspect the size of the uploaded file before writing it to disk. Immediately reject payloads exceeding **50MB** with an HTTP `400 Bad Request` error.
+### Rule 3: Refuse a large upload early (upload limit: 50MB)
+*   Examine the size of the uploaded file before you write it to disk.
+*   If the file is larger than **50MB**, return `400 Bad Request` immediately.
 
-### Rule 4: Guaranteed Resource Destruction (Two Paths, Not `finally`)
-*   Every request owns a temp directory that must always be destroyed, but the timing differs by path:
-    *   **Error path:** clean up immediately inside `except`, before raising.
-    *   **Success path:** register cleanup with `BackgroundTasks` so it runs *after* the response is sent.
-*   **Do not wrap the response in a bare `finally`.** The endpoint returns a `FileResponse` that streams from the temp directory; a `finally` block deletes the payload before the client can read it.
+### Rule 4: Delete the temporary directory on each path (do not use `finally`)
+Each request has its own temporary directory. Always delete it. The time of the deletion depends on the path:
+*   **Error path:** In the `except` block, delete the directory immediately. Then raise the error.
+*   **Success path:** Register the deletion with `BackgroundTasks`. Then the deletion occurs after the backend sends the response.
+*   **Do not put the response in a bare `finally` block.** The `FileResponse` streams from the temporary directory. A `finally` block deletes the file before the client reads it.
 
-### Rule 5: Bounded Extraction
-*   Never call `ZipFile.extractall` on an upload. Use `app.services.archive.extract_bounded`, which enforces the decompressed-size limits and refuses members that resolve outside the destination directory.
-*   The 50MB upload cap bounds what arrives, not what it becomes. Compressed size is not a proxy for memory use.
+### Rule 5: Limit the extraction
+*   Do not call `ZipFile.extractall` on an upload. Use `app.services.archive.extract_bounded`.
+*   `extract_bounded` applies the extraction limits. It also refuses each member whose path goes outside the destination directory.
+*   The upload limit controls the size of the archive. It does not control the size of the extracted files. The compressed size does not tell you the memory use.
 
-### Rule 6: Surgery Runs in a Child Process
-*   Never call `run_graph_surgery` from the request path. Use `app.services.isolation.run_surgery_isolated`, which runs it in a child process under a timeout.
-*   **Do not import `onnx` in `app/main.py` or anything it imports.** The parent process must not carry the library's resident footprint for the life of the container; only the child needs it.
-*   A thread is not a substitute. Python threads cannot be interrupted, so a timed-out surgery would keep both its CPU and its memory.
+### Rule 6: Run surgery in a child process
+*   Do not call `run_graph_surgery` from the request path. Use `app.services.isolation.run_surgery_isolated`. This function runs the surgery in a child process, with a timeout.
+*   **Do not import `onnx` in `app/main.py`, or in a module that it imports.** The parent process lives as long as the container. It must not keep the memory of the library. Only the child process needs `onnx`.
+*   Do not use a thread in place of a child process. Python cannot stop a thread. If a surgery in a thread passes its timeout, the thread continues and keeps its CPU time and its memory.
 
-### Rule 7: Verify Backend Changes in the Container
-*   Run the backend suite in `build/test.Dockerfile`, not on the host. The backend spawns child processes and is bounded by container memory; a developer machine reproduces neither.
+### Rule 7: Verify backend changes in the container
+*   Run the backend tests in `build/test.Dockerfile`, not on the host. The backend starts child processes, and the memory of the container limits it. A developer machine does not reproduce these conditions.
     ```bash
     docker build -f build/test.Dockerfile -t string_lights_backend_test .
     docker run --rm --memory=350m --memory-swap=350m string_lights_backend_test
     ```
-*   Keep the memory flags. They mirror `build/docker-compose.yml`; without them the OOM path this code exists to prevent is never exercised.
-*   Test-only dependencies belong in `requirements-dev.txt`. The production image must never carry a test runner.
-*   **`apps/backend/venv` is not the production environment and is not expected to be.** It runs Python 3.14 with whatever `onnx` it resolved; the image runs Python 3.12 with the version pinned in `requirements.txt`. A green run in the venv says the code is syntactically sound and the logic holds on *some* `onnx` — it says nothing about the version that will ship. Use it to iterate; use the container to decide.
+*   Keep the memory flags. They are the same as the limits in `build/docker-compose.yml`. Without them, the tests do not reach the OOM path that this code prevents.
+*   Put the dependencies for tests in `requirements-dev.txt`. Do not put a test runner in the production image.
+*   **A local venv (`apps/backend/venv`) is not the production environment.**
+    *   A local venv can use a different Python version and a different `onnx` version. The image uses Python 3.12 and the `onnx` version in `requirements.txt`.
+    *   A pass in the venv shows that the code works with some version of `onnx`. It does not show that the code works with the version that ships.
+    *   Use the venv to try a change. Use the container to make the decision.
 
-### Rule 8: Enforced Shape Inference and Validation
-*   Always call `onnx.shape_inference.infer_shapes()` before streaming the modified model back to the client. This prevents the client-side session from failing due to missing tensor shape metadata.
-*   **Never promote a tensor shape inference could not type.** A `TensorProto.UNDEFINED` output with no shape produces a graph `onnx.checker` rejects, and onnxruntime stalls on it rather than raising — the browser cannot report a malformed graph. Leave it out and list it in `unpromotableOutputNames`.
-*   Always run `onnx.checker.check_model()` before saving. A model that would fail in the browser must fail here, as a `400` with a reason attached.
+### Rule 8: Run shape inference and validation
+*   Call `onnx.shape_inference.infer_shapes()` before you return the changed model to the client. Without shape metadata, the session in the browser can fail.
+*   **Do not promote a tensor that shape inference could not type.**
+    *   A graph output with `TensorProto.UNDEFINED` and no shape makes a graph that `onnx.checker` refuses.
+    *   onnxruntime can stop and not respond on such a graph. It does not raise an error, so the browser cannot report the problem.
+    *   Do not promote the tensor. Put its name in `unpromotableOutputNames`.
+*   Run `onnx.checker.check_model()` before you save the model. If a model can fail in the browser, it must fail here, as a `400` with the reason.
 
-#### Recommended Backend Skeleton:
-```python
-import os
-import uuid
-import asyncio
-from fastapi import (
-    FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks,
-)
-from fastapi.responses import FileResponse
+#### Reference implementation
 
-app = FastAPI()
-surgery_semaphore = asyncio.Semaphore(1)
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
-TEMP_ROOT = os.path.join(os.path.dirname(__file__), "temp")
+`apps/backend/app/main.py` is the reference implementation of these rules.
+This document does not copy its code, because a copy does not stay correct when the code changes.
+Read these parts of `perform_surgery`:
 
-@app.post("/api/surgery")
-async def perform_graph_surgery(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-):
-    # 1. Early validation of file size
-    file.file.seek(0, os.SEEK_END)
-    file_size = file.file.tell()
-    file.file.seek(0)
-    
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File size exceeds the 50MB limit (Uploaded: {file_size / (1024*1024):.2f}MB)"
-        )
-    
-    # Each request owns an isolated temp directory keyed by a UUID.
-    temp_dir = os.path.join(TEMP_ROOT, str(uuid.uuid4()))
-    os.makedirs(temp_dir, exist_ok=True)
-
-    async with surgery_semaphore:
-        try:
-            # [Persist upload, run Graph Surgery, build the response payload...]
-
-            # Success path: defer cleanup until AFTER the response is streamed.
-            background_tasks.add_task(cleanup_directory, temp_dir)
-            return FileResponse(output_path, media_type="application/zip")
-
-        except Exception as e:
-            # Error path: nothing is streamed, so destroy the directory now.
-            cleanup_directory(temp_dir)
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An unexpected error occurred: {str(e)}",
-            )
-```
-
-> The endpoint signature therefore takes `background_tasks: BackgroundTasks` as its
-> first parameter. See `apps/backend/app/main.py` for the authoritative implementation.
+*   The size check before the semaphore (Rule 3).
+*   `surgery_semaphore` around the work of each request (Rule 2).
+*   `extract_bounded` (Rule 5) and `run_surgery_isolated` (Rule 6).
+*   The two cleanup paths: the `except` block for an error, and `BackgroundTasks` for a success (Rule 4).
+*   The stable message for an unexpected error. The traceback goes only to the log. See [issue 013](../issues/013-error-responses-leak-internals.md).
 
 ---
 
 ## 2. Frontend (JavaScript/TypeScript/React)
 
-### Rule 1: Explicit InferenceSession Release
-*   When a user uploads a new ONNX model or switches intermediate nodes, call `.release()` on the existing `InferenceSession` instance to prevent memory leaks, then trigger garbage collection.
+### Rule 1: Release the InferenceSession before you load a new model
+*   Before the worker loads a new model, call `release()` on the current `InferenceSession`. Then set the reference to `null`.
+*   A change of the selected node does not load a new model. One run gives all intermediate tensors ([ADR 0001](../decisions/0001-promote-all-intermediate-outputs.md)).
+*   JavaScript code cannot start garbage collection. Remove each reference that you do not need. Then the browser can free the memory.
 
-### Rule 2: Explicit Tensor Disposal
-*   After the inference loop finishes, invoke `.dispose()` on all instantiated `ort.Tensor` objects (if supported) or assign them to `null` to ensure proper garbage collection.
+### Rule 2: Dispose of tensors after a run
+*   After a run, call `dispose()` on each input tensor and each output tensor that has this method.
+*   If a tensor does not have `dispose()`, remove the reference to it.
+*   For a tensor on the GPU, `dispose()` releases the GPU buffer. Garbage collection does not release this buffer.
 
-### Rule 3: WebGPU Prioritization & WASM Fallback UI Badge
-*   Initialize `ort.InferenceSession.create` with `executionProviders` ordered as `['webgpu', 'wasm']`.
-*   If WebGPU setup fails or throws an exception, catch it, fall back to the WASM backend, and trigger a state update to render a warning status badge reading **"WASM Mode — Performance May Be Degraded"** in the layout.
+### Rule 3: Try WebGPU first, then WASM, in separate calls
+*   Call `ort.InferenceSession.create` with `executionProviders: ['webgpu']`.
+*   If this call throws an error, call it again with `executionProviders: ['wasm']`.
+*   Do not put the two providers in one list. The worker must report which provider the session uses.
+    One call with one list does not give the worker this information.
+*   When the session uses WASM, show the badge `WASM Mode — Performance May Be Degraded`.
 
-### Rule 4: Offload Inference to Web Worker
-*   To prevent UI blocking (freezing), encapsulate all `session.run` and heavy preprocessing logic inside a dedicated Web Worker thread.
+### Rule 4: Run inference in a Web Worker
+*   Run each `session.run` call in the Web Worker. Also compute the tensor statistics there.
+*   Then the UI thread does not stop during a run.
 
-#### Recommended Frontend Worker Skeleton:
-```typescript
-// ort-worker.ts (Session management pattern inside Web Worker)
-import * as ort from 'onnxruntime-web';
+#### Reference implementation
 
-let currentSession: ort.InferenceSession | null = null;
+`apps/web-app/src/ort-worker.ts` is the reference implementation of these rules.
+Read these parts:
 
-async function loadSession(modelBytes: Uint8Array) {
-  if (currentSession) {
-    try {
-      await currentSession.release();
-    } catch (e) {
-      console.error("Failed to release session", e);
-    }
-    currentSession = null;
-  }
-
-  try {
-    currentSession = await ort.InferenceSession.create(modelBytes, {
-      executionProviders: ['webgpu'],
-    });
-    postMessage({ type: 'STATUS', provider: 'webgpu' });
-  } catch (gpuError) {
-    console.warn("WebGPU initialization failed, falling back to WASM", gpuError);
-    try {
-      currentSession = await ort.InferenceSession.create(modelBytes, {
-        executionProviders: ['wasm'],
-      });
-      postMessage({ type: 'STATUS', provider: 'wasm' });
-    } catch (wasmError) {
-      postMessage({ type: 'ERROR', detail: 'Both WebGPU and WASM execution failed' });
-    }
-  }
-}
-```
+*   The `LOAD` case releases the old session. Then it tries WebGPU and WASM in separate calls (Rules 1 and 3).
+*   The `RUN` case disposes of the tensors (Rule 2). It transfers the output buffers to the main thread and does not copy them.
 
 ---
 
-## 3. Git & Version Control Conventions
+## 3. Git conventions
 
 ### Rule 1: Conventional Commits
-All commits must strictly adhere to the Conventional Commits specification.
+Write each commit message in the Conventional Commits format.
 *   **Format:**
     ```
     <type>(<scope>): <subject>
@@ -169,34 +114,36 @@ All commits must strictly adhere to the Conventional Commits specification.
     <body>
     ```
 *   **Types:**
-    *   `feat`: A new feature implementation
-    *   `fix`: A bug fix
-    *   `docs`: Documentation-only updates
-    *   `style`: Formatting, missing semicolons, structure changes with no code execution changes
-    *   `refactor`: Code restructuring without fixing bugs or adding features
-    *   `perf`: Performance-improving changes
-    *   `test`: Adding or correcting tests
-    *   `chore`: Tooling, configs, dependency updates, and boilerplate builds
-*   **Rules:**
-    *   **Subject:** Write in English, using the imperative mood (e.g., `fix: correct tensor release in worker`). Keep under 50 characters, and do not end with a period.
-    *   **Body:** Separate the subject and body with a single blank line. Use the body to describe the detailed context, what was changed, and the motivation ("why") behind the change. Wrap body lines at 72 characters.
+    *   `feat`: a new feature
+    *   `fix`: a bug fix
+    *   `docs`: a change to documents only
+    *   `style`: a change to the format of the code, with no change to its behavior
+    *   `refactor`: a change to the structure of the code, with no new feature and no bug fix
+    *   `perf`: a change that makes the code faster
+    *   `test`: a new test, or a correction to a test
+    *   `chore`: a change to tools, configuration, or dependencies
+*   **Subject:** Write the subject in English, in the imperative mood. Example: `fix: correct tensor release in worker`. Use fewer than 50 characters. Do not put a period at the end.
+*   **Body:** Put one blank line between the subject and the body. In the body, tell the context, the change, and the reason for the change. Wrap the lines at 72 characters.
 
-### Rule 2: Branching Strategy
-*   **Strict Branch Limitation:** Only `main`, `develop`, and archiving branches (e.g., `legacy-v1`) are permitted in the repository. No other branch names (such as `feature/*` or `bugfix/*`) are allowed to be created.
-*   **main Branch:** Reserved exclusively for finalized, production-ready code. Commits are pushed to `main` only when release elements are confirmed.
-*   **develop Branch:** All active development, code revisions, and feature edits are conducted on this branch.
-*   **Archiving Branches & Tags:** For large-scale or structural updates, or when keeping a snapshot of a major product version, use dedicated archiving branches (e.g., `legacy-v1`) and Git tags.
-*   **Release Tags:** Annotated, `vMAJOR.MINOR.PATCH`, on `main`, applied **after** the deploy succeeds. The same version is set in `apps/backend/app/main.py` and `apps/web-app/package.json` in the release commit — see [05_deployment.md](./05_deployment.md) §4 for the full procedure and why all three move together.
-*   **Merge Policy:** When development for a release is complete, merge changes from `develop` into `main`.
+### Rule 2: Branch strategy
+*   **Permitted branches:** Use only `main`, `develop`, and archive branches (for example, `legacy-v1`). Do not make other branches, for example `feature/*` or `bugfix/*`.
+*   **`main`:** This branch contains only code that is ready for production. Push to `main` only when the release is confirmed.
+*   **`develop`:** Do all development on this branch.
+*   **Archive branches and tags:** Use an archive branch (for example, `legacy-v1`) and a Git tag for a large change. Also use them to keep a snapshot of a major version.
+*   **Release tags:** Use annotated tags in the format `vMAJOR.MINOR.PATCH`, on `main`. Apply the tag **after** the deploy succeeds.
+    *   In the release commit, set the same version in `apps/backend/app/main.py` and in `apps/web-app/package.json`.
+    *   For the procedure, see section 4 of [05_deployment.md](./05_deployment.md). That section also tells why the three versions change together.
+*   **Merge policy:** When the work for a release is complete, merge `develop` into `main`.
 
-### Rule 3: Dependency Installation Limit
-*   **No Unauthorized Dependencies:** Do not install any additional libraries, packages, tools, or frameworks unless it is during the initial environment setup or explicitly instructed by the user.
+### Rule 3: No new dependencies without approval
+*   Do not install a library, a package, a tool, or a framework. There are two exceptions: the initial setup, and an install that the user requests.
 
 ---
 
-## 4. Next Documents
-*   [CLAUDE.md (Required Session Rules & Trigger Routing)](../../CLAUDE.md)
-*   [Project Overview (01_project_overview.md)](./01_project_overview.md)
-*   [Terminology & Concepts (02_terminology.md)](./02_terminology.md)
-*   [Architecture & Data Flow (03_architecture.md)](./03_architecture.md)
-*   [Deployment & Certificate Lifecycle (05_deployment.md)](./05_deployment.md)
+## 4. Next documents
+*   [CLAUDE.md (session rules and the documents to read before a change)](../../CLAUDE.md)
+*   [Project overview (01_project_overview.md)](./01_project_overview.md)
+*   [Terminology (02_terminology.md)](./02_terminology.md)
+*   [Architecture and data flow (03_architecture.md)](./03_architecture.md)
+*   [Deployment and certificate lifecycle (05_deployment.md)](./05_deployment.md)
+*   [Writing standard (06_writing_standard.md)](./06_writing_standard.md)

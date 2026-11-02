@@ -1,96 +1,142 @@
 # Demo Recording
 
-- **Status:** Planned — not yet recorded
+- **Status:** Rehearsed on 2026-10-17. The project closed
+  [issue 020](../issues/020-replay-steps-one-node-at-a-time.md) on 2026-11-02 (nodes at the same depth highlight together).
+  The rehearsal used the old replay with one step for each node. The recording is not made yet. Rehearse again with the depth-based replay first.
 - **Owner:** @Utaewook
-- **Last updated:** 2026-10-17
+- **Last updated:** 2026-11-02
 
-The plan for the README demo GIF and the three screenshots marked `TODO(assets)` in
-[`../../README.md`](../../README.md). Every choice below was settled before recording;
-change one here first, not in the edit.
+This document is the plan for the demo GIF and the three screenshots of the README.
+The README marks their locations with `TODO(assets)` comments. See [`../../README.md`](../../README.md).
+The project made each decision below before the recording.
+If you change a decision, change it here first. Do not change it only in the edit.
 
 ## Deliverables
 
-| File | Shows | Replaces |
+| File | Contents | Replaces |
 | --- | --- | --- |
-| `assets/demo.gif` | Upload, node click, replay — one loop | `README.md` `TODO(assets)` under "Try it" |
-| `assets/screenshot-upload-panel.png` | Upload panel | `README.md` `TODO(assets)` under "How it works" |
-| `assets/screenshot-node-inspector.png` | Node inspector with statistics | same |
-| `assets/screenshot-playback-bar.png` | Playback bar mid-replay | same |
+| `assets/demo.gif` | The upload, a node click, and the playback, in one loop | The `TODO(assets)` comment under "Try it" in `README.md` |
+| `assets/screenshot-upload-panel.png` | The upload panel | The `TODO(assets)` comment under "How it works" in `README.md` |
+| `assets/screenshot-node-inspector.png` | The inspector, with the tensor statistics | The same comment |
+| `assets/screenshot-playback-bar.png` | The playback bar, in the middle of a playback | The same comment |
 
-All four come out of the same session, so the GIF and the stills show the same model and state.
+Make all four files in the same session. Then the GIF and the screenshots show the same model and the same state.
 
 ## Decisions
 
-| | Choice | Why |
+| Item | Choice | Reason |
 | --- | --- | --- |
-| Model | **SqueezeNet 1.1** (ONNX Model Zoo) | A real, recognisable model. Around 5 MB and roughly 65 nodes: Fire modules give the graph visible branching without shrinking it to noise. Far from the 50 MB upload cap |
-| Environment | Production, `https://string-lights.dev/` | The GIF should match what the README's "Try it" link opens |
-| Deploy state | Production must be on current `develop` first | Production lagged `develop` by 21 commits, including `bd5a3eb` (issue 002 — `std` reported as zero), which the inspector shot would show |
-| Theme | Dark only | One take. Higher contrast on the canvas, fewer banding artefacts in a 256-colour GIF. Light-mode contrast is still unmeasured (`direction.md` → Open) |
-| Scene order | Upload → node click → replay | Follows the README `TODO`. The surgery wait is cut in the edit, so upload does not eat the opening seconds |
-| Size and storage | **≤ 5 MB**, committed at `assets/demo.gif` | Keeps the README path in the repository. 5 MB is the threshold [`assets/README.md`](./assets/README.md) uses for "large" |
-| Tools | macOS screen recording (`Cmd+Shift+5`) + `ffmpeg` | Native capture shows the cursor; `ffmpeg` does trim, scale and palette in one reproducible command |
+| Model | **SqueezeNet 1.1** (ONNX Model Zoo, `squeezenet1.1-7.onnx`) | It is a real model that people know. It is 4.7 MB and has 66 nodes. Its Fire modules show branches in the graph. It is far below the upload limit of 50MB. |
+| Environment | Production, `https://string-lights.dev/` | The GIF must show the same site that the "Try it" link of the README opens. |
+| Deploy state | Production runs the current `develop`. The deploy was on 2026-10-17 (`2cd6ade`). | Before that deploy, production was 21 commits behind `develop`. The missing commits included `bd5a3eb` (issue 002: `std` was always zero). |
+| Theme | Dark only | One take is sufficient. The canvas has more contrast, and a GIF with 256 colors shows fewer color bands. Nobody measured the contrast of the light mode yet (see "Open questions" in `direction.md`). |
+| Input | **Random tensors** | The default input is zero tensors. With zeros, `std` is zero on each node. That result looks like the bug that issue 002 fixed. |
+| Framing | **One Fire module, with zoom**: `conv1` to `concat0`, with the Explorer collapsed | If the graph fits the screen, the 66 nodes show in one row at a zoom of 0.07. Each node is then 12×4 px, and you cannot read it at 960 px. The camera does not follow the playback. Thus, select the frame before the recording (see "Rehearsal"). |
+| Playback speed | **1x** | Each step takes 0.5 s. The module in the frame is steps 3 to 9, so the highlight moves for approximately 3.5 s. At 5x, it would move for less than one second. |
+| Scene order | Upload, then node click, then playback | This order follows the `TODO` comments of the README. The edit removes both waits. |
+| Size and storage | **5 MB or less**, committed at `assets/demo.gif` | The README path then stays in the repository. [`assets/README.md`](./assets/README.md) uses 5 MB as the limit for a "large" file. |
+| Tools | macOS screen recording (`Cmd+Shift+5`) and `ffmpeg` | The macOS recording shows the cursor. One `ffmpeg` command removes both waits, scales the video, and makes the palette. You can run the command again with the same result. |
 
-Note that [Constraints that still hold](./direction.md#constraints-that-still-hold) says
-playback is what a demo shows first. This plan keeps the README order instead, so playback
-gets the longest slot and the GIF ends on it rather than opening with it.
+[Constraints that still apply](./direction.md#constraints-that-still-apply) says that a demo shows the playback first.
+This plan keeps the order of the README. Instead, the playback gets the longest part, and the GIF ends with it.
 
-## Before recording
+## Rehearsal (2026-10-17)
 
-1. Confirm production serves the current `develop` (see Decisions → Deploy state).
-2. Download `squeezenet1.1-7.onnx` (opset 7) to a directory **outside the repository**.
-   Opset 7 is the floor the backend accepts
-   ([issue 006](../issues/006-opset-ceiling-rejects-runnable-models.md)).
-3. Check its input is a static float32 `[1,3,224,224]`. A static shape keeps
-   [issue 017](../issues/017-non-batch-dynamic-axes-are-guessed.md) out of the shot, and float32
-   avoids [issue 005](../issues/005-input-tensor-dtype-mismatch.md).
-4. Rehearse once end to end and watch the tab's memory. All intermediate outputs are held in the
-   browser and no ceiling has been measured
-   ([issue 018](../issues/018-inference-memory-is-unbounded.md),
-   [ADR 0001](../decisions/0001-promote-all-intermediate-outputs.md) → Open questions).
-   Record the peak here.
-5. Rehearsal pass criteria: upload accepted, no WASM badge, inspector `std` non-zero on at least
-   one node, playback walks the whole graph.
+The rehearsal ran on production at `2cd6ade`, in Chrome 155, in a window of 1440×900, with WebGPU available.
+
+**Model check** (with `onnx` 1.21.0 from the backend venv at that time):
+
+- The model uses opset 7, and `checker.check_model` passed.
+- The model has one input, `data`, float32 `[1,3,224,224]`, with a static shape. Thus, [issue 017](../issues/017-non-batch-dynamic-axes-are-guessed.md) and [issue 005](../issues/005-input-tensor-dtype-mismatch.md) do not affect the recording.
+- The model has 66 nodes: 26 Conv, 26 Relu, 8 Concat, 3 MaxPool, 1 Dropout, 1 AveragePool, and 1 Reshape.
+
+| Criterion | Result |
+| --- | --- |
+| The backend accepts the upload | Pass: 66 nodes, 65 intermediate tensors |
+| No WASM Mode badge | Pass: the header showed "WebGPU accelerated" |
+| `std` is not zero on a node | Pass **with Random tensors**: on `relu4`, the input minimum was −3.0758, the output minimum was 0.0000, and `std` was 2.6898 |
+| The playback goes through the full graph | Pass: steps 0 to 65 |
+
+| Measurement | Value |
+| --- | --- |
+| Graph Surgery | 22.8 s or less (an upper limit; it includes the latency of the tool) |
+| Inference | Approximately 17.0 s |
+| Intermediate tensors, as the app reports them ("activations" in the UI) | 26.89 MB (27.46 MB in total) |
+| JS memory after inference | 84 MB: worker 43 MB, window 38 MB (`measureUserAgentSpecificMemory`). This value does not include GPU memory. The worker value is after the run, not the peak. |
+| Playback | 0.5 s for each step at 1x: 32.6 s for all 66 steps |
+
+For [issue 018](../issues/018-inference-memory-is-unbounded.md): a model of this size is far below the memory limit of the tab.
+
+**Found during the rehearsal.** None of these items blocks the recording:
+
+- The canvas puts a chain of nodes in one row. Thus, a fit to the screen makes the nodes too small to read.
+- The playback does not move the camera. The viewport transform did not change during a full run.
+- The inspector does not follow the playback. It keeps the node that you clicked last.
+- The playback bar covers the bottom of the minimap.
+- After the drop, the upload needs two clicks: **Upload and analyze**, then **Run inference**.
+
+## Before the recording
+
+1. Make sure that production still serves the commit of the rehearsal. If it does not, do the rehearsal again.
+2. Download `squeezenet1.1-7.onnx` to a directory **outside the repository**.
+   Its SHA-256 is `1eeff551a67ae8d565ca33b572fc4b66e3ef357b0eb2863bb9ff47a918cc4088`.
 
 ## Capture setup
 
-- Chrome with WebGPU available, so the WASM fallback badge does not appear.
-- Theme switched to dark in the app.
-- Window around 1440×900, browser chrome hidden or cropped out; no bookmarks bar, no extensions.
-- Record only the window (`Cmd+Shift+5` → *Record Selected Portion*). Cursor on.
+- Use Chrome with WebGPU available. Then the WASM Mode badge does not show.
+- Set the theme of the app to dark.
+- Use a window of 1440×900. Hide the browser frame, or cut it from the video. Do not show the bookmarks bar or extensions.
+- Record only the window (`Cmd+Shift+5`, then *Record Selected Portion*). Show the cursor.
+
+**Framing.** Do these steps after you click **Run inference**, during the wait that the edit removes:
+
+1. Collapse the Explorer (the left button in the header). The canvas becomes wider, from 864 px to 1151 px.
+2. Use the scroll wheel to zoom on the first Fire module. Stop when `conv1_fwd` to `concat0` fill approximately 85% of the canvas width.
+   The zoom is then approximately 0.7, and each node is approximately 125×44 px.
+3. Keep the inspector open.
 
 ## Shot list
 
-| # | Scene | Target length |
+| # | Scene | Length |
 | --- | --- | --- |
-| 1 | Empty app → drop the model on the upload panel | 2–3 s |
-| — | Surgery and session load — **cut in the edit** | 0 s |
-| 2 | Graph appears → click one node → inspector shows dtype, shape, min / max / mean / std | 4–5 s |
-| 3 | Start playback → let it walk several nodes → scrub backwards briefly | 6–8 s |
-| 4 | Hold on the last frame so the loop restart is not abrupt | ~1 s |
+| 1 | The empty app. Drop the model on the upload panel. Click **Upload and analyze**. | Approximately 3 s |
+| — | Graph Surgery: **remove** in the edit | 0 s |
+| 2 | Select **Random tensors**. Click **Run inference**. | Approximately 2 s |
+| — | Inference, the Explorer collapse, and the zoom to the Fire module: **remove** in the edit | 0 s |
+| 3 | Click a Relu node in the frame (`relu2_fwd`). The inspector shows the dtype, the shape, and the minimum, maximum, mean, and `std`. The output minimum is 0. | Approximately 4 s |
+| 4 | Start the playback at **1x** from step 0. The highlight comes into the frame at step 3 and gets to `concat0` at step 9. The two branches of the module light up in the same steps. Pause on `concat0`. | Approximately 5 s |
+| 5 | Wait a short time, so that the start of the next loop is not sudden. | Approximately 1 s |
 
-Total about 15 s. Take the three screenshots from the same session after the GIF take.
+The total is approximately 15 s. After the GIF take, take the three screenshots in the same session.
 
-## Converting to GIF
+## Conversion to GIF
 
-Cut the wait out with `select`, then build a palette from the clip itself:
+Remove both waits with `select`. Then make a palette from the clip:
 
 ```bash
 ffmpeg -i capture.mov -vf "\
-select='not(between(t,WAIT_START,WAIT_END))',setpts=N/FRAME_RATE/TB,\
+select='not(between(t,SURGERY_START,SURGERY_END)+between(t,INFER_START,INFER_END))',\
+setpts=N/FRAME_RATE/TB,\
 fps=12,scale=960:-1:flags=lanczos,\
 split[a][b];[a]palettegen=stats_mode=diff[p];\
 [b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
 -loop 0 demo.gif
 ```
 
-`WAIT_START` and `WAIT_END` are seconds in `capture.mov`. If the result is over 5 MB, lower
-these in order: `fps` (12 → 10), then width (960 → 800), then shorten scene 3.
+The four placeholders are times in seconds in `capture.mov`.
+If the result is more than 5 MB, decrease these values in this sequence:
 
-## Done when
+1. `fps` (from 12 to 10).
+2. The width (from 960 to 800).
+3. The length of scene 4.
 
-- `assets/demo.gif` is ≤ 5 MB, loops, and shows all three scenes.
+After the scaling, examine the node labels. You must be able to read the operator types (`Conv`, `Relu`).
+You may not be able to read the long node names under them.
+If you cannot read the operator types, cut the frame to the canvas and the inspector before the scaling. Do not scale the full window.
+
+## Completion criteria
+
+- `assets/demo.gif` is 5 MB or less, it loops, and it shows all five scenes.
 - The three screenshots are in `assets/`.
-- Both `TODO(assets)` comments in `README.md` are replaced with the images.
-- The rehearsal's memory peak is recorded under *Before recording*, step 4.
-- This file's `Status` reads *Recorded*, with the date.
+- The images replace the two `TODO(assets)` comments in `README.md`.
+- The `Status` of this file is *Recorded*, with the date.

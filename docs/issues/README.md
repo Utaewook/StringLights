@@ -1,25 +1,35 @@
 # Issues
 
-Open problems tracked as flat files. A file's path never changes — closing an issue
-updates its `Status` field so that references from commits and ADRs stay valid.
+Each file in this directory records one problem.
+The path of a file does not change.
+When you close an issue, change its `Status` field. Do not move or rename the file.
+Then the links from commits and ADRs continue to work.
 
 ## Status values
 
 | Status | Meaning |
 | --- | --- |
-| `Open` | Confirmed, not yet fixed |
-| `Investigating` | Root cause not yet established |
-| `Blocked` | Waiting on an external decision or dependency |
-| `Closed` | Fixed. A post-mortem may exist in [`../history/`](../history/) |
+| `Open` | The problem is confirmed. Nobody fixed it yet. |
+| `Investigating` | The root cause is not known yet. |
+| `Blocked` | The work waits for an external decision or an external dependency. |
+| `Closed` | The problem is fixed. A post-mortem can be in [`../history/`](../history/). |
 
 ## Severity values
 
 | Severity | Meaning |
 | --- | --- |
-| `Critical` | Blocks public launch, or breaks the core flow |
-| `High` | Wrong behaviour visible to users |
-| `Medium` | Correctness or hygiene issue with no direct user impact |
-| `Low` | Cosmetic or speculative |
+| `Critical` | The problem blocks the public launch, or it breaks the core flow. |
+| `High` | Users see wrong behavior. |
+| `Medium` | The problem is in correctness or code hygiene. Users do not see it directly. |
+| `Low` | The problem is cosmetic, or it is possible but not confirmed. |
+
+## Track values
+
+| Track | Meaning |
+| --- | --- |
+| `Bug` | The app gives a wrong result, fails, or stops. |
+| `Chore` | The problem is in the code, the tooling, or the process. The app gives correct results. |
+| `Feature` | The app works correctly, but it does not do something that it must do. |
 
 ## Index
 
@@ -32,7 +42,7 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [005](./005-input-tensor-dtype-mismatch.md) | Model inputs are built with TypedArrays that do not match their dtype | Closed | High |
 | [006](./006-opset-ceiling-rejects-runnable-models.md) | Opset ceiling of 21 rejects models the client could run | Closed | Medium |
 | [007](./007-zip-extraction-has-no-size-limit.md) | ZIP extraction has no decompressed-size limit | Closed | High |
-| [008](./008-ci-runs-no-tests.md) | CI runs no tests | Open | Medium |
+| [008](./008-ci-runs-no-tests.md) | CI runs no tests | Closed | Medium |
 | [009](./009-worker-failures-bypass-error-channel.md) | Worker failures outside the message channel are invisible to the UI | Closed | High |
 | [010](./010-subgraph-nodes-never-surfaced.md) | Nodes inside If/Loop/Scan subgraphs are never surfaced | Closed | Medium |
 | [011](./011-surgery-blocks-the-event-loop.md) | Graph surgery blocks the event loop and has no time bound | Closed | High |
@@ -44,11 +54,17 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 | [017](./017-non-batch-dynamic-axes-are-guessed.md) | Non-batch dynamic axes are guessed as 1 | Closed | Medium |
 | [018](./018-inference-memory-is-unbounded.md) | Inference memory is bounded only per input, and not at all on the output side | Closed | High |
 | [019](./019-loaded-model-bytes-are-never-read.md) | The uploaded model is kept in the store and never read | Open | Low |
+| [020](./020-replay-steps-one-node-at-a-time.md) | Replay steps one node at a time, even through independent branches | Closed | Low |
 
 ## Template
 
+Write the issue in ASD-STE100 English. See [`../guide/06_writing_standard.md`](../guide/06_writing_standard.md).
+
+- **Title:** Write the problem as a statement. Example: "Model load hangs after graph surgery".
+- **Resolution:** Add this section when you close the issue. Tell what changed and how you verified it.
+
 ```markdown
-# <Imperative, English title>
+# <The problem, as a statement>
 
 - **Status:** Open
 - **Severity:** High
@@ -61,4 +77,5 @@ updates its `Status` field so that references from commits and ADRs stay valid.
 ## Suspected cause
 ## Impact
 ## Resolution criteria
+## Resolution (YYYY-MM-DD)
 ```

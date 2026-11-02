@@ -18,10 +18,12 @@ const IDLE_HIDE_MS = 5000;
 
 export default function PlaybackBar() {
   const {
-    isActive, isPlaying, currentStep, totalSteps, playbackSpeed,
+    isActive, isPlaying, currentStep, totalSteps, playbackSpeed, traceData,
     startPlayback, pausePlayback, stopPlayback, seekStep,
     setCurrentStep, setPlaybackSpeed, closePlayback,
   } = usePlaybackStore();
+
+  const stepNodeCount = traceData[currentStep]?.nodeNames.length ?? 0;
 
   const [visible, setVisible] = useState(true);
   const [mouseOver, setMouseOver] = useState(false);
@@ -115,8 +117,14 @@ export default function PlaybackBar() {
       <div className="playback-progress-container">
         {/* -1 is the store's "not started" sentinel; rendering it as "Step 0"
             reads as a real step that does not exist. */}
+        {/* A step is a dependency level, so it can hold more than one node. The
+            count is stated rather than left for the viewer to infer — two nodes
+            lighting at once otherwise reads as "parallel", which is not what it
+            means. See docs/issues/020. */}
         <span className="step-display">
-          {currentStep < 0 ? 'Ready' : `Step ${currentStep + 1}`}
+          {currentStep < 0
+            ? 'Ready'
+            : `Step ${currentStep + 1}${stepNodeCount > 1 ? ` · ${stepNodeCount} nodes` : ''}`}
         </span>
         <input
           type="range"
@@ -128,7 +136,9 @@ export default function PlaybackBar() {
           aria-label="Playback position"
           onChange={(e) => setCurrentStep(Number(e.target.value))}
         />
-        <span className="step-display">{totalSteps} steps</span>
+        <span className="step-display" title="Nodes in a step have no dependency between them.">
+          {totalSteps} steps
+        </span>
       </div>
 
       <Button

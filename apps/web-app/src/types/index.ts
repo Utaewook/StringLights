@@ -64,8 +64,17 @@ export interface TensorStats {
 // ─── Playback Types ──────────────────────────────────────────────────────────
 
 export interface TraceStep {
-  nodeName: string;
-  outputTensorKey: string;
+  /**
+   * The nodes highlighted together at this step: all at the same dependency
+   * depth, so nothing in the list depends on anything else in it.
+   */
+  nodeNames: string[];
+  /**
+   * The depth this step was built from. Levels holding no traceable node are
+   * dropped, so this is not the step's index — it is kept because a skipped
+   * level is otherwise invisible in a failing test.
+   */
+  depth: number;
 }
 
 // ─── Worker Message Types ────────────────────────────────────────────────────
