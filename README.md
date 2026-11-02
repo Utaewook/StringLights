@@ -14,7 +14,7 @@
 StringLights promotes each intermediate tensor of your model to a graph output.
 Thus, one run of the model returns all of these tensors.
 StringLights runs the model in your browser. Then you can step through the forward pass
-one node at a time, with the tensor statistics of each step.
+one step at a time, with the tensor statistics of each step.
 
 The server only rewrites your model. It does not run the model, and it deletes the model
 after it sends the response.
@@ -66,7 +66,8 @@ graph output. Thus, one run gives you every tensor in the model
 2. **Inspect.** Click a node in the graph. The inspector shows the dtype and the shape of its
    tensor. It also shows the tensor statistics: the minimum, the maximum, the mean, the
    standard deviation, a flag for `NaN`, and a flag for `Inf`.
-3. **Playback.** Use the playback to step through the forward pass, one node at a time.
+3. **Playback.** Use the playback to step through the forward pass, one step at a time.
+   Each step is one dependency level, so it can hold more than one node.
    You can move forward or backward. Find the node where the values become wrong.
 
 <!-- TODO(assets): Add three screenshots: the upload panel, the inspector, and the
@@ -83,7 +84,7 @@ graph output. Thus, one run gives you every tensor in the model
   mean, and the standard deviation of each tensor. It also finds `NaN` and `Inf` values.
   It shows these values with the dtype and the shape that the model declares.
 - **Step-by-step playback.** The playback goes through the forward pass. You can play,
-  pause, step, and seek. The graph canvas highlights the active node.
+  pause, step, and seek. The graph canvas highlights the nodes of the active step.
 - **Synthetic inputs.** You do not need a dataset. The app gives the model zeros or random
   values, with a batch size that you select.
 - **WebGPU with an automatic WASM fallback.** The session reports its execution provider.

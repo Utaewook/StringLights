@@ -91,7 +91,7 @@ In this project, the word "backend" means the server only.
 | Tensor statistics | The minimum, maximum, mean, and standard deviation of a tensor, with a flag for `NaN` and a flag for `Inf` (`TensorStats`). | stats | 텐서 통계 |
 | Inspector | The panel that shows the dtype, the shape, and the tensor statistics of the selected node. | | 인스펙터 |
 | Playback | The feature that steps through the forward pass of the model. | replay | 재생 |
-| Playback step | One step of the playback. Each step shows one node. | replay step | 재생 단계 |
+| Playback step | One step of the playback. Each step is one dependency level, and it can hold more than one node. The nodes of a step have no dependency between them. | replay step | 재생 단계 |
 | Store | A Zustand store in `src/store/`. | | 스토어 |
 
 ### Project documents
