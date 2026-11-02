@@ -10,8 +10,7 @@ It does not read or write a model file name, a model content, or a tensor name.
 
 ## 1. Input formats
 
-The script needs the formats below. The monitoring tasks that write these logs are not in the repository yet.
-If a task writes a different format, change the field names in `log_summary.py`.
+The script reads the formats below. They match the code in `build/nginx/nginx.conf` and `apps/backend/app/metrics.py`.
 
 ### 1.1 nginx log
 
@@ -23,24 +22,30 @@ nginx writes one JSON object on each line. [08_monitoring_nginx.md](./08_monitor
 | `status` | The HTTP status code. |
 | `method` | The HTTP method. `request_method` also works. |
 | `uri` | The path of the request, without the query string. |
-| `request_length` | The size of the request in bytes. It includes the headers. |
 
 The script counts only `POST /api/surgery`. A line that is not valid JSON is skipped and counted.
+The script does not read the other fields. It does not use `request_length` for the upload size, because that value includes the headers.
 
 ### 1.2 Backend log
 
-The backend writes one line for each surgery. The line contains `event=surgery` and `key=value` pairs:
+The backend writes one line for each surgery request. The line contains `event=surgery` and `key=value` pairs:
 
 | Key | Meaning |
 | --- | --- |
-| `status` | `ok` for a success. Any other value is a failure. |
-| `duration_ms` | The time of the surgery, without the wait. |
-| `wait_ms` | The time that the request waited for the semaphore. |
-| `queue_depth` | The number of requests in the queue at the start. |
-| `ts` | Optional. The time of the event. |
+| `ts` | The time of the event, in UTC, for example `2026-11-02T10:00:05Z`. |
+| `outcome` | `ok`, `rejected`, `bad_zip`, `too_large`, `timeout`, `failed`, or `abandoned`. |
+| `status` | The HTTP status code. The script does not read it. |
+| `upload_mb_bucket` | The upload size range in MB: `<1`, `1-5`, `5-10`, `10-25`, `25-50`, `>=50`, or `unknown`. |
+| `queue_depth_on_arrival` | The number of requests ahead of this request when it arrived. |
+| `queue_wait_ms` | The time that the request waited for the semaphore. |
+| `surgery_ms` | The time of the surgery, without the wait. |
+| `total_ms` | The time of the whole request. The script does not read it. |
+| `node_count_bucket` | The node count range: `<10`, `10-49`, `50-199`, `200-999`, `>=1000`, or `unknown`. |
 
-If `ts` is absent, the script reads the time at the start of the line. It accepts `2026-11-02 10:00:05,123` and `2026-11-02T10:00:05Z`.
-A time without a zone is UTC.
+The script ignores a line without `event=surgery`. A line without a valid `ts` is skipped and counted.
+The script keeps a value that it does not know, for example a new `outcome`, and shows it in the output.
+
+The backend writes this line to the error stream of the container. Run `docker logs string_lights_backend 2>&1` to get it.
 
 ### 1.3 Docker inspect
 
@@ -73,16 +78,27 @@ A file that ends in `.gz` is read as gzip. The name `-` means standard input.
 
 The first five lines of the Markdown are the short summary for a phone:
 
-1. Uploads and requests.
-2. Failures by status code.
-3. Surgery time: average, p95, and maximum.
-4. Wait time and the maximum queue depth.
+1. Uploads and requests, from the nginx log.
+2. Failures by status code, from the nginx log.
+3. Surgery time of the requests with `outcome=ok`: average, p95, and maximum.
+4. Wait time and the maximum `queue_depth_on_arrival`. Only a request that reached the semaphore has a wait time.
 5. Container restarts and OOM kills.
 
-The details follow. They give the upload size distribution, the failure rate for 400, 413, 429, 500, and 504, and the containers.
-The failure rate is the count of a status code divided by the count of `POST /api/surgery` requests.
+The details follow. They give these items:
 
-The script keeps the size and time values in arrays of numbers. The memory use is about 8 bytes for each surgery request.
+- The count of each backend `outcome`.
+- The distribution of `upload_mb_bucket` and `node_count_bucket`. The script counts the bucket labels. It does not know the exact sizes.
+- The failure rate for 400, 413, 429, 500, and 504. It is the count of a status code divided by the count of `POST /api/surgery` requests in the nginx log.
+- The containers.
+
+The backend log does not contain a request that nginx rejects before it reaches the backend, for example a 413. The nginx log has these requests.
+
+The script keeps the time values in arrays of numbers. The memory use is about 8 bytes for each surgery request.
+
+### 3.1 Limit of the Docker log
+
+Docker keeps up to 30MB of log for each container (`max-size: 10m`, `max-file: 3`). When the limit is full, Docker removes the oldest lines.
+A weekly summary can miss the first days of the week. Run the script each day, or save the logs before they rotate.
 
 ---
 
@@ -91,11 +107,11 @@ The script keeps the size and time values in arrays of numbers. The memory use i
 This example is not installed. An administrator must decide where the logs are.
 
 ```cron
-10 0 * * * docker inspect string_lights_backend string_lights_nginx > /var/tmp/inspect.json && docker logs --since 24h string_lights_backend > /var/tmp/backend.log 2>&1 && python3 /home/ubuntu/string_lights/scripts/log_summary.py --nginx /var/log/nginx/access.log --backend /var/tmp/backend.log --inspect /var/tmp/inspect.json --out-dir /var/tmp/string_lights_summary
+10 0 * * * docker inspect string_lights_backend string_lights_nginx > /var/tmp/inspect.json && docker logs --since 24h string_lights_backend > /var/tmp/backend.log 2>&1 && docker logs --since 24h string_lights_nginx 2>/dev/null > /var/tmp/access.log && python3 /home/ubuntu/string_lights/scripts/log_summary.py --nginx /var/tmp/access.log --backend /var/tmp/backend.log --inspect /var/tmp/inspect.json --out-dir /var/tmp/string_lights_summary
 ```
 
-The nginx log is not a file on the host. The container sends it to Docker. Run `docker logs string_lights_nginx 2>/dev/null` and save the output. See [08_monitoring_nginx.md](./08_monitoring_nginx.md).
-Rotate the log files. The script ignores lines outside the period.
+The nginx log is not a file on the host. The container sends it to Docker. Use `docker logs string_lights_nginx 2>/dev/null`, as the example does. See [08_monitoring_nginx.md](./08_monitoring_nginx.md).
+The script ignores lines outside the period.
 
 ---
 
