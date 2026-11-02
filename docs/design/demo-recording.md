@@ -1,9 +1,10 @@
 # Demo Recording
 
-- **Status:** Rehearsed on 2026-10-17. The recording waits for
-  [issue 020](../issues/020-replay-steps-one-node-at-a-time.md) (nodes at the same depth highlight together).
+- **Status:** Rehearsed on 2026-10-17. The project closed
+  [issue 020](../issues/020-replay-steps-one-node-at-a-time.md) on 2026-11-02 (nodes at the same depth highlight together).
+  The rehearsal used the old replay with one step for each node. The recording is not made yet. Rehearse again with the depth-based replay first.
 - **Owner:** @Utaewook
-- **Last updated:** 2026-10-26
+- **Last updated:** 2026-11-02
 
 This document is the plan for the demo GIF and the three screenshots of the README.
 The README marks their locations with `TODO(assets)` comments. See [`../../README.md`](../../README.md).
@@ -103,7 +104,7 @@ For [issue 018](../issues/018-inference-memory-is-unbounded.md): a model of this
 | 2 | Select **Random tensors**. Click **Run inference**. | Approximately 2 s |
 | — | Inference, the Explorer collapse, and the zoom to the Fire module: **remove** in the edit | 0 s |
 | 3 | Click a Relu node in the frame (`relu2_fwd`). The inspector shows the dtype, the shape, and the minimum, maximum, mean, and `std`. The output minimum is 0. | Approximately 4 s |
-| 4 | Start the playback at **1x** from step 0. The highlight comes into the frame at step 3 and gets to `concat0` at step 9. It goes through the upper branch before the lower branch. Pause on `concat0`. | Approximately 5 s |
+| 4 | Start the playback at **1x** from step 0. The highlight comes into the frame at step 3 and gets to `concat0` at step 9. The two branches of the module light up in the same steps. Pause on `concat0`. | Approximately 5 s |
 | 5 | Wait a short time, so that the start of the next loop is not sudden. | Approximately 1 s |
 
 The total is approximately 15 s. After the GIF take, take the three screenshots in the same session.
