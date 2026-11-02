@@ -15,7 +15,7 @@ If a task writes a different format, change the field names in `log_summary.py`.
 
 ### 1.1 nginx log
 
-nginx writes one JSON object on each line. The script reads these fields:
+nginx writes one JSON object on each line. [08_monitoring_nginx.md](./08_monitoring_nginx.md) gives the full format. The script reads these fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -94,7 +94,7 @@ This example is not installed. An administrator must decide where the logs are.
 10 0 * * * docker inspect string_lights_backend string_lights_nginx > /var/tmp/inspect.json && docker logs --since 24h string_lights_backend > /var/tmp/backend.log 2>&1 && python3 /home/ubuntu/string_lights/scripts/log_summary.py --nginx /var/log/nginx/access.log --backend /var/tmp/backend.log --inspect /var/tmp/inspect.json --out-dir /var/tmp/string_lights_summary
 ```
 
-The nginx log is inside the nginx container unless the host mounts it. Mount the log directory, or run `docker logs` for the nginx container.
+The nginx log is not a file on the host. The container sends it to Docker. Run `docker logs string_lights_nginx 2>/dev/null` and save the output. See [08_monitoring_nginx.md](./08_monitoring_nginx.md).
 Rotate the log files. The script ignores lines outside the period.
 
 ---

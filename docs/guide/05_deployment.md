@@ -31,6 +31,9 @@ nginx applies two limits. The backend also applies its own limits.
 - `client_max_body_size 55M`. This value is the same as the request limit of the backend. It is more than the upload limit of 50MB, because the multipart format adds data around the file.
 - `proxy_read_timeout 120s`. The surgery timeout of the backend (90 seconds) is shorter. Thus, a slow surgery gives the `504` of the backend, with a useful message.
 
+nginx reads the real user IP from Cloudflare and writes the access log as JSON. Docker rotates the logs of both containers.
+See [08_monitoring_nginx.md](./08_monitoring_nginx.md).
+
 nginx also sets `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` on the static route.
 [ADR 0002](../decisions/0002-coep-require-corp.md) requires these headers for `SharedArrayBuffer` and for WASM with threads.
 
