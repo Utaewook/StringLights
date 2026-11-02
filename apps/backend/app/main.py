@@ -7,6 +7,7 @@ import zipfile
 import asyncio
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status, BackgroundTasks
 from fastapi.responses import FileResponse
+from app.metrics import QueueCounter, SurgeryLog
 from app.middleware import ContentLengthLimitMiddleware
 from app.services.archive import ArchiveRejected, extract_bounded
 from app.services.isolation import (
@@ -24,6 +25,7 @@ app = FastAPI(title="StringLights Backend", version="2.2.0")
 # (build/docker-compose.yml), not the host's 512MB — the host also carries the
 # frontend container and the OS. See docs/issues/012.
 surgery_semaphore = asyncio.Semaphore(1)
+queue_counter = QueueCounter()
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB, measured on the uploaded archive
 
@@ -40,6 +42,12 @@ SURGERY_TIMEOUT_SECONDS = 90
 TEMP_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temp")
 
 
+def _http_error(rec: SurgeryLog, outcome: str, code: int, detail: str) -> HTTPException:
+    """Logs the outcome of a refused request and returns the error to raise."""
+    rec.emit(outcome, code)
+    return HTTPException(status_code=code, detail=detail)
+
+
 def cleanup_directory(path: str) -> None:
     """Safely removes a temporary directory."""
     if os.path.exists(path):
@@ -52,22 +60,25 @@ async def perform_surgery(
     file: UploadFile = File(...),
     perform_surgery: bool = Form(True),
 ):
+    rec = SurgeryLog(queue_depth=queue_counter.depth_on_arrival(surgery_semaphore))
+
     # 1. Early validation of file size
     file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()
     file.file.seek(0)
+    rec.upload_bytes = file_size
 
     if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Uploaded ZIP file size exceeds the 50MB limit (Uploaded: {file_size / (1024*1024):.2f}MB)",
+        raise _http_error(
+            rec, "too_large", status.HTTP_400_BAD_REQUEST,
+            f"Uploaded ZIP file size exceeds the 50MB limit (Uploaded: {file_size / (1024*1024):.2f}MB)",
         )
 
     # Verify file extension is ZIP
     if not file.filename.lower().endswith(".zip"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only ZIP archive file uploads are supported.",
+        raise _http_error(
+            rec, "rejected", status.HTTP_400_BAD_REQUEST,
+            "Only ZIP archive file uploads are supported.",
         )
 
     # 2. Setup temporary workspace
@@ -79,8 +90,17 @@ async def perform_surgery(
     extract_dir = os.path.join(temp_dir, "extracted")
     os.makedirs(extract_dir, exist_ok=True)
 
-    # Acquire Semaphore to serialize graph manipulation
-    async with surgery_semaphore:
+    # Acquire Semaphore to serialize graph manipulation. The counter sees the
+    # wait; it falls again on acquire, on cancel, and on any exception.
+    rec.wait_started()
+    try:
+        await queue_counter.acquire(surgery_semaphore)
+    except asyncio.CancelledError:
+        cleanup_directory(temp_dir)
+        rec.emit("abandoned", 499)
+        raise
+    rec.wait_ended()
+    try:
         try:
             # Write zip upload stream to temp path
             with open(zip_path, "wb") as buffer:
@@ -91,27 +111,26 @@ async def perform_surgery(
             try:
                 extract_bounded(zip_path, extract_dir)
             except zipfile.BadZipFile:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid ZIP archive file.",
+                raise _http_error(
+                    rec, "bad_zip", status.HTTP_400_BAD_REQUEST,
+                    "Invalid ZIP archive file.",
                 )
             except ArchiveRejected as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(e),
+                raise _http_error(
+                    rec, "rejected", status.HTTP_400_BAD_REQUEST, str(e),
                 )
 
             # Find the single ONNX file
             onnx_files = [f for f in os.listdir(extract_dir) if f.lower().endswith(".onnx")]
             if len(onnx_files) == 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No ONNX model (.onnx) found in the ZIP archive.",
+                raise _http_error(
+                    rec, "rejected", status.HTTP_400_BAD_REQUEST,
+                    "No ONNX model (.onnx) found in the ZIP archive.",
                 )
             elif len(onnx_files) > 1:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Multiple ONNX models found. The ZIP archive must contain exactly one .onnx file.",
+                raise _http_error(
+                    rec, "rejected", status.HTTP_400_BAD_REQUEST,
+                    "Multiple ONNX models found. The ZIP archive must contain exactly one .onnx file.",
                 )
 
             onnx_filename  = onnx_files[0]
@@ -120,6 +139,7 @@ async def perform_surgery(
 
             # 3. Perform Graph Surgery (or copy) and get metadata
             if perform_surgery:
+                rec.surgery_started()
                 try:
                     graph_meta = await run_surgery_isolated(
                         input_onnx_path,
@@ -128,20 +148,22 @@ async def perform_surgery(
                         timeout_seconds=SURGERY_TIMEOUT_SECONDS,
                     )
                 except SurgeryRejected as e:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=str(e),
+                    rec.surgery_ended()
+                    raise _http_error(
+                        rec, "rejected", status.HTTP_400_BAD_REQUEST, str(e),
                     )
                 except SurgeryTimeout as e:
-                    raise HTTPException(
-                        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                        detail=str(e),
+                    rec.surgery_ended()
+                    raise _http_error(
+                        rec, "timeout", status.HTTP_504_GATEWAY_TIMEOUT, str(e),
                     )
                 except SurgeryFailed as e:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=str(e),
+                    rec.surgery_ended()
+                    raise _http_error(
+                        rec, "failed", status.HTTP_500_INTERNAL_SERVER_ERROR, str(e),
                     )
+                rec.surgery_ended()
+                rec.node_count = len(graph_meta.get("nodes", []))
             else:
                 shutil.copy2(input_onnx_path, output_onnx_path)
                 graph_meta = {}
@@ -156,6 +178,8 @@ async def perform_surgery(
             # Register background task to clean up after sending response
             background_tasks.add_task(cleanup_directory, temp_dir)
 
+            rec.emit("ok", status.HTTP_200_OK)
+
             # Return ZIP file stream
             return FileResponse(
                 output_zip_path,
@@ -163,10 +187,15 @@ async def perform_surgery(
                 filename=f"modified_{onnx_filename}.zip",
             )
 
+        except asyncio.CancelledError:
+            cleanup_directory(temp_dir)
+            rec.emit("abandoned", 499)
+            raise
         except Exception as e:
             cleanup_directory(temp_dir)
             if isinstance(e, HTTPException):
                 raise e
+            rec.emit("failed", status.HTTP_500_INTERNAL_SERVER_ERROR)
             # The client gets a stable message; the traceback goes to the
             # container log. Exceptions from onnx.load and protobuf embed the
             # path they were handed, which here is /app/temp/<uuid>/... — that
@@ -177,6 +206,8 @@ async def perform_surgery(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="The server could not process this model. Please try again.",
             )
+    finally:
+        surgery_semaphore.release()
 
 
 @app.get("/api/health")

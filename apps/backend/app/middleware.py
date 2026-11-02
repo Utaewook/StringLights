@@ -4,6 +4,8 @@ from typing import Any, Awaitable, Callable
 
 from starlette.responses import JSONResponse
 
+from app.metrics import SurgeryLog
+
 Scope = dict[str, Any]
 Receive = Callable[[], Awaitable[dict[str, Any]]]
 Send = Callable[[dict[str, Any]], Awaitable[None]]
@@ -45,6 +47,8 @@ class ContentLengthLimitMiddleware:
 
         length = _content_length(scope)
         if length is not None and length > self.max_bytes:
+            if scope.get("path") == "/api/surgery":
+                SurgeryLog(upload_bytes=length).emit("too_large", 413)
             limit_mb = self.max_bytes / (1024 * 1024)
             response = JSONResponse(
                 {"detail": f"Request body exceeds the {limit_mb:.0f}MB limit."},
