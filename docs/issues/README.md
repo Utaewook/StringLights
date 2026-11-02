@@ -54,7 +54,7 @@ Then the links from commits and ADRs continue to work.
 | [017](./017-non-batch-dynamic-axes-are-guessed.md) | Non-batch dynamic axes are guessed as 1 | Closed | Medium |
 | [018](./018-inference-memory-is-unbounded.md) | Inference memory is bounded only per input, and not at all on the output side | Closed | High |
 | [019](./019-loaded-model-bytes-are-never-read.md) | The uploaded model is kept in the store and never read | Open | Low |
-| [020](./020-replay-steps-one-node-at-a-time.md) | Replay steps one node at a time, even through independent branches | Open | Low |
+| [020](./020-replay-steps-one-node-at-a-time.md) | Replay steps one node at a time, even through independent branches | Closed | Low |
 
 ## Template
 
