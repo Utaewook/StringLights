@@ -1,6 +1,6 @@
 # Replay steps one node at a time, even through independent branches
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Low
 - **Track:** Feature
 - **Found:** 2026-10-17
@@ -117,3 +117,14 @@ and read nowhere — `grep` across `src` finds the type declaration and the assi
 nothing else. What is load-bearing is the *filter* that computes it, and that stays. This
 is the same class of dead state as [019](./019-loaded-model-bytes-are-never-read.md), but
 it is removed here rather than filed, because `TraceStep` is being rewritten anyway.
+
+## Resolution
+
+Closed on 2026-11-02. Commit `3611151` made the change.
+`buildReplaySteps` in `apps/web-app/src/utils/replaySteps.ts` groups the nodes by depth.
+`playbackStore.ts` uses it on every playhead path.
+`PlaybackBar.tsx` shows the number of nodes in a step and the text "Nodes in a step have no dependency between them."
+The unit tests in `replaySteps.test.ts` and `playbackStore.test.ts` cover the diamond, the chain, and the four playhead paths.
+
+The re-recording of the demo GIF is not part of this issue.
+It follows [the demo plan](../design/demo-recording.md).
