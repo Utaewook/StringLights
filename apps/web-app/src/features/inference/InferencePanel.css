@@ -1,7 +1,7 @@
 /* File chips — the staged-upload list.
    Feature-local: these rules replace the chip block that used to live in App.css.
 
-   The surface map called for `Badge`, but a chip here is a list row carrying an
+   The map in "Components for each surface" called for `Badge`, but a chip here is a list row carrying an
    icon, a filename, a size and a remove control — not a label. It takes the Card
    treatment instead, and only the role tint follows the Badge pattern: a 10%
    tint, never a solid slab. Role is never signalled by colour alone; each role

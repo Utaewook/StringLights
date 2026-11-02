@@ -2,7 +2,7 @@
    Legacy bridge — TEMPORARY
    ══════════════════════════════════════════════════════════════════════════════
 
-   `App.css` declares its own token block and 164 one-off class rules. Rather than
+   `App.css` declares its own token block and many one-off class rules. Rather than
    rewrite all of it at once, this file re-points those legacy variables at design
    system tokens, so every existing rule renders in the new palette untouched.
 
@@ -11,7 +11,7 @@
    the import in `main.tsx` sits after `App.tsx`. Do not reorder it.
 
    ── This file is meant to shrink ──────────────────────────────────────────────
-   As each surface is converted (Phase 2), delete the entries it needed. When this
+   As each surface moves out of App.css (Phase 3), delete the entries it needed. When this
    file is empty, the migration is done. See docs/design/direction.md.
    ══════════════════════════════════════════════════════════════════════════════ */
 
@@ -102,7 +102,7 @@ body {
 /* ── Surfaces hardcoded outside the token block ──────────────────────────────
    App.css paints several surfaces with literal navy rgba() values rather than a
    variable, so re-pointing the tokens alone leaves them behind. These map onto the
-   system's surface roles; each line goes away with its surface in Phase 2. */
+   system's surface roles; each line goes away with its surface in Phase 3. */
 
 .app-header {
   /* The one transparency effect the system permits: background/80 + blur */
