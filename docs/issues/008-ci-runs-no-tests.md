@@ -1,6 +1,6 @@
 # CI runs no tests
 
-- **Status:** Open
+- **Status:** Closed
 - **Severity:** Medium
 - **Track:** Chore
 - **Found:** 2026-08-22
@@ -142,10 +142,24 @@ They are now the test suite.
 **Mutation-checked.** Removing the `continue` that skips `Infinity` in `computeStats` —
 which is precisely the defect 002 was filed for — fails three tests and no others.
 
-## Criterion 3 not met — 008 stays Open
+## Criterion 3 not met as of 2026-09-19
 
 Coverage is not reported, so the 80% target is still aspirational. That needs
 `@vitest/coverage-v8`, a second dev dependency, and this project's rules require an
 explicit approval per package. The approval given covered `vitest`. Asking for one more
 is a smaller question than it was — the runner exists and the tests are written — but it
 has not been asked yet, so the criterion is recorded as unmet rather than waved through.
+
+## Resolution (2026-11-02)
+
+The pipeline now runs all the checks that the first two criteria need.
+The `test-and-lint` job in `.github/workflows/deploy.yml` runs ESLint, `tsc -b --force`, the frontend tests (`npm test`), and the backend tests in `build/test.Dockerfile`.
+`build-and-push` and `deploy` need this job. A failed test blocks the deploy.
+
+- Criterion 1 is met. The backend tests run in CI under the memory limit of production.
+- Criterion 2 is met. Vitest covers `src/utils/` and the stores.
+- Criterion 3 is not met. Nobody added a coverage report, so the 80% target is still not measurable.
+
+This issue is closed because the pipeline no longer deploys untested code.
+Criterion 3 needs `@vitest/coverage-v8`, and the project needs an explicit approval for each new package.
+Open a new issue if the project wants the coverage report.
