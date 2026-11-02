@@ -8,6 +8,11 @@ services:
     restart: always
     expose:
       - "8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -29,6 +34,11 @@ services:
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
