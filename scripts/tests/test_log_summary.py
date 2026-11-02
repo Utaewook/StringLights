@@ -15,8 +15,11 @@ MB = 1024 * 1024
 
 
 def nginx(time, status, size=MB, uri="/api/surgery", method="POST"):
-    return json.dumps(
-        {"time": time, "status": status, "method": method, "uri": uri, "request_length": size}
+    # Same field order and types as the log_format in build/nginx/nginx.conf.
+    return (
+        f'{{"time":"{time}","ip_anon":"203.0.113.0","method":"{method}","uri":"{uri}",'
+        f'"status":{status},"request_length":{size},"bytes_sent":512,"request_time":0.250,'
+        f'"upstream_response_time":"0.240","ua":"Mozilla/5.0","referer":""}}'
     )
 
 
@@ -30,12 +33,24 @@ NGINX = [
     nginx("2026-11-01T23:59:59+00:00", 200, MB),  # previous day
     "not json",
 ]
+
+
+def backend(ts, outcome, status, upload="1-5", depth=0, wait=0, surgery=0, nodes="10-49"):
+    # Same layout as SurgeryLog.emit in apps/backend/app/metrics.py.
+    return (
+        f"event=surgery ts={ts} outcome={outcome} status={status} upload_mb_bucket={upload} "
+        f"queue_depth_on_arrival={depth} queue_wait_ms={wait} surgery_ms={surgery} "
+        f"total_ms={wait + surgery} node_count_bucket={nodes}"
+    )
+
+
 BACKEND = [
-    "2026-11-02 10:00:05,123 INFO event=surgery status=ok duration_ms=2000 wait_ms=0 queue_depth=1",
-    "2026-11-02T11:00:09Z event=surgery status=ok duration_ms=8000 wait_ms=1500 queue_depth=3",
-    "2026-11-02T14:00:30Z event=surgery status=timeout duration_ms=60000 wait_ms=500 queue_depth=2",
-    "2026-11-02T14:00:31Z other line",
-    "2026-11-03T00:00:00Z event=surgery status=ok duration_ms=1 wait_ms=0 queue_depth=9",
+    backend("2026-11-02T10:00:05Z", "ok", 200, "1-5", 1, 0, 2000, "10-49"),
+    backend("2026-11-02T11:00:09Z", "ok", 200, "25-50", 3, 1500, 8000, "200-999"),
+    backend("2026-11-02T14:00:30Z", "timeout", 504, "5-10", 2, 500, 60000, "50-199"),
+    backend("2026-11-02T13:00:01Z", "bad_zip", 400, "<1", 0, 0, 0, "unknown"),
+    "INFO:     10.0.0.1 - \"POST /api/surgery HTTP/1.1\" 200 OK",
+    backend("2026-11-03T00:00:00Z", "ok", 200, "1-5", 9, 0, 1),
 ]
 INSPECT = [
     {"Name": "/string_lights_backend", "RestartCount": 2,
@@ -67,20 +82,39 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(data["failure_rates"]["400"], 0.2)
         self.assertEqual(data["skipped_lines"]["nginx"], 1)
 
-    def test_size_distribution(self):
+    def test_bucket_distribution(self):
         data = build().as_dict()
-        self.assertEqual(data["upload_size_buckets"]["<1MB"], 1)
-        self.assertEqual(data["upload_size_buckets"][">=50MB"], 1)
-        self.assertEqual(data["upload_size_bytes"]["max"], 60 * MB)
+        self.assertEqual(
+            data["upload_mb_buckets"],
+            {"<1": 1, "1-5": 1, "5-10": 1, "10-25": 0, "25-50": 1, ">=50": 0, "unknown": 0},
+        )
+        self.assertEqual(data["node_count_buckets"]["200-999"], 1)
+        self.assertEqual(data["node_count_buckets"]["unknown"], 1)
+
+    def test_outcomes(self):
+        data = build().as_dict()
+        self.assertEqual(data["surgery_log_count"], 4)
+        self.assertEqual(data["outcomes"]["ok"], 2)
+        self.assertEqual(data["outcomes"]["timeout"], 1)
+        self.assertEqual(data["outcomes"]["bad_zip"], 1)
 
     def test_surgery_time_and_queue(self):
         data = build().as_dict()
-        self.assertEqual(data["surgery_log_count"], 3)
-        self.assertEqual(data["surgery_log_failed"], 1)
-        self.assertEqual(data["surgery_seconds"]["avg"], round(70 / 3, 3))
-        self.assertEqual(data["surgery_seconds"]["max"], 60)
+        # Only outcome=ok counts for surgery time.
+        self.assertEqual(data["surgery_seconds"]["count"], 2)
+        self.assertEqual(data["surgery_seconds"]["avg"], 5.0)
+        # bad_zip never waited, so it stays out of the wait stats.
+        self.assertEqual(data["wait_seconds"]["count"], 3)
         self.assertEqual(data["wait_seconds"]["max"], 1.5)
         self.assertEqual(data["max_queue_depth"], 3)
+
+    def test_unknown_outcome_and_bucket_are_kept(self):
+        start, end, _ = ls.build_period("day", date(2026, 11, 2))
+        summary = ls.Summary(start, end)
+        summary.add_backend(backend("2026-11-02T10:00:00Z", "weird", 200, "999"))
+        data = summary.as_dict()
+        self.assertEqual(data["outcomes"]["weird"], 1)
+        self.assertEqual(data["upload_mb_buckets"]["999"], 1)
 
     def test_week_includes_previous_day(self):
         data = build("week").as_dict()

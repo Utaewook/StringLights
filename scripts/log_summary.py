@@ -21,9 +21,12 @@ from pathlib import Path
 
 SURGERY_PATH = "/api/surgery"
 TRACKED_STATUS = (400, 413, 429, 500, 504)
-MB = 1024 * 1024
-# Upper bounds of the upload size buckets, in bytes. The last bucket is open.
-SIZE_BUCKETS = (1 * MB, 5 * MB, 10 * MB, 25 * MB, 50 * MB)
+# Bucket labels as the backend writes them (apps/backend/app/metrics.py).
+UPLOAD_BUCKETS = ("<1", "1-5", "5-10", "10-25", "25-50", ">=50", "unknown")
+NODE_BUCKETS = ("<10", "10-49", "50-199", "200-999", ">=1000", "unknown")
+OUTCOMES = ("ok", "rejected", "bad_zip", "too_large", "timeout", "failed", "abandoned")
+# Outcomes of a request that held or asked for the semaphore.
+WAITED = frozenset({"ok", "timeout", "failed", "abandoned"})
 
 _TS_RE = re.compile(
     r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:[.,]\d+)?(Z|[+-]\d{2}:?\d{2})?"
@@ -80,19 +83,11 @@ def stats(values) -> dict | None:
     }
 
 
-def bucket_label(index: int) -> str:
-    if index == 0:
-        return f"<{SIZE_BUCKETS[0] // MB}MB"
-    if index == len(SIZE_BUCKETS):
-        return f">={SIZE_BUCKETS[-1] // MB}MB"
-    return f"{SIZE_BUCKETS[index - 1] // MB}-{SIZE_BUCKETS[index] // MB}MB"
-
-
-def bucket_index(size: float) -> int:
-    for index, bound in enumerate(SIZE_BUCKETS):
-        if size < bound:
-            return index
-    return len(SIZE_BUCKETS)
+def ordered_counts(counts: dict, known) -> dict:
+    """Known labels first, in their fixed order. Unknown labels follow."""
+    result = {label: counts.get(label, 0) for label in known}
+    result.update({k: v for k, v in sorted(counts.items()) if k not in result})
+    return result
 
 
 class Summary:
@@ -102,10 +97,10 @@ class Summary:
         self.requests = 0
         self.uploads = 0
         self.status = {code: 0 for code in TRACKED_STATUS}
-        self.sizes = array("d")
-        self.size_buckets = [0] * (len(SIZE_BUCKETS) + 1)
         self.surgery_total = 0
-        self.surgery_failed = 0
+        self.outcomes: dict[str, int] = {}
+        self.upload_buckets: dict[str, int] = {}
+        self.node_buckets: dict[str, int] = {}
         self.durations = array("d")
         self.waits = array("d")
         self.max_queue = 0
@@ -137,10 +132,6 @@ class Summary:
             self.status[code] += 1
         if code == 200:
             self.uploads += 1
-        size = to_float(row.get("request_length"))
-        if size is not None:
-            self.sizes.append(size)
-            self.size_buckets[bucket_index(size)] += 1
 
     def add_backend(self, line: str) -> None:
         if "event=surgery" not in line:
@@ -153,15 +144,21 @@ class Summary:
         if not self.in_range(moment):
             return
         self.surgery_total += 1
-        if fields.get("status", "ok") != "ok":
-            self.surgery_failed += 1
-        duration = to_float(fields.get("duration_ms"))
-        if duration is not None:
-            self.durations.append(duration / 1000)
-        wait = to_float(fields.get("wait_ms"))
-        if wait is not None:
+        outcome = fields.get("outcome", "unknown")
+        self.outcomes[outcome] = self.outcomes.get(outcome, 0) + 1
+        for key, counts in (
+            ("upload_mb_bucket", self.upload_buckets),
+            ("node_count_bucket", self.node_buckets),
+        ):
+            label = fields.get(key, "unknown")
+            counts[label] = counts.get(label, 0) + 1
+        surgery = to_float(fields.get("surgery_ms"))
+        if outcome == "ok" and surgery is not None:
+            self.durations.append(surgery / 1000)
+        wait = to_float(fields.get("queue_wait_ms"))
+        if outcome in WAITED and wait is not None:
             self.waits.append(wait / 1000)
-        depth = to_float(fields.get("queue_depth"))
+        depth = to_float(fields.get("queue_depth_on_arrival"))
         if depth is not None:
             self.max_queue = max(self.max_queue, int(depth))
 
@@ -196,12 +193,10 @@ class Summary:
             },
             "requests": self.requests,
             "uploads": self.uploads,
-            "upload_size_bytes": stats(self.sizes),
-            "upload_size_buckets": {
-                bucket_label(i): n for i, n in enumerate(self.size_buckets)
-            },
+            "upload_mb_buckets": ordered_counts(self.upload_buckets, UPLOAD_BUCKETS),
+            "node_count_buckets": ordered_counts(self.node_buckets, NODE_BUCKETS),
             "surgery_log_count": self.surgery_total,
-            "surgery_log_failed": self.surgery_failed,
+            "outcomes": ordered_counts(self.outcomes, OUTCOMES),
             "surgery_seconds": stats(self.durations),
             "wait_seconds": stats(self.waits),
             "max_queue_depth": self.max_queue,
@@ -223,7 +218,6 @@ def render_markdown(summary: Summary, label: str) -> str:
     total_failed = sum(summary.status.values())
     restarts = sum(c["restarts"] for c in summary.containers)
     oom = sum(1 for c in summary.containers if c["oom_killed"])
-    size = data["upload_size_bytes"]
     lines = [
         f"# StringLights {label}",
         "",
@@ -231,7 +225,7 @@ def render_markdown(summary: Summary, label: str) -> str:
         f"- Failures: {total_failed} (" + ", ".join(
             f"{c} x{n}" for c, n in summary.status.items() if n
         ) + ")" if total_failed else "- Failures: 0",
-        f"- Surgery: {fmt_stats(data['surgery_seconds'])}",
+        f"- Surgery (ok): {fmt_stats(data['surgery_seconds'])}",
         f"- Wait: {fmt_stats(data['wait_seconds'])}, max queue {data['max_queue_depth']}",
         (
             f"- Containers: {restarts} restarts, {oom} OOM"
@@ -241,15 +235,14 @@ def render_markdown(summary: Summary, label: str) -> str:
         "",
         "## Details",
         "",
-        "Upload size: "
-        + (
-            f"avg {size['avg'] / MB:.1f}MB, p95 {size['p95'] / MB:.1f}MB, max {size['max'] / MB:.1f}MB"
-            if size
-            else "no data"
-        ),
+        "Backend outcomes (" + str(data["surgery_log_count"]) + " lines):",
         "",
     ]
-    lines += [f"- {k}: {v}" for k, v in data["upload_size_buckets"].items()]
+    lines += [f"- {k}: {v}" for k, v in data["outcomes"].items() if v]
+    lines += ["", "Upload size (MB), from backend buckets:", ""]
+    lines += [f"- {k}: {v}" for k, v in data["upload_mb_buckets"].items() if v]
+    lines += ["", "Node count, from backend buckets:", ""]
+    lines += [f"- {k}: {v}" for k, v in data["node_count_buckets"].items() if v]
     lines += ["", "Failure rate per surgery request:", ""]
     lines += [
         f"- {c}: {n} ({data['failure_rates'][c] * 100:.1f}%)"
